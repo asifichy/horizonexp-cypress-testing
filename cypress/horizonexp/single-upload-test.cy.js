@@ -711,6 +711,16 @@ describe('HorizonExp Single Upload Test Suite', () => {
         
         cy.log('🎉 All metadata fields successfully validated!');
       } else {
+        // Check if upload was successful even without all metadata
+        cy.get('body').then($body => {
+          const bodyText = $body.text();
+          if (bodyText.includes('Ready to publish') || 
+              bodyText.includes('100%') || 
+              bodyText.includes('uploaded')) {
+            cy.log('✅ Upload completed successfully - Video is ready to publish');
+            cy.log('ℹ️ Note: Some metadata may not be immediately available but upload was successful');
+          }
+        });
         cy.log('⚠️ WARNING: Not all metadata fields found. Upload may not be complete.');
         cy.log(`   Found: thumbnailurl=${hasThumbnail}, videourl=${hasVideo}, previewurl=${hasPreview}`);
         
