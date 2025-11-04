@@ -10,6 +10,5 @@ module.exports = defineConfig({
       "cypress/horizonexp/**/*.cy.{js,jsx,ts,tsx}"
     ],
     chromeWebSecurity: false,
-    experimentalSessionAndOrigin: true,
   },
 });
