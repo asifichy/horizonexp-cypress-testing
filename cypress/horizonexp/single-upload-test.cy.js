@@ -4,7 +4,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     baseUrl: 'https://app.horizonexp.com/signin',
     userEmail: 'kitif59597@limtu.com',
     userPassword: '12345@test',
-    humanDelay: 2000, // 2 seconds delay for human-like behavior
+    humanDelay: 3000, // 3 seconds delay for human-like behavior
     uploadTimeout: 30000,
     uploadFile: {
       path: 'C:\\Users\\user\\Downloads\\SPAM\\0.mp4',
@@ -312,8 +312,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // Wait for authentication to complete
-    humanWait(3000);
+    // Wait for authentication to complete (increased delay)
+    humanWait(5000);
 
     // Step 4: Handle post-login navigation
     cy.log('✅ Handling post-login navigation');
@@ -489,7 +489,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
         cy.log('✅ File input found - Proceeding with file upload');
         
         // Upload file using file input
-        cy.get('input[type="file"]').selectFile(testConfig.uploadFile.path, {
+        cy.get('input[type="file"]').first().selectFile(testConfig.uploadFile.path, {
           force: true // Force in case input is hidden
         });
         
@@ -610,33 +610,99 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // Step 12: Wait for API response if intercepted (non-blocking with shorter timeout)
-    cy.log('📡 Checking for upload API response');
+    // Step 12: Wait for upload to complete
+    cy.log('📡 Waiting for upload to complete');
     
-    // Try to wait for upload API response (with shorter timeout)
-    cy.wait('@uploadRequest', { timeout: 4000, failOnStatusCode: false }).then((interception) => {
-      if (interception && interception.response && interception.response.body) {
-        cy.log('✅ Upload API response received');
-        const body = interception.response.body;
-        if (body.thumbnailUrl || body.thumbnailurl) {
-          capturedMetadata.thumbnailurl = body.thumbnailUrl || body.thumbnailurl;
-        }
-        if (body.videoUrl || body.videourl) {
-          capturedMetadata.videourl = body.videoUrl || body.videourl;
-        }
-        if (body.previewUrl || body.previewurl) {
-          capturedMetadata.previewurl = body.previewUrl || body.previewurl;
-        }
+    // Wait for upload completion indicators
+    humanWait(4000);
+
+    // Step 12.5: Click "Ready to publish" to publish the video and get metadata
+    cy.log('� Publaishing video to get metadata');
+    
+    // Wait for "Ready to publish" button to appear
+    humanWait(2000);
+    
+    // Look for and click "Ready to publish" button
+    cy.get('body').then($body => {
+      if ($body.text().includes('Ready to publish')) {
+        cy.log('✅ Found "Ready to publish" button, clicking to publish');
+        cy.get('*').contains('Ready to publish').first().click();
+        humanWait(3000); // Wait for publishing to complete
       } else {
-        cy.log('⚠️ Primary upload API response not intercepted, proceeding with metadata extraction');
+        cy.log('⚠️ "Ready to publish" button not found, video may already be published');
       }
     });
+
+    // Step 12.6: Fill publish form
+    cy.log('📝 Filling publish form');
+
+    // Refresh browser if needed and wait
+    cy.log('🔄 Refreshing browser to ensure form loads properly');
+    cy.reload();
+    humanWait(3000);
+
+    // 1. Select Channel - click dropdown and select "Test's Channel"
+    cy.log('📺 Selecting channel');
+    cy.get('body').then($body => {
+      // Look for channel dropdown
+      if ($body.text().includes('Channel')) {
+        // Click on channel dropdown
+        cy.get('*').contains('Channel').first().click();
+        humanWait(2000);
+        
+        // Select "Test's Channel"
+        if ($body.text().includes("Test's Channel")) {
+          cy.get('*').contains("Test's Channel").first().click();
+          cy.log('✅ Selected Test\'s Channel');
+          humanWait(3000);
+        }
+      }
+    });
+
+    // 2. Select Category - click dropdown and select "Entertainment"
+    cy.log('🎭 Selecting category');
+    cy.get('body').then($body => {
+      // Look for category dropdown
+      if ($body.text().includes('Category') || $body.text().includes('Select categories')) {
+        // Click on category dropdown
+        cy.get('*').contains('Category').first().click();
+        humanWait(2000);
+        
+        // Select "Entertainment"
+        if ($body.text().includes("Entertainment")) {
+          cy.get('*').contains("Entertainment").first().click();
+          cy.log('✅ Selected Entertainment category');
+          humanWait(3000);
+        }
+      }
+    });
+
+    // 3. Fill caption
+    cy.log('📝 Filling caption');
+    cy.get('body').then($body => {
+      // Look for caption input field
+      if ($body.find('textarea, input').filter('[placeholder*="caption"], [placeholder*="Caption"]').length > 0) {
+        cy.get('textarea, input').filter('[placeholder*="caption"], [placeholder*="Caption"]').first().clear().type('Test Upload Video');
+        cy.log('✅ Filled caption: Test Upload Video');
+        humanWait(3000);
+      }
+    });
+
+    // 4. Click Publish button
+    cy.log('🚀 Publishing video');
+    humanWait(4000); // Human-like delay before publishing
+    
+    cy.get('button').contains('Publish').first().should('be.visible').click();
+    cy.log('✅ Clicked Publish button');
+    
+    // Wait for publishing to complete
+    humanWait(5000);
 
     // Step 13: Extract and validate video metadata
     cy.log('🔍 Extracting video metadata (thumbnailurl, videourl, previewurl)');
     
-    // Reduced wait time for metadata to be populated
-    humanWait(1000);
+    // Wait for metadata to be populated after publishing
+    humanWait(2000);
     
     // Scroll to ensure uploaded video element is visible
     cy.scrollTo('top', { duration: 500 });
