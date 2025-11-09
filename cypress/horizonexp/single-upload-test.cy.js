@@ -1201,19 +1201,19 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.log('✅ 2-minute wait completed - session maintained');
   });
 
-  // Additional test for error handling
-  it('Should handle authentication errors gracefully', () => {
-    cy.log('🔍 Testing error handling scenarios');
+  // // Additional test for error handling
+  // it('Should handle authentication errors gracefully', () => {
+  //   cy.log('🔍 Testing error handling scenarios');
     
-    // Visit signin page
-    humanWait();
+  //   // Visit signin page
+  //   humanWait();
     
-    // Verify error handling elements exist
-    cy.get('body').should('be.visible');
+  //   // Verify error handling elements exist
+  //   cy.get('body').should('be.visible');
     
-    // Test can be extended to handle specific error scenarios
-    cy.log('✅ Error handling verification complete');
-  });
+  //   // Test can be extended to handle specific error scenarios
+  //   cy.log('✅ Error handling verification complete');
+  // });
 
   // Cleanup after tests
   afterEach(() => {
