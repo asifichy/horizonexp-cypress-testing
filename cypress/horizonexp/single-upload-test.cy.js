@@ -986,8 +986,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
 
     // 3. Fill caption
     cy.log('📝 Filling caption');
-    // Scroll to find caption field (human-like behavior)
-    cy.scrollTo(0, 400, { duration: 300 });
     
     cy.get('body').then($body => {
       // Look for caption input field
@@ -997,12 +995,93 @@ describe('HorizonExp Single Upload Test Suite', () => {
           .should('be.visible')
           .clear()
           .trigger('focus')
-          .type('Test Upload Video', { delay: 50 }); // Human-like typing delay
-        cy.log('✅ Filled caption: Test Upload Video');
+          .type('Test Upload Video - Automated test caption for video publishing', { delay: 50 }); // Human-like typing delay
+        cy.log('✅ Filled caption: Test Upload Video - Automated test caption for video publishing');
       }
     });
 
-    // 4. Click Publish button
+    // 4. Fill tags
+    cy.log('🏷️ Filling tags');
+    
+    cy.get('body').then($body => {
+      // Look for tags input field
+      const tagsSelectors = [
+        'input[placeholder*="tag"]',
+        'input[placeholder*="Tag"]',
+        'input[placeholder*="comma"]',
+        '[data-testid*="tags"] input',
+        'input[name="tags"]'
+      ];
+      
+      for (const selector of tagsSelectors) {
+        if ($body.find(selector).length > 0) {
+          cy.log(`✅ Found tags input with selector: ${selector}`);
+          cy.get(selector).first()
+            .scrollIntoView()
+            .should('be.visible')
+            .trigger('focus')
+            .type('test{enter}', { delay: 50 })
+            .type('automated{enter}', { delay: 50 })
+            .type('video{enter}', { delay: 50 });
+          cy.log('✅ Added tags: test, automated, video');
+          break;
+        }
+      }
+    });
+
+    // 5. Fill CTA Button label and link
+    cy.log('🔘 Filling CTA Button');
+    
+    cy.get('body').then($body => {
+      // Look for CTA Button label field
+      const ctaLabelSelectors = [
+        'input[placeholder*="Button label"]',
+        'input[placeholder*="button label"]',
+        '[data-testid*="cta"] input[placeholder*="label"]',
+        'input[name*="buttonLabel"]',
+        'input[name*="ctaLabel"]'
+      ];
+      
+      for (const selector of ctaLabelSelectors) {
+        if ($body.find(selector).length > 0) {
+          cy.log(`✅ Found CTA button label input with selector: ${selector}`);
+          cy.get(selector).first()
+            .scrollIntoView()
+            .should('be.visible')
+            .clear()
+            .trigger('focus')
+            .type('Click Here', { delay: 50 });
+          cy.log('✅ Filled CTA button label: Click Here');
+          break;
+        }
+      }
+      
+      // Look for CTA Button link field
+      const ctaLinkSelectors = [
+        'input[placeholder*="Button link"]',
+        'input[placeholder*="button link"]',
+        '[data-testid*="cta"] input[placeholder*="link"]',
+        'input[name*="buttonLink"]',
+        'input[name*="ctaLink"]',
+        'input[type="url"]'
+      ];
+      
+      for (const selector of ctaLinkSelectors) {
+        if ($body.find(selector).length > 0) {
+          cy.log(`✅ Found CTA button link input with selector: ${selector}`);
+          cy.get(selector).first()
+            .scrollIntoView()
+            .should('be.visible')
+            .clear()
+            .trigger('focus')
+            .type('https://www.example.com', { delay: 50 });
+          cy.log('✅ Filled CTA button link: https://www.example.com');
+          break;
+        }
+      }
+    });
+
+    // 6. Click Publish button
     cy.log('🚀 Publishing video');
     
     // Scroll to find publish button (human-like behavior)
