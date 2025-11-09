@@ -726,7 +726,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
     
     // Human-like scroll to see the form
-    cy.scrollTo('top', { duration: 500 });
+    // cy.scrollTo('top', { duration: 500 }); // Commented out to avoid scrollTo errors
 
     // Step 12.6: Fill publish form
     cy.log('📝 Filling publish form');
@@ -809,23 +809,47 @@ describe('HorizonExp Single Upload Test Suite', () => {
       const $channelLabel = $body.find('label:contains("Channel")');
       if ($channelLabel.length > 0) {
         cy.log('✅ Found Channel label, looking for associated input/dropdown');
-        // Try to find the next sibling or child elements
-        const $nextElement = $channelLabel.next();
-        if ($nextElement.length > 0) {
-          cy.log(`📍 Found element next to Channel label: ${$nextElement.prop('tagName')}`);
-          cy.wrap($nextElement).click({ force: true });
-          cy.wait(500);
+        
+        // Try to find the input/dropdown element - could be next sibling or parent's child
+        let $dropdownElement = $channelLabel.next();
+        
+        // If next() doesn't work, try looking in parent's children
+        if ($dropdownElement.length === 0) {
+          $dropdownElement = $channelLabel.parent().find('input, select, button, div[role="combobox"], div[class*="select"]').not('label');
+        }
+        
+        if ($dropdownElement.length > 0) {
+          cy.log(`📍 Found element for Channel: ${$dropdownElement.prop('tagName')} with class: ${$dropdownElement.attr('class')}`);
           
-          // Try to select first option
+          // Click to open dropdown
+          cy.wrap($dropdownElement).should('be.visible').click({ force: true });
+          cy.log('🖱️ Clicked channel dropdown');
+          
+          // Wait a bit for dropdown to open
+          cy.wait(800);
+          
+          // Wait for options to appear and select first one
           cy.get('body').then($body2 => {
-            const opts = $body2.find('[role="option"], [role="menuitem"], .dropdown-item, li[class*="option"]');
-            if (opts.length > 0) {
-              cy.get('[role="option"], [role="menuitem"], .dropdown-item, li[class*="option"]').first().click({ force: true });
-              cy.log('✅ Selected first channel option');
+            const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li[class*="option"]', 'div[class*="option"]'];
+            
+            for (const selector of optionSelectors) {
+              const opts = $body2.find(selector);
+              if (opts.length > 0) {
+                cy.log(`✅ Found ${opts.length} options with selector: ${selector}`);
+                cy.get(selector).first().should('be.visible').click({ force: true });
+                cy.log('✅ Selected first channel option');
+                return;
+              }
             }
+            
+            cy.log('⚠️ No channel options found after clicking dropdown');
           });
           return;
+        } else {
+          cy.log('⚠️ Could not find dropdown element next to Channel label');
         }
+      } else {
+        cy.log('⚠️ Could not find Channel label');
       }
       
       // Fallback: Try multiple approaches to find the dropdown
@@ -1238,9 +1262,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // 6. Click Publish button
     cy.log('🚀 Publishing video');
     
-    // Scroll to find publish button (human-like behavior)
-    cy.scrollTo(0, 500, { duration: 300 });
-    
     // Wait for publish button to be visible and enabled (human-like wait)
     cy.get('button').contains('Publish').first()
       .should('exist')
@@ -1275,7 +1296,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
     
     // Scroll to ensure uploaded video element is visible (human-like behavior)
-    cy.scrollTo('top', { duration: 500 });
+    // cy.scrollTo('top', { duration: 500 }); // Commented out to avoid scrollTo errors
     
     // Try to find and click on the uploaded video to view details
     cy.get('body').then($body => {
