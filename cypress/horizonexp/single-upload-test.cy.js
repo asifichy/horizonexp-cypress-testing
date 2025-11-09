@@ -174,7 +174,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
         }
 
         cy.log('📊 Extracted metadata:', JSON.stringify(metadata, null, 2));
-        return metadata;
+        // Use cy.wrap() to properly return value in async context
+        return cy.wrap(metadata);
       });
     });
   };
@@ -730,6 +731,10 @@ describe('HorizonExp Single Upload Test Suite', () => {
 
     // Step 12.6: Fill publish form
     cy.log('📝 Filling publish form');
+    
+    // Wait for form to be fully loaded
+    cy.wait(2000); // Give form time to render completely
+    cy.log('✅ Form loaded, starting to fill fields');
 
     // 1. Select Channel - click dropdown and select first available channel
     cy.log('📺 Selecting channel from dropdown');
@@ -737,6 +742,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Wait for channel dropdown to be visible (human-like wait)
     cy.get('body', { timeout: 15000 }).should('satisfy', ($body) => {
       return $body.text().includes('Channel') || 
+             $body.text().includes('Select Channel') ||
              $body.find('select, [role="combobox"], [class*="dropdown"], [class*="select"]').length > 0;
     });
     
@@ -777,7 +783,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
               cy.log(`✅ Selected channel: ${Cypress.$($options[0]).text()}`);
             }
           });
-          return; // Exit early if select was found and used
         } else {
           // Handle custom dropdown (button or div with role="combobox")
           cy.log('✅ Found custom dropdown for channel');
@@ -787,15 +792,16 @@ describe('HorizonExp Single Upload Test Suite', () => {
           // Try to select the first option from the opened dropdown
           cy.get('body').then($body2 => {
             const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li', 'div[class*="option"]'];
+            let optionSelected = false;
             for (const selector of optionSelectors) {
-              if ($body2.find(selector).length > 0) {
+              if ($body2.find(selector).length > 0 && !optionSelected) {
                 cy.get(selector).first().click({ force: true });
                 cy.log(`✅ Selected first channel option with selector: ${selector}`);
-                return;
+                optionSelected = true;
+                break;
               }
             }
           });
-          return;
         }
       }
     });
@@ -832,19 +838,22 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.get('body').then($body2 => {
             const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li[class*="option"]', 'div[class*="option"]'];
             
+            let optionFound = false;
             for (const selector of optionSelectors) {
               const opts = $body2.find(selector);
-              if (opts.length > 0) {
+              if (opts.length > 0 && !optionFound) {
                 cy.log(`✅ Found ${opts.length} options with selector: ${selector}`);
                 cy.get(selector).first().should('be.visible').click({ force: true });
                 cy.log('✅ Selected first channel option');
-                return;
+                optionFound = true;
+                break;
               }
             }
             
-            cy.log('⚠️ No channel options found after clicking dropdown');
+            if (!optionFound) {
+              cy.log('⚠️ No channel options found after clicking dropdown');
+            }
           });
-          return;
         } else {
           cy.log('⚠️ Could not find dropdown element next to Channel label');
         }
@@ -984,6 +993,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
 
     // 2. Select Category - click dropdown and select category
     cy.log('🎭 Selecting category from dropdown');
+    
+    // Wait a moment for category field to be ready
+    cy.wait(500);
     
     // Scroll to find category dropdown (human-like behavior)
     // cy.scrollTo(0, 300, { duration: 300 });
