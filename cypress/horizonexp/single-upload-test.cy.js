@@ -831,34 +831,68 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.wrap($dropdownElement).should('be.visible').click({ force: true });
           cy.log('🖱️ Clicked channel dropdown');
           
-          // Wait for dropdown to open
-          cy.wait(1000); // Increased wait time for dropdown to fully render
+          // Wait for dropdown to open and options to render
+          cy.wait(2000); // Even longer wait to ensure dropdown fully loads
           
-          // Wait for dropdown menu to appear and select option
+          // Look for the specific channel text and click ONLY that element
+          cy.log('🔍 Looking for DevOps channel option in dropdown');
+          
+          // Try to find and click DevOps' Channel directly using contains
           cy.get('body').then($body2 => {
-            // Look for specific channel names - search for the actual text in the dropdown
-            if ($body2.text().includes("DevOps' Channel") || $body2.text().includes("DevOps's Channel")) {
-              cy.log(`🔍 Found DevOps channel in dropdown`);
-              // Click on any element containing "DevOps' Channel" or "DevOps" but not the label
-              cy.get('*').filter(':visible').filter(($el) => {
-                const text = $el.text();
-                return (text.includes("DevOps' Channel") || text.includes("DevOps's Channel")) && 
-                       !$el.is('label') && 
-                       text.length < 100; // Avoid parent containers with lots of text
-              }).first().click({ force: true });
-              cy.log(`✅ Selected DevOps channel`);
-            } else {
-              cy.log('⚠️ DevOps channel not found, trying any visible option with "Channel"');
-              // Try to find any clickable element with "Channel" in it (but not the label)
-              cy.get('*').filter(':visible').filter(($el) => {
+            const bodyText = $body2.text();
+            cy.log(`📝 Checking page text for DevOps channel...`);
+            cy.log(`📝 Text includes "DevOps": ${bodyText.includes('DevOps')}`);
+            cy.log(`📝 Text includes "Channel": ${bodyText.includes('Channel')}`);
+            
+            // Be more aggressive - try multiple approaches
+            let channelFound = false;
+            
+            // Approach 1: Try exact text match with cy.contains()
+            if ((bodyText.includes("DevOps' Channel") || bodyText.includes("DevOps's Channel") || bodyText.includes('DevOps')) && !channelFound) {
+              cy.log('✅ DevOps text found, attempting to click option');
+              
+              // Find all elements containing "DevOps" that are clickable
+              const $devopsElements = $body2.find('*:contains("DevOps")').filter(':visible');
+              cy.log(`📊 Found ${$devopsElements.length} elements containing "DevOps"`);
+              
+              // Filter to find the one that's actually an option (short text)
+              let $targetOption = null;
+              $devopsElements.each((idx, el) => {
+                const $el = Cypress.$(el);
                 const text = $el.text().trim();
-                const tagName = $el.prop('tagName').toLowerCase();
-                return text.includes('Channel') && 
-                       tagName !== 'label' && 
-                       tagName !== 'body' &&
-                       text.length > 5 && text.length < 50; // Reasonable text length
-              }).first().click({ force: true });
-              cy.log('✅ Selected channel option');
+                const isLabel = $el.is('label');
+                const isShort = text.length < 50;
+                
+                if (!isLabel && isShort && text.includes('Channel') && !$targetOption) {
+                  $targetOption = $el;
+                  cy.log(`✅ Found target option: "${text}"`);
+                }
+              });
+              
+              if ($targetOption) {
+                cy.wrap($targetOption).click({ force: true });
+                cy.log('✅ Successfully clicked DevOps channel option');
+                channelFound = true;
+              }
+            }
+            
+            // Approach 2: If still not found, use simpler selector
+            if (!channelFound) {
+              cy.log('⚠️ Trying alternative approach - looking for any channel option');
+              
+              // Look for span or div elements that likely contain the option text
+              cy.get('span, div').filter(':visible').filter(($el) => {
+                const text = $el.text().trim();
+                const matchesDevOps = text.includes('DevOps') && text.includes('Channel');
+                const reasonableLength = text.length > 10 && text.length < 50;
+                return matchesDevOps && reasonableLength;
+              }).first().then($el => {
+                if ($el && $el.length > 0) {
+                  cy.log(`✅ Found option with text: "${$el.text().trim()}"`);
+                  cy.wrap($el).click({ force: true });
+                  cy.log('✅ Clicked channel option');
+                }
+              });
             }
           });
         } else {
