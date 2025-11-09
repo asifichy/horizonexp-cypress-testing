@@ -834,40 +834,33 @@ describe('HorizonExp Single Upload Test Suite', () => {
           // Wait a bit for dropdown to open
           cy.wait(800);
           
-          // Wait for options to appear and select first one
+          // Wait for dropdown menu to appear and select option
           cy.get('body').then($body2 => {
-            // First try to find channel by specific text content
-            const channelNames = ["DevOps", "DevOps' Channel", "DevOps's Channel", "Test", "SQA"];
+            // Look for specific channel names, but exclude the label itself
+            const channelNames = ["DevOps' Channel", "DevOps's Channel", "Test's Channel", "SQA's Channel"];
             let channelSelected = false;
             
             for (const channelName of channelNames) {
               if (!channelSelected && $body2.text().includes(channelName)) {
-                cy.log(`🔍 Found channel option containing: ${channelName}`);
-                cy.contains(channelName).first().should('be.visible').click({ force: true });
+                cy.log(`🔍 Found channel option: ${channelName}`);
+                // Use more specific selector to avoid matching the label
+                cy.get('body').find(`*:contains("${channelName}")`).not('label').filter(':visible').first().click({ force: true });
                 cy.log(`✅ Selected channel: ${channelName}`);
                 channelSelected = true;
                 break;
               }
             }
             
-            // If no specific channel found, try generic selectors
             if (!channelSelected) {
-              const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li[class*="option"]', 'div[class*="option"]', 'li', 'div'];
-              
-              for (const selector of optionSelectors) {
-                const opts = $body2.find(selector).filter(':visible');
-                if (opts.length > 0 && !channelSelected) {
-                  cy.log(`✅ Found ${opts.length} options with selector: ${selector}`);
-                  cy.get(selector).filter(':visible').first().click({ force: true });
-                  cy.log('✅ Selected first visible channel option');
-                  channelSelected = true;
-                  break;
-                }
-              }
-            }
-            
-            if (!channelSelected) {
-              cy.log('⚠️ No channel options found after clicking dropdown');
+              cy.log('⚠️ No specific channel name found, trying to click visible dropdown option');
+              // Look for actual dropdown options, not all divs
+              cy.get('body').find('[role="listbox"], [role="menu"], div[class*="dropdown"], div[class*="menu"]').first().within(() => {
+                cy.get('div, li, span').filter(':visible').filter(($el) => {
+                  const text = $el.text().trim();
+                  return text.length > 0 && text.includes('Channel');
+                }).first().click({ force: true });
+                cy.log('✅ Selected channel from dropdown');
+              });
             }
           });
         } else {
@@ -877,7 +870,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
         cy.log('⚠️ Could not find Channel label');
       }
       
-      // Fallback: Try multiple approaches to find the dropdown
+      // Fallback: Try multiple approaches to find the dropdown (simplified to avoid multiple clicks)
+      /* Commented out to prevent multiple dropdown attempts that interfere
       const channelDropdownSelectors = [
         'label:contains("Channel") + *',
         'label:contains("Channel") ~ *',
@@ -888,9 +882,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
         '[role="combobox"]',
         '[data-testid*="channel"]'
       ];
+      */
       
-      let dropdownFound = false;
+      let dropdownFound = true; // Set to true to skip fallbacks if main logic already ran
       
+      /* Commenting out entire fallback loop to prevent multiple dropdown interactions
       for (const selector of channelDropdownSelectors) {
         if (dropdownFound) break;
         
@@ -973,9 +969,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
           });
         }
       }
+      */
       
       // Final fallback: try clicking on any element containing "Select Channel"
-      if (!dropdownFound) {
+      // Disabled to prevent multiple dropdown interactions
+      if (!dropdownFound && false) {
         cy.log('⚠️ Channel dropdown not found, trying final fallback');
         cy.get('body').then($b => {
           if ($b.find('*:contains("Select Channel")').length > 0) {
