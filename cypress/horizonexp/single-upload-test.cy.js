@@ -836,21 +836,37 @@ describe('HorizonExp Single Upload Test Suite', () => {
           
           // Wait for options to appear and select first one
           cy.get('body').then($body2 => {
-            const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li[class*="option"]', 'div[class*="option"]'];
+            // First try to find channel by specific text content
+            const channelNames = ["DevOps", "DevOps' Channel", "DevOps's Channel", "Test", "SQA"];
+            let channelSelected = false;
             
-            let optionFound = false;
-            for (const selector of optionSelectors) {
-              const opts = $body2.find(selector);
-              if (opts.length > 0 && !optionFound) {
-                cy.log(`✅ Found ${opts.length} options with selector: ${selector}`);
-                cy.get(selector).first().should('be.visible').click({ force: true });
-                cy.log('✅ Selected first channel option');
-                optionFound = true;
+            for (const channelName of channelNames) {
+              if (!channelSelected && $body2.text().includes(channelName)) {
+                cy.log(`🔍 Found channel option containing: ${channelName}`);
+                cy.contains(channelName).first().should('be.visible').click({ force: true });
+                cy.log(`✅ Selected channel: ${channelName}`);
+                channelSelected = true;
                 break;
               }
             }
             
-            if (!optionFound) {
+            // If no specific channel found, try generic selectors
+            if (!channelSelected) {
+              const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li[class*="option"]', 'div[class*="option"]', 'li', 'div'];
+              
+              for (const selector of optionSelectors) {
+                const opts = $body2.find(selector).filter(':visible');
+                if (opts.length > 0 && !channelSelected) {
+                  cy.log(`✅ Found ${opts.length} options with selector: ${selector}`);
+                  cy.get(selector).filter(':visible').first().click({ force: true });
+                  cy.log('✅ Selected first visible channel option');
+                  channelSelected = true;
+                  break;
+                }
+              }
+            }
+            
+            if (!channelSelected) {
               cy.log('⚠️ No channel options found after clicking dropdown');
             }
           });
@@ -900,37 +916,54 @@ describe('HorizonExp Single Upload Test Suite', () => {
                 
                 // Select the first available channel option
                 cy.get('body').then($body2 => {
-                  // Try to find and click the first channel option
-                  const optionSelectors = [
-                    '[role="option"]',
-                    '[role="menuitem"]',
-                    '.dropdown-item',
-                    'li[class*="option"]',
-                    'div[class*="option"]'
-                  ];
+                  // First try to find channel by specific text content
+                  const channelNames = ["DevOps", "DevOps' Channel", "DevOps's Channel", "Test", "SQA"];
+                  let channelSelected = false;
                   
-                  let optionClicked = false;
-                  for (const optSelector of optionSelectors) {
-                    if ($body2.find(optSelector).length > 0 && !optionClicked) {
-                      cy.log(`✅ Found channel options with selector: ${optSelector}`);
-                      cy.get(optSelector).first().should('exist').then($opt => {
-                        if ($opt && $opt.length > 0) {
-                          cy.wrap($opt).trigger('mouseover');
-                          cy.wrap($opt).click({ force: true });
-                          const optionText = $opt.text().trim();
-                          cy.log(`✅ Selected first available channel: ${optionText}`);
-                        }
-                      });
-                      optionClicked = true;
+                  for (const channelName of channelNames) {
+                    if (!channelSelected && $body2.text().includes(channelName)) {
+                      cy.log(`🔍 Found channel option containing: ${channelName}`);
+                      cy.contains(channelName).first().should('be.visible').click({ force: true });
+                      cy.log(`✅ Selected channel: ${channelName}`);
+                      channelSelected = true;
                       break;
                     }
                   }
                   
-                  // Final fallback: click any element that looks like an option
-                  if (!optionClicked) {
-                    cy.log('⚠️ Standard option selectors not found, trying fallback');
-                    cy.get('*').contains('Channel').parent().find('*').first().click({ force: true });
-                    cy.log('✅ Selected first available channel option');
+                  // If no specific channel found, try generic selectors
+                  if (!channelSelected) {
+                    const optionSelectors = [
+                      '[role="option"]',
+                      '[role="menuitem"]',
+                      '.dropdown-item',
+                      'li[class*="option"]',
+                      'div[class*="option"]'
+                    ];
+                    
+                    for (const optSelector of optionSelectors) {
+                      if ($body2.find(optSelector).length > 0 && !channelSelected) {
+                        cy.log(`✅ Found channel options with selector: ${optSelector}`);
+                        cy.get(optSelector).first().should('exist').then($opt => {
+                          if ($opt && $opt.length > 0) {
+                            cy.wrap($opt).trigger('mouseover');
+                            cy.wrap($opt).click({ force: true });
+                            const optionText = $opt.text().trim();
+                            cy.log(`✅ Selected first available channel: ${optionText}`);
+                          }
+                        });
+                        channelSelected = true;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // Final fallback: try to find any visible option
+                  if (!channelSelected) {
+                    cy.log('⚠️ Standard option selectors not found, trying text-based fallback');
+                    if ($body2.text().includes('DevOps') || $body2.text().includes('Channel')) {
+                      cy.contains(/DevOps|Channel/).first().click({ force: true });
+                      cy.log('✅ Selected channel using text fallback');
+                    }
                   }
                 });
                 
@@ -954,32 +987,49 @@ describe('HorizonExp Single Upload Test Suite', () => {
                 // Give dropdown a moment to open
                 cy.wait(500);
                 
-                // Select first available option
+                // Select first available option - try text-based first
                 cy.get('body').then($body2 => {
-                  if ($body2.find('[role="option"]').length > 0) {
-                    cy.get('[role="option"]').first().should('exist').then($opt => {
-                      if ($opt && $opt.length > 0) {
-                        cy.wrap($opt).trigger('mouseover');
-                        cy.wrap($opt).click({ force: true });
-                        cy.log('✅ Selected first available channel option');
-                      }
-                    });
-                  } else if ($body2.find('[role="menuitem"]').length > 0) {
-                    cy.get('[role="menuitem"]').first().should('exist').then($opt => {
-                      if ($opt && $opt.length > 0) {
-                        cy.wrap($opt).trigger('mouseover');
-                        cy.wrap($opt).click({ force: true });
-                        cy.log('✅ Selected first available channel option');
-                      }
-                    });
-                  } else if ($body2.find('.dropdown-item').length > 0) {
-                    cy.get('.dropdown-item').first().should('exist').then($opt => {
-                      if ($opt && $opt.length > 0) {
-                        cy.wrap($opt).trigger('mouseover');
-                        cy.wrap($opt).click({ force: true });
-                        cy.log('✅ Selected first available channel option');
-                      }
-                    });
+                  // First try to find channel by specific text content
+                  const channelNames = ["DevOps", "DevOps' Channel", "DevOps's Channel", "Test", "SQA"];
+                  let channelSelected = false;
+                  
+                  for (const channelName of channelNames) {
+                    if (!channelSelected && $body2.text().includes(channelName)) {
+                      cy.log(`🔍 Found channel option containing: ${channelName}`);
+                      cy.contains(channelName).first().should('be.visible').click({ force: true });
+                      cy.log(`✅ Selected channel: ${channelName}`);
+                      channelSelected = true;
+                      break;
+                    }
+                  }
+                  
+                  // If no specific channel found, try generic selectors
+                  if (!channelSelected) {
+                    if ($body2.find('[role="option"]').length > 0) {
+                      cy.get('[role="option"]').first().should('exist').then($opt => {
+                        if ($opt && $opt.length > 0) {
+                          cy.wrap($opt).trigger('mouseover');
+                          cy.wrap($opt).click({ force: true });
+                          cy.log('✅ Selected first available channel option');
+                        }
+                      });
+                    } else if ($body2.find('[role="menuitem"]').length > 0) {
+                      cy.get('[role="menuitem"]').first().should('exist').then($opt => {
+                        if ($opt && $opt.length > 0) {
+                          cy.wrap($opt).trigger('mouseover');
+                          cy.wrap($opt).click({ force: true });
+                          cy.log('✅ Selected first available channel option');
+                        }
+                      });
+                    } else if ($body2.find('.dropdown-item').length > 0) {
+                      cy.get('.dropdown-item').first().should('exist').then($opt => {
+                        if ($opt && $opt.length > 0) {
+                          cy.wrap($opt).trigger('mouseover');
+                          cy.wrap($opt).click({ force: true });
+                          cy.log('✅ Selected first available channel option');
+                        }
+                      });
+                    }
                   }
                 });
               }
