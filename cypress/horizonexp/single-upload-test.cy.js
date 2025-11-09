@@ -884,33 +884,50 @@ describe('HorizonExp Single Upload Test Suite', () => {
               
               // Try to find and click the first available option in the dropdown
               cy.get('body').then($body => {
-                // First, try to find any element with "Channel" in it (but not the label)
-                const $channelOptions = $body.find('span, div, li').filter(':visible').filter(function() {
-                  const $el = Cypress.$(this);
-                  const text = $el.text().trim();
-                  const hasChannel = text.includes('Channel');
-                  const reasonableLength = text.length > 5 && text.length < 50;
-                  const notLabel = !$el.is('label') && !$el.closest('label').length;
-                  return hasChannel && reasonableLength && notLabel;
-                });
+                // First, try to find actual dropdown options (not container divs)
+                // Look for elements with role="option" or role="menuitem" first
+                const $roleOptions = $body.find('[role="option"], [role="menuitem"]').filter(':visible');
                 
-                if ($channelOptions.length > 0) {
-                  cy.log(`✅ Found ${$channelOptions.length} channel option(s), selecting first one`);
-                  cy.wrap($channelOptions.first()).click({ force: true });
-                  cy.log('✅ Clicked first available channel option');
+                if ($roleOptions.length > 0) {
+                  cy.log(`✅ Found ${$roleOptions.length} dropdown option(s) with role attribute, selecting first one`);
+                  cy.wrap($roleOptions.first()).click({ force: true });
+                  cy.log('✅ Clicked first dropdown option');
                   channelFound = true;
                 } else {
-                  // Final fallback: try to click any visible option-like element
-                  cy.log('⚠️ No channel options found, trying generic dropdown options');
-                  const $genericOptions = $body.find('[role="option"], [role="menuitem"], .dropdown-item, li').filter(':visible');
+                  // Try to find list items or span elements that are actual options
+                  const $listItems = $body.find('li').filter(':visible').filter(function() {
+                    const $el = Cypress.$(this);
+                    const text = $el.text().trim();
+                    // Must have some text and not be a container
+                    return text.length > 0 && text.length < 100 && !$el.hasClass('grid');
+                  });
                   
-                  if ($genericOptions.length > 0) {
-                    cy.log(`✅ Found ${$genericOptions.length} generic option(s), selecting first one`);
-                    cy.wrap($genericOptions.first()).click({ force: true });
-                    cy.log('✅ Clicked first generic option');
+                  if ($listItems.length > 0) {
+                    cy.log(`✅ Found ${$listItems.length} list item option(s), selecting first one`);
+                    cy.wrap($listItems.first()).click({ force: true });
+                    cy.log('✅ Clicked first list item option');
                     channelFound = true;
                   } else {
-                    cy.log('❌ No options found in dropdown - channel selection failed');
+                    // Final fallback: try to find span elements with channel text (not container divs)
+                    const $spanOptions = $body.find('span').filter(':visible').filter(function() {
+                      const $el = Cypress.$(this);
+                      const text = $el.text().trim();
+                      const hasChannel = text.includes('Channel');
+                      const reasonableLength = text.length > 5 && text.length < 50;
+                      const notLabel = !$el.is('label') && !$el.closest('label').length;
+                      // Exclude spans that are inside grid containers
+                      const notInGrid = !$el.closest('.grid').length;
+                      return hasChannel && reasonableLength && notLabel && notInGrid;
+                    });
+                    
+                    if ($spanOptions.length > 0) {
+                      cy.log(`✅ Found ${$spanOptions.length} span option(s), selecting first one`);
+                      cy.wrap($spanOptions.first()).click({ force: true });
+                      cy.log('✅ Clicked first span option');
+                      channelFound = true;
+                    } else {
+                      cy.log('❌ No valid options found in dropdown - channel selection failed');
+                    }
                   }
                 }
               });
@@ -922,11 +939,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.wait(2000); // Give time for selection to register
           
           // Check that channel field is no longer showing placeholder
+          // Note: Cannot use cy.log() inside should('satisfy') callback - must be pure function
           cy.get('body', { timeout: 10000 }).should('satisfy', ($body) => {
             // Null check to prevent errors
             if (!$body || $body.length === 0) {
-              cy.log('⚠️ Body element not found, retrying...');
-              return false;
+              return false; // Body not found, retry
             }
             
             try {
@@ -954,17 +971,15 @@ describe('HorizonExp Single Upload Test Suite', () => {
               
               const channelSelected = hasDevOpsChannel || hasChannelValue || inputHasValue;
               
-              if (channelSelected) {
-                cy.log('✅ Channel selection VERIFIED - proceeding to next field');
-                return true;
-              } else {
-                cy.log('⚠️ Channel selection not yet confirmed, waiting...');
-                return false;
-              }
+              // Return true/false only - no cy commands allowed here
+              return channelSelected;
             } catch (error) {
-              cy.log(`⚠️ Error checking channel selection: ${error.message}`);
+              // Return false on error - no cy commands allowed here
               return false;
             }
+          }).then(() => {
+            // Log after verification succeeds
+            cy.log('✅ Channel selection VERIFIED - proceeding to next field');
           });
           
           cy.log('✅ Channel selection complete - now proceeding to category');
