@@ -843,9 +843,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
           // cy.contains() is more reliable than checking body text - it finds elements even if body.text() doesn't include them
           cy.log('🔍 Attempting to find and click DevOps channel option');
           
-          // Directly use cy.contains() to find "DevOps' Channel" or "DevOps's Channel"
+          // Directly use cy.contains() to find "DevOps Channel", "DevOps' Channel" or "DevOps's Channel"
           // This will work even if body.text() doesn't include the text
-          cy.contains(/DevOps'?s? Channel/i, { timeout: 5000 })
+          cy.contains(/DevOps'?s?\s*Channel/i, { timeout: 5000 })
             .should('be.visible')
             .not('label') // Exclude the label itself
             .first()
@@ -873,7 +873,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
               // Channel is selected if:
               // 1. It shows DevOps channel name, OR
               // 2. The placeholder "Select Channel" is gone and field shows a value
-              const hasDevOpsChannel = bodyText.includes("DevOps' Channel") || bodyText.includes("DevOps's Channel");
+              const hasDevOpsChannel = bodyText.includes("DevOps Channel") || bodyText.includes("DevOps' Channel") || bodyText.includes("DevOps's Channel");
               const hasChannelValue = bodyText.includes("Channel") && !bodyText.includes('Select Channel');
               
               // Also check if the input field itself has a value
