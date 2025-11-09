@@ -834,104 +834,44 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.log('🖱️ Clicked channel dropdown');
           
           // Wait for dropdown to open and options to render
-          cy.wait(2000); // Even longer wait to ensure dropdown fully loads
+          cy.wait(2000); // Wait for dropdown to fully load
           
           // Look for the specific channel text and click ONLY that element
           cy.log('🔍 Looking for DevOps channel option in dropdown');
           
-          // Try to find and click DevOps' Channel directly using contains
-          cy.get('body').then($body2 => {
-            const bodyText = $body2.text();
-            cy.log(`📝 Checking page text for DevOps channel...`);
-            cy.log(`📝 Text includes "DevOps": ${bodyText.includes('DevOps')}`);
-            cy.log(`📝 Text includes "Channel": ${bodyText.includes('Channel')}`);
-            
-            // Be more aggressive - try multiple approaches
-            let channelFound = false;
-            
-            // Approach 1: Try exact text match with cy.contains()
-            if ((bodyText.includes("DevOps' Channel") || bodyText.includes("DevOps's Channel") || bodyText.includes('DevOps')) && !channelFound) {
-              cy.log('✅ DevOps text found, attempting to click option');
-              
-              // Find all elements containing "DevOps" that are clickable
-              const $devopsElements = $body2.find('*:contains("DevOps")').filter(':visible');
-              cy.log(`📊 Found ${$devopsElements.length} elements containing "DevOps"`);
-              
-              // Filter to find the one that's actually an option (short text)
-              let $targetOption = null;
-              $devopsElements.each((idx, el) => {
-                const $el = Cypress.$(el);
-                const text = $el.text().trim();
-                const isLabel = $el.is('label');
-                const isShort = text.length < 50;
-                
-                if (!isLabel && isShort && text.includes('Channel') && !$targetOption) {
-                  $targetOption = $el;
-                  cy.log(`✅ Found target option: "${text}"`);
-                }
-              });
-              
-              if ($targetOption) {
-                cy.wrap($targetOption).click({ force: true });
+          // Use cy.contains() to directly find and click "DevOps' Channel" or "DevOps's Channel"
+          // This is more reliable than checking body text
+          cy.get('body').then(() => {
+            // Try to find "DevOps' Channel" or "DevOps's Channel" using cy.contains()
+            // cy.contains() will find the element containing this text
+            cy.contains(/DevOps'?s? Channel/i)
+              .should('be.visible')
+              .not('label') // Exclude the label itself
+              .first()
+              .click({ force: true })
+              .then(() => {
                 cy.log('✅ Successfully clicked DevOps channel option');
-                channelFound = true;
-              }
-            }
-            
-            // Approach 2: If still not found, use simpler selector
-            if (!channelFound) {
-              cy.log('⚠️ Trying alternative approach - looking for any channel option');
-              
-              // Try to find and click the first available option in the dropdown
-              cy.get('body').then($body => {
-                // First, try to find actual dropdown options (not container divs)
-                // Look for elements with role="option" or role="menuitem" first
-                const $roleOptions = $body.find('[role="option"], [role="menuitem"]').filter(':visible');
+              })
+              .catch(() => {
+                // If exact match fails, try to find any visible option with "Channel" in it
+                cy.log('⚠️ DevOps channel not found, trying first available channel option');
                 
-                if ($roleOptions.length > 0) {
-                  cy.log(`✅ Found ${$roleOptions.length} dropdown option(s) with role attribute, selecting first one`);
-                  cy.wrap($roleOptions.first()).click({ force: true });
-                  cy.log('✅ Clicked first dropdown option');
-                  channelFound = true;
-                } else {
-                  // Try to find list items or span elements that are actual options
-                  const $listItems = $body.find('li').filter(':visible').filter(function() {
-                    const $el = Cypress.$(this);
-                    const text = $el.text().trim();
-                    // Must have some text and not be a container
-                    return text.length > 0 && text.length < 100 && !$el.hasClass('grid');
+                // Look for any visible option in the dropdown
+                cy.get('[role="option"], [role="menuitem"], li, span')
+                  .filter(':visible')
+                  .filter(($el) => {
+                    const text = Cypress.$($el).text().trim();
+                    return text.includes('Channel') && 
+                           text.length > 5 && 
+                           text.length < 50 &&
+                           !Cypress.$($el).is('label');
+                  })
+                  .first()
+                  .click({ force: true })
+                  .then(() => {
+                    cy.log('✅ Clicked first available channel option');
                   });
-                  
-                  if ($listItems.length > 0) {
-                    cy.log(`✅ Found ${$listItems.length} list item option(s), selecting first one`);
-                    cy.wrap($listItems.first()).click({ force: true });
-                    cy.log('✅ Clicked first list item option');
-                    channelFound = true;
-                  } else {
-                    // Final fallback: try to find span elements with channel text (not container divs)
-                    const $spanOptions = $body.find('span').filter(':visible').filter(function() {
-                      const $el = Cypress.$(this);
-                      const text = $el.text().trim();
-                      const hasChannel = text.includes('Channel');
-                      const reasonableLength = text.length > 5 && text.length < 50;
-                      const notLabel = !$el.is('label') && !$el.closest('label').length;
-                      // Exclude spans that are inside grid containers
-                      const notInGrid = !$el.closest('.grid').length;
-                      return hasChannel && reasonableLength && notLabel && notInGrid;
-                    });
-                    
-                    if ($spanOptions.length > 0) {
-                      cy.log(`✅ Found ${$spanOptions.length} span option(s), selecting first one`);
-                      cy.wrap($spanOptions.first()).click({ force: true });
-                      cy.log('✅ Clicked first span option');
-                      channelFound = true;
-                    } else {
-                      cy.log('❌ No valid options found in dropdown - channel selection failed');
-                    }
-                  }
-                }
               });
-            }
           });
           
           // CRITICAL: Verify channel was selected before proceeding to other fields
