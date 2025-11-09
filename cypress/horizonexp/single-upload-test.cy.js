@@ -567,39 +567,53 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 11: Wait for upload progress bar to complete
     cy.log('⏳ Waiting for upload progress bar to complete');
     
-    // Wait for progress bar to reach 100% or disappear
+    // Wait for upload to complete - check for completion indicators
     cy.get('body', { timeout: 60000 }).should('satisfy', ($body) => {
-      // Check if progress bar exists and is at 100%
-      const progressBar = $body.find('[role="progressbar"], .progress-bar, [class*="progress"], [class*="Progress"]');
-      if (progressBar.length > 0) {
-        const progressValue = progressBar.attr('aria-valuenow') || 
-                             progressBar.attr('value') || 
-                             progressBar.css('width') || 
-                             progressBar.text();
-        const isComplete = progressValue === '100' || 
-                          progressValue === '100%' || 
-                          progressValue.includes('100') ||
-                          $body.text().includes('100%');
-        if (!isComplete) {
-          cy.log(`📊 Progress: ${progressValue}`);
+      try {
+        // Null check
+        if (!$body || $body.length === 0) {
           return false;
         }
+        
+        // Get body text safely
+        const bodyText = $body.text() || '';
+        
+        // Check for completion indicators in text
+        const hasCompletionIndicator = bodyText.includes('100%') || 
+                                       bodyText.includes('Upload complete') ||
+                                       bodyText.includes('Upload successful') ||
+                                       bodyText.includes('Ready to publish') ||
+                                       bodyText.includes('Successfully uploaded') ||
+                                       bodyText.includes('Published');
+        
+        if (hasCompletionIndicator) {
+          return true;
+        }
+        
+        // Check if progress bar exists
+        const progressBar = $body.find('[role="progressbar"], .progress-bar, [class*="progress"]');
+        if (progressBar && progressBar.length > 0) {
+          // Try to get progress value
+          const progressValue = progressBar.attr('aria-valuenow') || progressBar.attr('value') || '';
+          const progressText = progressBar.text() || '';
+          
+          // Check if at 100%
+          if (progressValue === '100' || progressValue === '100%' || 
+              progressText.includes('100%') || bodyText.includes('100%')) {
+            return true;
+          }
+          
+          // Still uploading
+          cy.log(`📊 Progress: ${progressValue || progressText || 'checking...'}`);
+          return false;
+        }
+        
+        // If no progress bar found, assume upload is complete
+        return true;
+      } catch (error) {
+        cy.log(`⚠️ Error checking progress: ${error.message}`);
+        return false;
       }
-      
-      // Check for completion indicators
-      const text = $body.text();
-      const hasCompletionIndicator = text.includes('100%') || 
-                                     text.includes('Upload complete') ||
-                                     text.includes('Upload successful') ||
-                                     text.includes('Ready to publish') ||
-                                     text.includes('Successfully uploaded');
-      
-      // Check if progress bar is gone (upload complete)
-      const progressBarGone = progressBar.length === 0 || 
-                              progressBar.is(':hidden') ||
-                              !progressBar.is(':visible');
-      
-      return hasCompletionIndicator || progressBarGone;
     });
     
     cy.log('✅ Upload progress bar completed');
