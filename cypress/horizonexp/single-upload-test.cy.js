@@ -733,47 +733,92 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // First, try to find a select element for channel
     cy.get('body').then($body => {
       // Check if there's a select element near a "Channel" label
-      const $channelSelect = $body.find('label:contains("Channel")').siblings('select').first();
+      const $channelSelect = $body.find('label:contains("Channel")').siblings('select, div[role="combobox"], button').first();
       
       if ($channelSelect.length > 0 && $channelSelect[0]) {
-        cy.log('✅ Found select element for channel');
-        // Interact directly without scrollIntoView
-        cy.wrap($channelSelect).should('exist').then($select => {
-          // Get all options and select the first non-empty option
-          const $options = $select.find('option');
-          let firstOptionFound = false;
-          
-          // Select first non-empty option (skip first option if it's empty/placeholder)
-          for (let i = 1; i < $options.length; i++) {
-            const text = Cypress.$($options[i]).text().trim();
-            if (text !== '' && !firstOptionFound) {
-              cy.wrap($select).select(Cypress.$($options[i]).val(), { force: true });
-              cy.log(`✅ Selected first available channel: ${text}`);
-              firstOptionFound = true;
-              break;
+        const tagName = $channelSelect.prop('tagName').toLowerCase();
+        
+        // Handle native select element
+        if (tagName === 'select') {
+          cy.log('✅ Found native select element for channel');
+          cy.wrap($channelSelect).should('exist').then($select => {
+            // Get all options and select the first non-empty option
+            const $options = $select.find('option');
+            let firstOptionFound = false;
+            
+            // Select first non-empty option (skip first option if it's empty/placeholder)
+            for (let i = 1; i < $options.length; i++) {
+              const text = Cypress.$($options[i]).text().trim();
+              if (text !== '' && !firstOptionFound) {
+                cy.wrap($select).select(Cypress.$($options[i]).val(), { force: true });
+                cy.log(`✅ Selected first available channel: ${text}`);
+                firstOptionFound = true;
+                break;
+              }
             }
-          }
+            
+            // If no option found, select first option
+            if (!firstOptionFound && $options.length > 0) {
+              cy.wrap($select).select(Cypress.$($options[0]).val(), { force: true });
+              cy.log(`✅ Selected channel: ${Cypress.$($options[0]).text()}`);
+            }
+          });
+          return; // Exit early if select was found and used
+        } else {
+          // Handle custom dropdown (button or div with role="combobox")
+          cy.log('✅ Found custom dropdown for channel');
+          cy.wrap($channelSelect).click({ force: true });
+          cy.wait(500);
           
-          // If no option found, select first option
-          if (!firstOptionFound && $options.length > 0) {
-            cy.wrap($select).select(Cypress.$($options[0]).val(), { force: true });
-            cy.log(`✅ Selected channel: ${Cypress.$($options[0]).text()}`);
-          }
-        });
-        return; // Exit early if select was found and used
+          // Try to select the first option from the opened dropdown
+          cy.get('body').then($body2 => {
+            const optionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li', 'div[class*="option"]'];
+            for (const selector of optionSelectors) {
+              if ($body2.find(selector).length > 0) {
+                cy.get(selector).first().click({ force: true });
+                cy.log(`✅ Selected first channel option with selector: ${selector}`);
+                return;
+              }
+            }
+          });
+          return;
+        }
       }
     });
     
     // If no select element found, try custom dropdown
-    cy.log('🔍 No select element found, trying custom dropdown');
+    cy.log('🔍 No select element found, trying custom dropdown for channel');
     
     // Try to find dropdown trigger - look for elements containing "Select Channel" or near "Channel" label
     cy.get('body').then($body => {
-      // Try multiple approaches to find the dropdown
+      // First, try to find any clickable element next to "Channel" label
+      const $channelLabel = $body.find('label:contains("Channel")');
+      if ($channelLabel.length > 0) {
+        cy.log('✅ Found Channel label, looking for associated input/dropdown');
+        // Try to find the next sibling or child elements
+        const $nextElement = $channelLabel.next();
+        if ($nextElement.length > 0) {
+          cy.log(`📍 Found element next to Channel label: ${$nextElement.prop('tagName')}`);
+          cy.wrap($nextElement).click({ force: true });
+          cy.wait(500);
+          
+          // Try to select first option
+          cy.get('body').then($body2 => {
+            const opts = $body2.find('[role="option"], [role="menuitem"], .dropdown-item, li[class*="option"]');
+            if (opts.length > 0) {
+              cy.get('[role="option"], [role="menuitem"], .dropdown-item, li[class*="option"]').first().click({ force: true });
+              cy.log('✅ Selected first channel option');
+            }
+          });
+          return;
+        }
+      }
+      
+      // Fallback: Try multiple approaches to find the dropdown
       const channelDropdownSelectors = [
-        '*:contains("Select Channel")',
         'label:contains("Channel") + *',
         'label:contains("Channel") ~ *',
+        '*:contains("Select Channel")',
         'div:has(label:contains("Channel")) button',
         'div:has(label:contains("Channel")) div[class*="select"]',
         'div:has(label:contains("Channel")) [role="button"]',
@@ -984,6 +1029,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
       
       // Fallback: try clicking on text containing "Category" or "Select categories"
+      // Note: Disabled to avoid conflicts with successful selections
+      /* 
       if (!categoryDropdownFound) {
         cy.log('⚠️ Category dropdown not found with selectors, trying fallback');
         if ($body.text().includes('Select categories')) {
@@ -1054,6 +1101,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.log('⚠️ No category dropdown found at all, skipping category selection');
         }
       }
+      */
     });
 
     // 3. Fill caption
