@@ -1439,8 +1439,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
   // });
 
   // Cleanup after tests
-  afterEach(() => {
-    // Add any cleanup logic if needed
-    cy.log('🧹 Test cleanup completed');
-  });
+  // afterEach(() => {
+  //   // Add any cleanup logic if needed
+  //   cy.log('🧹 Test cleanup completed');
+  // });
 });
