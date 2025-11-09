@@ -721,7 +721,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
     
     // Scroll to find the channel dropdown (human-like behavior)
-    cy.scrollTo(0, 200, { duration: 300 });
+    // cy.scrollTo(0, 200, { duration: 300 });
     
     // Try to find and click the channel dropdown
     // First, try to find a select element for channel
@@ -880,7 +880,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.log('🎭 Selecting category from dropdown');
     
     // Scroll to find category dropdown (human-like behavior)
-    cy.scrollTo(0, 300, { duration: 300 });
+    // cy.scrollTo(0, 300, { duration: 300 });
     
     cy.get('body').then($body => {
       // Look for category dropdown - try multiple selectors
