@@ -840,39 +840,19 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.log('🔍 Looking for DevOps channel option in dropdown');
           
           // Use cy.contains() to directly find and click "DevOps' Channel" or "DevOps's Channel"
-          // This is more reliable than checking body text
-          cy.get('body').then(() => {
-            // Try to find "DevOps' Channel" or "DevOps's Channel" using cy.contains()
-            // cy.contains() will find the element containing this text
-            cy.contains(/DevOps'?s? Channel/i)
-              .should('be.visible')
-              .not('label') // Exclude the label itself
-              .first()
-              .click({ force: true })
-              .then(() => {
-                cy.log('✅ Successfully clicked DevOps channel option');
-              })
-              .catch(() => {
-                // If exact match fails, try to find any visible option with "Channel" in it
-                cy.log('⚠️ DevOps channel not found, trying first available channel option');
-                
-                // Look for any visible option in the dropdown
-                cy.get('[role="option"], [role="menuitem"], li, span')
-                  .filter(':visible')
-                  .filter(($el) => {
-                    const text = Cypress.$($el).text().trim();
-                    return text.includes('Channel') && 
-                           text.length > 5 && 
-                           text.length < 50 &&
-                           !Cypress.$($el).is('label');
-                  })
-                  .first()
-                  .click({ force: true })
-                  .then(() => {
-                    cy.log('✅ Clicked first available channel option');
-                  });
-              });
-          });
+          // cy.contains() is more reliable than checking body text - it finds elements even if body.text() doesn't include them
+          cy.log('🔍 Attempting to find and click DevOps channel option');
+          
+          // Directly use cy.contains() to find "DevOps' Channel" or "DevOps's Channel"
+          // This will work even if body.text() doesn't include the text
+          cy.contains(/DevOps'?s? Channel/i, { timeout: 5000 })
+            .should('be.visible')
+            .not('label') // Exclude the label itself
+            .first()
+            .click({ force: true })
+            .then(() => {
+              cy.log('✅ Successfully clicked DevOps channel option');
+            });
           
           // CRITICAL: Verify channel was selected before proceeding to other fields
           cy.log('⏳ Verifying channel selection before proceeding...');
