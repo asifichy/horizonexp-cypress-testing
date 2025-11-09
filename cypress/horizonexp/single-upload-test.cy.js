@@ -881,8 +881,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
               cy.log('⚠️ Trying alternative approach - looking for any channel option');
               
               // Look for span or div elements that likely contain the option text
+              // Note: In Cypress filter callbacks, $el is a DOM element, not jQuery
               cy.get('span, div').filter(':visible').filter(($el) => {
-                const text = $el.text().trim();
+                // Wrap DOM element in jQuery to access .text() method
+                const $jqEl = Cypress.$($el);
+                const text = $jqEl.text().trim();
                 const matchesDevOps = text.includes('DevOps') && text.includes('Channel');
                 const reasonableLength = text.length > 10 && text.length < 50;
                 return matchesDevOps && reasonableLength;
