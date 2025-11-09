@@ -736,8 +736,10 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(2000); // Give form time to render completely
     cy.log('✅ Form loaded, starting to fill fields');
 
-    // 1. Select Channel - click dropdown and select first available channel
-    cy.log('📺 Selecting channel from dropdown');
+    // ============================================
+    // STEP 1: SELECT CHANNEL FIRST (REQUIRED)
+    // ============================================
+    cy.log('📺 STEP 1: Selecting channel from dropdown (REQUIRED FIELD)');
     
     // Wait for channel dropdown to be visible (human-like wait)
     cy.get('body', { timeout: 15000 }).should('satisfy', ($body) => {
@@ -880,24 +882,92 @@ describe('HorizonExp Single Upload Test Suite', () => {
             if (!channelFound) {
               cy.log('⚠️ Trying alternative approach - looking for any channel option');
               
-              // Look for span or div elements that likely contain the option text
-              // Note: In Cypress filter callbacks, $el is a DOM element, not jQuery
-              cy.get('span, div').filter(':visible').filter(($el) => {
-                // Wrap DOM element in jQuery to access .text() method
-                const $jqEl = Cypress.$($el);
-                const text = $jqEl.text().trim();
-                const matchesDevOps = text.includes('DevOps') && text.includes('Channel');
-                const reasonableLength = text.length > 10 && text.length < 50;
-                return matchesDevOps && reasonableLength;
-              }).first().then($el => {
-                if ($el && $el.length > 0) {
-                  cy.log(`✅ Found option with text: "${$el.text().trim()}"`);
-                  cy.wrap($el).click({ force: true });
-                  cy.log('✅ Clicked channel option');
+              // Try to find and click the first available option in the dropdown
+              cy.get('body').then($body => {
+                // First, try to find any element with "Channel" in it (but not the label)
+                const $channelOptions = $body.find('span, div, li').filter(':visible').filter(function() {
+                  const $el = Cypress.$(this);
+                  const text = $el.text().trim();
+                  const hasChannel = text.includes('Channel');
+                  const reasonableLength = text.length > 5 && text.length < 50;
+                  const notLabel = !$el.is('label') && !$el.closest('label').length;
+                  return hasChannel && reasonableLength && notLabel;
+                });
+                
+                if ($channelOptions.length > 0) {
+                  cy.log(`✅ Found ${$channelOptions.length} channel option(s), selecting first one`);
+                  cy.wrap($channelOptions.first()).click({ force: true });
+                  cy.log('✅ Clicked first available channel option');
+                  channelFound = true;
+                } else {
+                  // Final fallback: try to click any visible option-like element
+                  cy.log('⚠️ No channel options found, trying generic dropdown options');
+                  const $genericOptions = $body.find('[role="option"], [role="menuitem"], .dropdown-item, li').filter(':visible');
+                  
+                  if ($genericOptions.length > 0) {
+                    cy.log(`✅ Found ${$genericOptions.length} generic option(s), selecting first one`);
+                    cy.wrap($genericOptions.first()).click({ force: true });
+                    cy.log('✅ Clicked first generic option');
+                    channelFound = true;
+                  } else {
+                    cy.log('❌ No options found in dropdown - channel selection failed');
+                  }
                 }
               });
             }
           });
+          
+          // CRITICAL: Verify channel was selected before proceeding to other fields
+          cy.log('⏳ Verifying channel selection before proceeding...');
+          cy.wait(2000); // Give time for selection to register
+          
+          // Check that channel field is no longer showing placeholder
+          cy.get('body', { timeout: 10000 }).should('satisfy', ($body) => {
+            // Null check to prevent errors
+            if (!$body || $body.length === 0) {
+              cy.log('⚠️ Body element not found, retrying...');
+              return false;
+            }
+            
+            try {
+              const bodyText = $body.text() || '';
+              
+              // Check if channel field shows a selected value (not placeholder)
+              // Channel is selected if:
+              // 1. It shows DevOps channel name, OR
+              // 2. The placeholder "Select Channel" is gone and field shows a value
+              const hasDevOpsChannel = bodyText.includes("DevOps' Channel") || bodyText.includes("DevOps's Channel");
+              const hasChannelValue = bodyText.includes("Channel") && !bodyText.includes('Select Channel');
+              
+              // Also check if the input field itself has a value
+              const $channelInput = $body.find('input, select, [role="combobox"]').filter(function() {
+                const $el = Cypress.$(this);
+                const $label = $el.closest('*').find('label:contains("Channel")');
+                return $label.length > 0;
+              });
+              
+              let inputHasValue = false;
+              if ($channelInput.length > 0) {
+                const inputValue = $channelInput.first().val() || $channelInput.first().text() || '';
+                inputHasValue = inputValue.trim() !== '' && inputValue.trim() !== 'Channel' && inputValue.trim() !== 'Select Channel';
+              }
+              
+              const channelSelected = hasDevOpsChannel || hasChannelValue || inputHasValue;
+              
+              if (channelSelected) {
+                cy.log('✅ Channel selection VERIFIED - proceeding to next field');
+                return true;
+              } else {
+                cy.log('⚠️ Channel selection not yet confirmed, waiting...');
+                return false;
+              }
+            } catch (error) {
+              cy.log(`⚠️ Error checking channel selection: ${error.message}`);
+              return false;
+            }
+          });
+          
+          cy.log('✅ Channel selection complete - now proceeding to category');
         } else {
           cy.log('⚠️ Could not find dropdown element next to Channel label');
         }
@@ -1074,11 +1144,13 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // 2. Select Category - click dropdown and select category
-    cy.log('🎭 Selecting category from dropdown');
+    // ============================================
+    // STEP 2: SELECT CATEGORY (AFTER CHANNEL)
+    // ============================================
+    cy.log('🎭 STEP 2: Selecting category from dropdown');
     
-    // Wait a moment for category field to be ready
-    cy.wait(500);
+    // Wait for channel selection to complete before proceeding
+    cy.wait(1000); // Ensure channel selection is complete
     
     // Scroll to find category dropdown (human-like behavior)
     // cy.scrollTo(0, 300, { duration: 300 });
@@ -1237,8 +1309,13 @@ describe('HorizonExp Single Upload Test Suite', () => {
       */
     });
 
-    // 3. Fill caption
-    cy.log('📝 Filling caption');
+    // ============================================
+    // STEP 3: FILL CAPTION (AFTER CATEGORY)
+    // ============================================
+    cy.log('📝 STEP 3: Filling caption');
+    
+    // Wait for category selection to complete
+    cy.wait(500);
     
     cy.get('body').then($body => {
       // Look for caption input field
@@ -1261,8 +1338,13 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // 4. Fill tags
-    cy.log('🏷️ Filling tags');
+    // ============================================
+    // STEP 4: FILL TAGS (AFTER CAPTION)
+    // ============================================
+    cy.log('🏷️ STEP 4: Filling tags');
+    
+    // Wait for caption to be filled
+    cy.wait(500);
     
     cy.get('body').then($body => {
       // Look for tags input field
@@ -1294,8 +1376,13 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // 5. Fill CTA Button label and link
-    cy.log('🔘 Filling CTA Button');
+    // ============================================
+    // STEP 5: FILL CTA BUTTON (AFTER TAGS)
+    // ============================================
+    cy.log('🔘 STEP 5: Filling CTA Button label and link');
+    
+    // Wait for tags to be filled
+    cy.wait(500);
     
     cy.get('body').then($body => {
       // Look for CTA Button label field
@@ -1354,8 +1441,13 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // 6. Click Publish button
-    cy.log('🚀 Publishing video');
+    // ============================================
+    // STEP 6: CLICK PUBLISH BUTTON (FINAL STEP)
+    // ============================================
+    cy.log('🚀 STEP 6: Publishing video');
+    
+    // Wait for all fields to be filled
+    cy.wait(1000);
     
     // Wait for publish button to be visible and enabled (human-like wait)
     cy.get('button').contains('Publish').first()
