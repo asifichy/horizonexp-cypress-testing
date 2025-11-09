@@ -831,36 +831,34 @@ describe('HorizonExp Single Upload Test Suite', () => {
           cy.wrap($dropdownElement).should('be.visible').click({ force: true });
           cy.log('🖱️ Clicked channel dropdown');
           
-          // Wait a bit for dropdown to open
-          cy.wait(800);
+          // Wait for dropdown to open
+          cy.wait(1000); // Increased wait time for dropdown to fully render
           
           // Wait for dropdown menu to appear and select option
           cy.get('body').then($body2 => {
-            // Look for specific channel names, but exclude the label itself
-            const channelNames = ["DevOps' Channel", "DevOps's Channel", "Test's Channel", "SQA's Channel"];
-            let channelSelected = false;
-            
-            for (const channelName of channelNames) {
-              if (!channelSelected && $body2.text().includes(channelName)) {
-                cy.log(`🔍 Found channel option: ${channelName}`);
-                // Use more specific selector to avoid matching the label
-                cy.get('body').find(`*:contains("${channelName}")`).not('label').filter(':visible').first().click({ force: true });
-                cy.log(`✅ Selected channel: ${channelName}`);
-                channelSelected = true;
-                break;
-              }
-            }
-            
-            if (!channelSelected) {
-              cy.log('⚠️ No specific channel name found, trying to click visible dropdown option');
-              // Look for actual dropdown options, not all divs
-              cy.get('body').find('[role="listbox"], [role="menu"], div[class*="dropdown"], div[class*="menu"]').first().within(() => {
-                cy.get('div, li, span').filter(':visible').filter(($el) => {
-                  const text = $el.text().trim();
-                  return text.length > 0 && text.includes('Channel');
-                }).first().click({ force: true });
-                cy.log('✅ Selected channel from dropdown');
-              });
+            // Look for specific channel names - search for the actual text in the dropdown
+            if ($body2.text().includes("DevOps' Channel") || $body2.text().includes("DevOps's Channel")) {
+              cy.log(`🔍 Found DevOps channel in dropdown`);
+              // Click on any element containing "DevOps' Channel" or "DevOps" but not the label
+              cy.get('*').filter(':visible').filter(($el) => {
+                const text = $el.text();
+                return (text.includes("DevOps' Channel") || text.includes("DevOps's Channel")) && 
+                       !$el.is('label') && 
+                       text.length < 100; // Avoid parent containers with lots of text
+              }).first().click({ force: true });
+              cy.log(`✅ Selected DevOps channel`);
+            } else {
+              cy.log('⚠️ DevOps channel not found, trying any visible option with "Channel"');
+              // Try to find any clickable element with "Channel" in it (but not the label)
+              cy.get('*').filter(':visible').filter(($el) => {
+                const text = $el.text().trim();
+                const tagName = $el.prop('tagName').toLowerCase();
+                return text.includes('Channel') && 
+                       tagName !== 'label' && 
+                       tagName !== 'body' &&
+                       text.length > 5 && text.length < 50; // Reasonable text length
+              }).first().click({ force: true });
+              cy.log('✅ Selected channel option');
             }
           });
         } else {
