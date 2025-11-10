@@ -90,8 +90,10 @@ describe('HorizonExp Single Upload Test Suite', () => {
                       });
                       
                       if ($genericOptions.length > 0) {
-                        cy.wrap($genericOptions.first()).click({ force: true });
-                        cy.log(`✅ Selected first available ${fieldName}: ${$genericOptions.first().text()}`);
+                        const firstOption = $genericOptions.first();
+                        cy.wrap(firstOption).click({ force: true });
+                        const optionText = firstOption.text() || 'Unknown';
+                        cy.log(`✅ Selected first available ${fieldName}: ${optionText}`);
                         fieldFound = true;
                       }
                     }
