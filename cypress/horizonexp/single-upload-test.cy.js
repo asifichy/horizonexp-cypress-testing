@@ -827,8 +827,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
               cy.log('✅ Selected channel option');
             }
           });
-        }).catch(() => {
-          cy.log('⚠️ Channel selection failed - continuing');
         });
       } else {
         cy.log('⚠️ No channel elements found - skipping');
@@ -854,8 +852,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
               cy.log('✅ Selected category option');
             }
           });
-        }).catch(() => {
-          cy.log('⚠️ Category selection failed - continuing');
         });
       } else {
         cy.log('⚠️ No category elements found - skipping');
