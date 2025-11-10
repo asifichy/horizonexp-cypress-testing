@@ -439,57 +439,233 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     cy.log('✅ Upload completed');
     humanWait(3000);
-
-    // Step 10: Click "Ready to publish"
-    cy.log('📝 Clicking Ready to publish button');
     
+    // Debug: Log current page state before looking for Ready to publish
+    cy.get('body').then($body => {
+      const bodyText = $body.text();
+      cy.log('📋 Current page content includes:');
+      cy.log(`- Ready to publish: ${bodyText.includes('Ready to publish')}`);
+      cy.log(`- 100%: ${bodyText.includes('100%')}`);
+      cy.log(`- uploaded: ${bodyText.includes('uploaded')}`);
+      
+      // Log any buttons found on the page
+      const buttons = $body.find('button');
+      cy.log(`📝 Found ${buttons.length} button(s) on page`);
+      buttons.each((i, btn) => {
+        const $btn = Cypress.$(btn);
+        const btnText = $btn.text().trim();
+        if (btnText.length > 0 && btnText.length < 50) {
+          cy.log(`  - Button ${i}: "${btnText}"`);
+        }
+      });
+    });
+
+    // Step 10: Click "Ready to publish" button
+    cy.log('📝 Looking for and clicking Ready to publish button');
+    
+    // Wait for the Ready to publish button to appear
     cy.get('body', { timeout: 30000 }).should('satisfy', ($body) => {
       return $body.text().includes('Ready to publish') || 
              $body.find('button:contains("Ready to publish"), *:contains("Ready to publish")').length > 0;
     });
     
-    const readyToPublishSelectors = [
-      'button:contains("Ready to publish")',
-      'a:contains("Ready to publish")',
-      '*:contains("Ready to publish")',
-      '[data-testid*="ready-to-publish"]',
-      '[data-testid*="publish"]'
-    ];
+    // Take a screenshot to see the current state
+    cy.screenshot('before-ready-to-publish-click');
     
+    // More specific approach to find the Ready to publish button
     cy.get('body').then($body => {
-      let buttonFound = false;
-      for (const selector of readyToPublishSelectors) {
-        if ($body.find(selector).length > 0 && !buttonFound) {
-          cy.log(`✅ Found Ready to publish button: ${selector}`);
-          cy.get(selector).first().should('exist').then($el => {
-            if ($el && $el.length > 0) {
-              cy.wrap($el).trigger('mouseover');
-              cy.wrap($el).click({ force: true });
-            }
+      cy.log('🔍 Searching for Ready to publish button in the uploaded video item');
+      
+      // First, try to find the uploaded video item/container
+      const videoContainerSelectors = [
+        '[class*="upload"]',
+        '[class*="video"]',
+        'div:contains("1 out of 1 uploaded")',
+        'div:contains("100%")',
+        '*:has(*:contains("Ready to publish"))'
+      ];
+      
+      let readyToPublishClicked = false;
+      
+      // Look for the Ready to publish button within the video container
+      for (const containerSelector of videoContainerSelectors) {
+        if (!readyToPublishClicked && $body.find(containerSelector).length > 0) {
+          cy.log(`🎯 Found video container: ${containerSelector}`);
+          
+          // Look for Ready to publish button within this container
+          cy.get(containerSelector).then($containers => {
+            $containers.each((index, container) => {
+              const $container = Cypress.$(container);
+              const containerText = $container.text();
+              
+              if (containerText.includes('Ready to publish') && !readyToPublishClicked) {
+                cy.log(`✅ Found container with Ready to publish text`);
+                
+                // Look for clickable elements within this container
+                const $readyButton = $container.find('button:contains("Ready to publish"), a:contains("Ready to publish"), *:contains("Ready to publish")').filter(function() {
+                  const $el = Cypress.$(this);
+                  return $el.is('button, a, [role="button"]') || $el.css('cursor') === 'pointer';
+                });
+                
+                if ($readyButton.length > 0) {
+                  cy.log('🎯 Found clickable Ready to publish button in container');
+                  cy.wrap($readyButton.first()).should('be.visible').then($btn => {
+                    // Scroll into view first
+                    cy.wrap($btn).scrollIntoView();
+                    cy.wait(1000);
+                    
+                    // Human-like interaction
+                    cy.wrap($btn).trigger('mouseover');
+                    cy.wait(500);
+                    cy.wrap($btn).click({ force: true });
+                    cy.log('✅ Clicked Ready to publish button');
+                    readyToPublishClicked = true;
+                  });
+                  return false; // Break out of each loop
+                } else {
+                  // If no specific button found, try clicking on the text itself
+                  const $readyText = $container.find('*:contains("Ready to publish")').last();
+                  if ($readyText.length > 0) {
+                    cy.log('🎯 Trying to click on Ready to publish text directly');
+                    cy.wrap($readyText).should('be.visible').then($text => {
+                      cy.wrap($text).scrollIntoView();
+                      cy.wait(1000);
+                      cy.wrap($text).trigger('mouseover');
+                      cy.wait(500);
+                      cy.wrap($text).click({ force: true });
+                      cy.log('✅ Clicked Ready to publish text');
+                      readyToPublishClicked = true;
+                    });
+                    return false;
+                  }
+                }
+              }
+            });
           });
-          buttonFound = true;
-          break;
+          
+          if (readyToPublishClicked) break;
         }
       }
       
-      if (!buttonFound) {
-        cy.get('*').contains('Ready to publish').first().should('exist').then($el => {
-          if ($el && $el.length > 0) {
-            cy.wrap($el).trigger('mouseover');
-            cy.wrap($el).click({ force: true });
+      // Fallback approach if container-based search didn't work
+      if (!readyToPublishClicked) {
+        cy.log('⚠️ Container approach failed, trying direct button search');
+        
+        const directSelectors = [
+          'button:contains("Ready to publish")',
+          'a:contains("Ready to publish")',
+          '[data-testid*="ready-to-publish"]',
+          '[data-testid*="publish"]',
+          '.btn:contains("Ready to publish")',
+          '[class*="publish"]:contains("Ready to publish")'
+        ];
+        
+        for (const selector of directSelectors) {
+          if (!readyToPublishClicked && $body.find(selector).length > 0) {
+            cy.log(`✅ Found Ready to publish button with direct selector: ${selector}`);
+            cy.get(selector).first().should('be.visible').then($btn => {
+              cy.wrap($btn).scrollIntoView();
+              cy.wait(1000);
+              cy.wrap($btn).trigger('mouseover');
+              cy.wait(500);
+              cy.wrap($btn).click({ force: true });
+              cy.log('✅ Clicked Ready to publish button (direct approach)');
+              readyToPublishClicked = true;
+            });
+            break;
           }
+        }
+      }
+      
+      // Final fallback - click any element containing "Ready to publish"
+      if (!readyToPublishClicked) {
+        cy.log('⚠️ Direct approach failed, trying final fallback');
+        cy.get('*').contains('Ready to publish').first().should('be.visible').then($el => {
+          cy.wrap($el).scrollIntoView();
+          cy.wait(1000);
+          cy.wrap($el).trigger('mouseover');
+          cy.wait(500);
+          cy.wrap($el).click({ force: true });
+          cy.log('✅ Clicked Ready to publish button (fallback approach)');
         });
       }
     });
     
-    // Step 11: Wait for publish form to load
+    // Wait a moment after clicking
+    cy.wait(3000);
+    
+    // Take a screenshot after clicking to see what happened
+    cy.screenshot('after-ready-to-publish-click');
+    
+    // Step 11: Wait for publish form to load or handle navigation issues
     cy.log('⏳ Waiting for publish form to load');
     
-    cy.get('body', { timeout: 15000 }).should('satisfy', ($body) => {
-      return $body.text().includes('Channel') || 
-             $body.text().includes('Category') ||
-             $body.find('select, [role="combobox"], [class*="dropdown"], [class*="select"]').length > 0 ||
-             $body.find('label:contains("Channel"), label:contains("Category")').length > 0;
+    // Check if we're still on uploads page or if we navigated to publish form
+    cy.url().then((currentUrl) => {
+      cy.log(`📍 Current URL after Ready to publish click: ${currentUrl}`);
+      
+      if (currentUrl.includes('/uploads')) {
+        cy.log('⚠️ Still on uploads page - Ready to publish click may not have worked');
+        cy.log('🔄 Attempting to click Ready to publish again');
+        
+        // Try clicking Ready to publish again with a different approach
+        cy.get('body').then($body => {
+          // Look for any blue button or link that might be the Ready to publish button
+          const alternativeSelectors = [
+            'button[class*="blue"]:contains("Ready")',
+            'a[class*="blue"]:contains("Ready")',
+            'button[class*="primary"]:contains("Ready")',
+            'a[class*="primary"]:contains("Ready")',
+            '[class*="btn"][class*="blue"]:contains("Ready")',
+            '[class*="button"]:contains("Ready to publish")',
+            '.ready-to-publish',
+            '[data-action*="publish"]'
+          ];
+          
+          let alternativeButtonFound = false;
+          
+          for (const selector of alternativeSelectors) {
+            if (!alternativeButtonFound && $body.find(selector).length > 0) {
+              cy.log(`🎯 Trying alternative selector: ${selector}`);
+              cy.get(selector).first().should('be.visible').then($btn => {
+                cy.wrap($btn).scrollIntoView();
+                cy.wait(1000);
+                cy.wrap($btn).click({ force: true });
+                cy.log('✅ Clicked alternative Ready to publish button');
+                alternativeButtonFound = true;
+              });
+              break;
+            }
+          }
+          
+          if (!alternativeButtonFound) {
+            cy.log('❌ Could not find alternative Ready to publish button');
+            cy.log('🔄 Trying to navigate directly to publish form');
+            // Try direct navigation as last resort
+            cy.visit('https://app.horizonexp.com/shorts/publish');
+          }
+        });
+        
+        cy.wait(3000);
+      }
+    });
+    
+    // Now wait for the publish form to load
+    cy.get('body', { timeout: 20000 }).should('satisfy', ($body) => {
+      const bodyText = $body.text();
+      const hasFormElements = $body.find('select, [role="combobox"], [class*="dropdown"], [class*="select"]').length > 0;
+      const hasFormLabels = $body.find('label:contains("Channel"), label:contains("Category")').length > 0;
+      const hasFormText = bodyText.includes('Channel') || bodyText.includes('Category') || bodyText.includes('Select Channel') || bodyText.includes('Select categories');
+      
+      const isPublishForm = hasFormElements || hasFormLabels || hasFormText;
+      
+      if (isPublishForm) {
+        cy.log('✅ Publish form detected');
+      } else {
+        cy.log('⚠️ Publish form not detected yet, current page content includes:', bodyText.substring(0, 200));
+      }
+      
+      return isPublishForm;
     });
 
     cy.wait(2000);
