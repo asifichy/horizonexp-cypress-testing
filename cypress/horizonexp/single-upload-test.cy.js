@@ -47,61 +47,41 @@ describe('HorizonExp Single Upload Test Suite', () => {
     };
     
     // Intercept network requests to capture upload metadata
+    const extractMetadata = (body) => {
+      if (body.thumbnailUrl || body.thumbnailurl) {
+        capturedMetadata.thumbnailurl = body.thumbnailUrl || body.thumbnailurl;
+      }
+      if (body.videoUrl || body.videourl) {
+        capturedMetadata.videourl = body.videoUrl || body.videourl;
+      }
+      if (body.previewUrl || body.previewurl) {
+        capturedMetadata.previewurl = body.previewUrl || body.previewurl;
+      }
+    };
+
     cy.intercept('POST', '**/upload**', (req) => {
       req.continue((res) => {
-        cy.log('📡 Upload API response intercepted');
         if (res.body) {
-          cy.log('📦 Response body:', JSON.stringify(res.body));
-          // Extract metadata from response
-          const body = res.body;
-          if (body.thumbnailUrl || body.thumbnailurl) {
-            capturedMetadata.thumbnailurl = body.thumbnailUrl || body.thumbnailurl;
-          }
-          if (body.videoUrl || body.videourl) {
-            capturedMetadata.videourl = body.videoUrl || body.videourl;
-          }
-          if (body.previewUrl || body.previewurl) {
-            capturedMetadata.previewurl = body.previewUrl || body.previewurl;
-          }
+          cy.log('📡 Upload API response intercepted');
+          extractMetadata(res.body);
         }
       });
     }).as('uploadRequest');
 
     cy.intercept('POST', '**/api/**/upload**', (req) => {
       req.continue((res) => {
-        cy.log('📡 Upload API response intercepted (alternative endpoint)');
         if (res.body) {
-          const body = res.body;
-          if (body.thumbnailUrl || body.thumbnailurl) {
-            capturedMetadata.thumbnailurl = body.thumbnailUrl || body.thumbnailurl;
-          }
-          if (body.videoUrl || body.videourl) {
-            capturedMetadata.videourl = body.videoUrl || body.videourl;
-          }
-          if (body.previewUrl || body.previewurl) {
-            capturedMetadata.previewurl = body.previewUrl || body.previewurl;
-          }
+          cy.log('📡 Upload API response intercepted (alt endpoint)');
+          extractMetadata(res.body);
         }
       });
     }).as('uploadRequestAlt');
 
     cy.intercept('GET', '**/api/**', (req) => {
       req.continue((res) => {
-        if (res.body) {
-          const body = res.body;
-          // Check if response contains video metadata
-          if (body.thumbnailUrl || body.thumbnailurl || body.videoUrl || body.videourl || body.previewUrl || body.previewurl) {
-            cy.log('📡 API response with video metadata intercepted');
-            if (body.thumbnailUrl || body.thumbnailurl) {
-              capturedMetadata.thumbnailurl = body.thumbnailUrl || body.thumbnailurl;
-            }
-            if (body.videoUrl || body.videourl) {
-              capturedMetadata.videourl = body.videoUrl || body.videourl;
-            }
-            if (body.previewUrl || body.previewurl) {
-              capturedMetadata.previewurl = body.previewUrl || body.previewurl;
-            }
-          }
+        if (res.body && (res.body.thumbnailUrl || res.body.videoUrl || res.body.previewUrl)) {
+          cy.log('📡 API response with video metadata intercepted');
+          extractMetadata(res.body);
         }
       });
     }).as('apiRequest');
@@ -174,56 +154,37 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 4: Handle post-login navigation
     cy.log('✅ Handling post-login navigation');
     
-    // Check current URL and handle different scenarios
     cy.url().then((currentUrl) => {
       cy.log(`Current URL after login: ${currentUrl}`);
       
       if (currentUrl.includes('accounts.google.com')) {
-        cy.log('⚠️ Redirected to Google OAuth - this suggests the app uses Google authentication');
-        cy.log('🔄 The email/password fields might be for display only');
-        
-        // Handle Google OAuth flow with the provided email
-        cy.log('🔍 Looking for email input in Google OAuth');
-        
-        // Wait for Google page to load
+        cy.log('⚠️ Redirected to Google OAuth - handling OAuth flow');
         humanWait(2000);
         
-        // Try to find and fill email in Google's form
         cy.get('body').then($body => {
           if ($body.find('input[type="email"]').length > 0) {
             cy.get('input[type="email"]').first().clear().type(testConfig.userEmail);
             humanWait(1000);
-            
-            // Look for Next button
-            cy.get('button:contains("Next"), #identifierNext, [data-continue-as]')
-              .first()
-              .click();
-            
+            cy.get('button:contains("Next"), #identifierNext, [data-continue-as]').first().click();
             humanWait(3000);
             
-            // Handle password if prompted
             cy.get('body').then($body2 => {
               if ($body2.find('input[type="password"]').length > 0) {
                 cy.get('input[type="password"]').first().type(testConfig.userPassword);
-                cy.get('button:contains("Next"), #passwordNext')
-                  .first()
-                  .click();
+                cy.get('button:contains("Next"), #passwordNext').first().click();
               }
             });
           }
         });
-        
       } else if (currentUrl.includes('/signin')) {
-        cy.log('❌ Still on signin page - login may have failed');
-        // Check for error messages
+        cy.log('❌ Still on signin page - checking for errors');
         cy.get('body').then($body => {
-          if ($body.text().includes('Invalid') || $body.text().includes('Error') || $body.text().includes('incorrect')) {
-            throw new Error('Login failed - invalid credentials or error message detected');
+          if ($body.text().includes('Invalid') || $body.text().includes('Error')) {
+            throw new Error('Login failed - invalid credentials detected');
           }
         });
-      } else if (currentUrl.includes('404') || currentUrl.includes('not-found')) {
+      } else if (currentUrl.includes('404')) {
         cy.log('⚠️ Got 404 page, navigating to main app');
-        // Try to navigate to the main app URL
         cy.visit('https://app.horizonexp.com');
         humanWait(2000);
       } else {
@@ -241,74 +202,58 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     humanWait();
 
-    // Step 5: Navigate to Short-form section
-    cy.log('📱 Navigating to Short-form section');
+    // Step 5: Navigate to Shorts Uploads section
+    cy.log('📱 Navigating to Shorts Uploads section');
     
-    // Wait for the page to fully load
     cy.get('body').should('be.visible');
     humanWait(2000);
     
-    // Check if we're already in the shorts section, if not navigate there
+    // Navigate to shorts section if not already there
     cy.url().then((currentUrl) => {
       if (!currentUrl.includes('/shorts/')) {
-        cy.log('📱 Not in shorts section, clicking Short-form');
-        // Look for Short-form in the sidebar and click it
+        cy.log('📱 Navigating to shorts section');
         cy.get('[data-testid*="short"], *').contains('Short-form').first().click();
         humanWait(2000);
-      } else {
-        cy.log('✅ Already in shorts section');
       }
     });
 
-    // Step 6: Navigate to Uploads section
-    cy.log('📤 Navigating to Uploads section');
-    
-    // Check if we're already on uploads page
+    // Navigate to uploads page
     cy.url().then((currentUrl) => {
       if (!currentUrl.includes('/uploads')) {
-        cy.log('📤 Not on uploads page, clicking Uploads');
-        // Look for Uploads in the sidebar navigation
+        cy.log('📤 Navigating to uploads page');
         cy.get('body').then($body => {
-          // Try different approaches to find Uploads link
-          if ($body.find('a').filter(':contains("Uploads")').length > 0) {
-            cy.get('a').contains('Uploads').first().click();
-          } else if ($body.find('*').filter(':contains("Uploads")').length > 0) {
-            cy.get('*').contains('Uploads').first().click();
+          if ($body.find('a:contains("Uploads")').length > 0) {
+            cy.get('a:contains("Uploads")').first().click();
+          } else if ($body.find('*:contains("Uploads")').length > 0) {
+            cy.get('*:contains("Uploads")').first().click();
           } else {
-            // Direct navigation if link not found
             cy.visit('https://app.horizonexp.com/shorts/uploads');
           }
         });
         humanWait(2000);
-      } else {
-        cy.log('✅ Already on uploads page');
       }
     });
     
-    // Verify we're on the uploads page
     cy.url().should('include', '/shorts/uploads');
 
-    // Step 7: Click on Upload New button (blue button)
+    // Step 6: Click Upload New button
     cy.log('➕ Clicking Upload New button');
     
-    // Wait for page to fully load
     humanWait(1000);
     
-    // Look for the blue "Upload New" button with multiple approaches
+    const uploadButtonSelectors = [
+      'button:contains("Upload New")',
+      '[data-testid*="upload"]',
+      'button[class*="bg-blue"], button[class*="primary"]',
+      'a:contains("Upload New")',
+      '*:contains("Upload New")'
+    ];
+    
     cy.get('body').then($body => {
-      // Try different selectors for the Upload New button
-      const uploadButtonSelectors = [
-        'button:contains("Upload New")',
-        '[data-testid*="upload"]',
-        'button[class*="bg-blue"], button[class*="primary"]',
-        'a:contains("Upload New")',
-        '*:contains("Upload New")'
-      ];
-      
       let buttonFound = false;
       for (const selector of uploadButtonSelectors) {
         if ($body.find(selector).length > 0 && !buttonFound) {
-          cy.log(`➕ Found Upload New button with selector: ${selector}`);
+          cy.log(`➕ Found Upload New button: ${selector}`);
           cy.get(selector).first().should('be.visible').click();
           buttonFound = true;
           break;
@@ -316,77 +261,49 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
       
       if (!buttonFound) {
-        cy.log('⚠️ Upload New button not found, trying to click any button with "Upload"');
         cy.get('button, a').filter(':contains("Upload")').first().click();
       }
     });
     
-    // Wait for upload interface to appear
     humanWait();
 
-    // Step 8: Verify upload interface is ready
-    cy.log('🎯 Verifying upload interface is ready');
+    // Step 7: Upload video file
+    cy.log('📹 Starting file upload process');
     
-    // Check for upload area or file input
     cy.get('body').should('satisfy', ($body) => {
       const text = $body.text();
       return text.includes('upload') || text.includes('Upload');
     });
     
-    // Wait for upload interface to be fully loaded
     humanWait();
-
-    // Step 9: Upload the video file
-    cy.log('📹 Starting file upload process');
     
-    // Look for file input or drag-drop area and handle upload
     cy.get('body').then($body => {
       if ($body.find('input[type="file"]').length > 0) {
-        cy.log('✅ File input found - Proceeding with file upload');
-        
-        // Upload file using file input
-        cy.get('input[type="file"]').first().selectFile(testConfig.uploadFile.path, {
-          force: true // Force in case input is hidden
-        });
-        
+        cy.log('✅ Using file input for upload');
+        cy.get('input[type="file"]').first().selectFile(testConfig.uploadFile.path, { force: true });
       } else {
-        // Handle drag-drop upload area
         cy.log('🎯 Using drag-drop upload method');
+        const uploadAreaSelectors = ['.upload-area', '.drop-zone', '[data-testid="upload-area"]', '.file-drop-zone', '.upload-container'];
         
-        const uploadAreaSelectors = [
-          '.upload-area',
-          '.drop-zone', 
-          '[data-testid="upload-area"]',
-          '.file-drop-zone',
-          '.upload-container'
-        ];
-
         let uploadAreaFound = false;
         uploadAreaSelectors.forEach(selector => {
           if (!uploadAreaFound && $body.find(selector).length > 0) {
-            cy.get(selector).selectFile(testConfig.uploadFile.path, {
-              action: 'drag-drop'
-            });
+            cy.get(selector).selectFile(testConfig.uploadFile.path, { action: 'drag-drop' });
             uploadAreaFound = true;
           }
         });
 
-        // Fallback: look for any clickable upload element
         if (!uploadAreaFound) {
-          cy.get('[class*="upload"], [id*="upload"]').first().selectFile(testConfig.uploadFile.path, {
-            force: true
-          });
+          cy.get('[class*="upload"], [id*="upload"]').first().selectFile(testConfig.uploadFile.path, { force: true });
         }
       }
     });
 
-    // Wait for file to be selected/uploaded (reduced wait)
     humanWait(2000);
 
-    // Step 10: Verify file selection and start upload
+    // Step 8: Verify file selection and start upload
     cy.log('⏳ Verifying file selection and upload progress');
     
-    // Check for upload progress or success indicators instead of exact filename
     cy.get('body').should('satisfy', ($body) => {
       const text = $body.text();
       return text.includes(testConfig.uploadFile.fileName) || 
@@ -396,16 +313,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
              text.includes('100%');
     });
     
-    // Look for and click upload/submit button if needed
+    // Click upload submit button if needed
     cy.get('body').then($body => {
-      const uploadButtonSelectors = [
-        'button:contains("Upload")',
-        'button:contains("Submit")', 
-        'button:contains("Start Upload")',
-        '[data-testid="upload-submit"]',
-        '.upload-submit-btn',
-        '.btn-upload'
-      ];
+      const uploadButtonSelectors = ['button:contains("Upload")', 'button:contains("Submit")', 'button:contains("Start Upload")', '[data-testid="upload-submit"]'];
 
       uploadButtonSelectors.forEach(selector => {
         if ($body.find(selector).length > 0) {
@@ -417,7 +327,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
       });
     });
 
-    // Wait for upload to process
     humanWait(2000);
 
     // Step 11: Wait for upload progress bar to complete
