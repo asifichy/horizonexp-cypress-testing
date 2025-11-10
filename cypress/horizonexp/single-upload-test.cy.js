@@ -670,7 +670,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     humanWait(2000);
 
     // Step 12.5: Click "Ready to publish" to publish the video and get metadata
-    cy.log('� Publaishing video to get metadata');
+    cy.log('📝 Publishing video to get metadata');
     
     // Wait for "Ready to publish" button to appear (human-like wait)
     cy.get('body', { timeout: 30000 }).should('satisfy', ($body) => {
