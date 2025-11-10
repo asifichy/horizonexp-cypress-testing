@@ -656,114 +656,367 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Wait for form to be visible
     cy.get('body', { timeout: 15000 }).should('be.visible');
 
-    // Fill Channel dropdown - simple and direct approach
-    cy.log('📺 Attempting to select Channel dropdown');
+    // Fill Channel dropdown - REQUIRED FIELD (must be filled)
+    cy.log('📺 STEP 1A: Filling REQUIRED Channel dropdown');
     
     // Wait a moment for form to be ready
     cy.wait(2000);
     
-    // Look for Channel dropdown using a simple approach
+    // Look for Channel dropdown - this is a REQUIRED field that must be filled
     cy.get('body').then($body => {
-      // Find any element that contains "Channel" text and looks clickable
-      const $channelElements = $body.find('*').filter(function() {
-        const $el = Cypress.$(this);
-        const text = $el.text().trim();
-        const hasChannelText = text === 'Channel' || text.includes('Select Channel');
-        const isClickable = $el.is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]') || 
-                           $el.parent().is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
-        return hasChannelText && (isClickable || $el.find('button, select, [role="combobox"]').length > 0);
-      });
+      cy.log('🔍 Looking for Channel dropdown (REQUIRED field)');
       
-      if ($channelElements.length > 0) {
-        cy.log('✅ Found Channel dropdown element');
+      // Multiple strategies to find the Channel dropdown
+      let channelFound = false;
+      
+      // Strategy 1: Look for the dropdown arrow next to "Channel" text
+      const $channelLabels = $body.find('*:contains("Select Channel")');
+      if ($channelLabels.length > 0 && !channelFound) {
+        cy.log('✅ Found "Select Channel" text, looking for dropdown');
         
-        // Click on the channel element or its parent
-        const $clickTarget = $channelElements.first().is('button, select, [role="combobox"]') ? 
-                            $channelElements.first() : 
-                            $channelElements.first().closest('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
-        
-        if ($clickTarget.length > 0) {
-          cy.wrap($clickTarget).click({ force: true });
-          cy.log('🖱️ Clicked Channel dropdown');
+        // Look for dropdown arrow or clickable element near the text
+        $channelLabels.each((i, label) => {
+          const $label = Cypress.$(label);
+          const $parent = $label.closest('div');
+          const $dropdown = $parent.find('button, [role="combobox"], select, [class*="dropdown"], [class*="select"]');
           
-          // Wait for dropdown to open
+          if ($dropdown.length > 0 && !channelFound) {
+            cy.log('✅ Found Channel dropdown trigger');
+            cy.wrap($dropdown.first()).click({ force: true });
+            cy.wait(2000); // Wait for dropdown to open
+            
+            // Look for channel options - try to find actual channel names
+            cy.get('body').then($body2 => {
+              // Look for common channel patterns
+              const channelPatterns = [
+                '*:contains("DevOps")',
+                '*:contains("Test")',
+                '*:contains("Channel")',
+                'option',
+                '[role="option"]',
+                '[role="menuitem"]',
+                '.dropdown-item',
+                'li'
+              ];
+              
+              let optionSelected = false;
+              
+              for (const pattern of channelPatterns) {
+                if (!optionSelected && $body2.find(pattern).length > 0) {
+                  const $options = $body2.find(pattern).filter(function() {
+                    const $opt = Cypress.$(this);
+                    const text = $opt.text().trim();
+                    // Skip empty, placeholder, or label text
+                    return text.length > 0 && 
+                           !text.includes('Select') && 
+                           !text.includes('Choose') &&
+                           !text.includes('Channel is required') &&
+                           text !== 'Channel';
+                  });
+                  
+                  if ($options.length > 0) {
+                    cy.wrap($options.first()).click({ force: true });
+                    cy.log(`✅ Selected channel option: ${$options.first().text()}`);
+                    optionSelected = true;
+                    channelFound = true;
+                    break;
+                  }
+                }
+              }
+              
+              if (!optionSelected) {
+                cy.log('⚠️ No valid channel options found in dropdown');
+              }
+            });
+            
+            return false; // Break out of each loop
+          }
+        });
+      }
+      
+      // Strategy 2: Look for input field with Channel placeholder
+      if (!channelFound) {
+        const $channelInputs = $body.find('input[placeholder*="Channel"], input[placeholder*="channel"]');
+        if ($channelInputs.length > 0) {
+          cy.log('✅ Found Channel input field');
+          cy.wrap($channelInputs.first()).click({ force: true });
           cy.wait(2000);
           
-          // Look for any available options and select the first one
+          // Look for dropdown options after clicking input
           cy.get('body').then($body2 => {
-            const $options = $body2.find('option, [role="option"], [role="menuitem"], .dropdown-item, li').filter(function() {
+            const $options = $body2.find('option, [role="option"], [role="menuitem"], .dropdown-item').filter(function() {
               const $opt = Cypress.$(this);
-              const optText = $opt.text().trim();
-              // Skip empty options or labels
-              return optText.length > 0 && !optText.includes('Select') && !optText.includes('Choose');
+              const text = $opt.text().trim();
+              return text.length > 0 && !text.includes('Select') && text !== 'Channel';
             });
             
             if ($options.length > 0) {
               cy.wrap($options.first()).click({ force: true });
-              cy.log('✅ Selected first available channel option');
-            } else {
-              cy.log('⚠️ No channel options found');
+              cy.log(`✅ Selected channel from input dropdown: ${$options.first().text()}`);
+              channelFound = true;
             }
           });
         }
-      } else {
-        cy.log('⚠️ Channel dropdown not found');
+      }
+      
+      // Strategy 3: Look for any element with "Channel" that has a dropdown arrow
+      if (!channelFound) {
+        const $channelContainers = $body.find('*').filter(function() {
+          const $el = Cypress.$(this);
+          const text = $el.text();
+          return text.includes('Channel') && !text.includes('Channel is required');
+        });
+        
+        if ($channelContainers.length > 0) {
+          $channelContainers.each((i, container) => {
+            if (!channelFound) {
+              const $container = Cypress.$(container);
+              const $clickable = $container.find('button, [role="combobox"], select, [class*="dropdown"]');
+              
+              if ($clickable.length > 0) {
+                cy.wrap($clickable.first()).click({ force: true });
+                cy.wait(2000);
+                
+                cy.get('body').then($body2 => {
+                  const $options = $body2.find('option, [role="option"], [role="menuitem"]').filter(function() {
+                    const text = Cypress.$(this).text().trim();
+                    return text.length > 0 && !text.includes('Select') && text !== 'Channel';
+                  });
+                  
+                  if ($options.length > 0) {
+                    cy.wrap($options.first()).click({ force: true });
+                    cy.log(`✅ Selected channel from container: ${$options.first().text()}`);
+                    channelFound = true;
+                  }
+                });
+                
+                return false; // Break out of each loop
+              }
+            }
+          });
+        }
+      }
+      
+      if (!channelFound) {
+        cy.log('❌ CRITICAL: Channel dropdown not found - this is a required field!');
+        // Take a screenshot for debugging
+        cy.screenshot('channel-dropdown-not-found');
       }
     });
+    
+    // Verify Channel was selected (required field validation)
+    cy.log('🔍 Verifying Channel selection (REQUIRED)');
+    cy.wait(2000); // Give time for selection to register
+    
+    cy.get('body').should('satisfy', ($body) => {
+      const bodyText = $body.text();
+      // Channel is successfully selected if the error message is gone
+      const hasChannelError = bodyText.includes('Channel is required');
+      const hasChannelSelected = !hasChannelError;
+      
+      if (hasChannelSelected) {
+        cy.log('✅ Channel successfully selected - error message gone');
+      } else {
+        cy.log('❌ Channel still not selected - error message still visible');
+      }
+      
+      return hasChannelSelected;
+    });
 
-    // Fill Category dropdown - simple approach
-    cy.log('🎭 Attempting to select Category dropdown');
+    // Fill Category dropdown - REQUIRED FIELD (minimum 1 category required)
+    cy.log('🎭 STEP 1B: Filling REQUIRED Category dropdown');
     
     // Wait before trying category
     cy.wait(2000);
     
     cy.get('body').then($body => {
-      // Find any element that contains "Category" text and looks clickable
-      const $categoryElements = $body.find('*').filter(function() {
-        const $el = Cypress.$(this);
-        const text = $el.text().trim();
-        const hasCategoryText = text === 'Category' || text.includes('Select categories') || text.includes('Auto & Vehicles');
-        const isClickable = $el.is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]') || 
-                           $el.parent().is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
-        return hasCategoryText && (isClickable || $el.find('button, select, [role="combobox"]').length > 0);
-      });
+      cy.log('🔍 Looking for Category dropdown (REQUIRED field - minimum 1 category)');
       
-      if ($categoryElements.length > 0) {
-        cy.log('✅ Found Category dropdown element');
+      let categoryFound = false;
+      
+      // Strategy 1: Look for "Select categories" text
+      const $categoryLabels = $body.find('*:contains("Select categories")');
+      if ($categoryLabels.length > 0 && !categoryFound) {
+        cy.log('✅ Found "Select categories" text, looking for dropdown');
         
-        // Click on the category element or its parent
-        const $clickTarget = $categoryElements.first().is('button, select, [role="combobox"]') ? 
-                            $categoryElements.first() : 
-                            $categoryElements.first().closest('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
-        
-        if ($clickTarget.length > 0) {
-          cy.wrap($clickTarget).click({ force: true });
-          cy.log('🖱️ Clicked Category dropdown');
+        $categoryLabels.each((i, label) => {
+          const $label = Cypress.$(label);
+          const $parent = $label.closest('div');
+          const $dropdown = $parent.find('button, [role="combobox"], select, [class*="dropdown"], [class*="select"]');
           
-          // Wait for dropdown to open
-          cy.wait(2000);
-          
-          // Look for any available category options and select the first one
-          cy.get('body').then($body2 => {
-            const $options = $body2.find('option, [role="option"], [role="menuitem"], .dropdown-item, li').filter(function() {
-              const $opt = Cypress.$(this);
-              const optText = $opt.text().trim();
-              // Look for actual category names
-              const categoryNames = ['Entertainment', 'Education', 'Gaming', 'Music', 'Sports', 'Technology', 'Auto & Vehicles'];
-              return categoryNames.some(cat => optText.includes(cat)) || (optText.length > 0 && !optText.includes('Select') && !optText.includes('Choose'));
+          if ($dropdown.length > 0 && !categoryFound) {
+            cy.log('✅ Found Category dropdown trigger');
+            cy.wrap($dropdown.first()).click({ force: true });
+            cy.wait(2000); // Wait for dropdown to open
+            
+            // Look for category options - prioritize common categories
+            cy.get('body').then($body2 => {
+              const categoryOptions = [
+                'Entertainment',
+                'Education', 
+                'Gaming',
+                'Music',
+                'Sports',
+                'Technology',
+                'Lifestyle',
+                'Comedy',
+                'Auto & Vehicles',
+                'Travel',
+                'Food',
+                'Fashion'
+              ];
+              
+              let optionSelected = false;
+              
+              // First try to find specific category names
+              for (const categoryName of categoryOptions) {
+                if (!optionSelected && $body2.find(`*:contains("${categoryName}")`).length > 0) {
+                  const $categoryOption = $body2.find(`*:contains("${categoryName}")`).filter(function() {
+                    const $opt = Cypress.$(this);
+                    const text = $opt.text().trim();
+                    return text === categoryName || text.includes(categoryName);
+                  });
+                  
+                  if ($categoryOption.length > 0) {
+                    cy.wrap($categoryOption.first()).click({ force: true });
+                    cy.log(`✅ Selected category: ${categoryName}`);
+                    optionSelected = true;
+                    categoryFound = true;
+                    break;
+                  }
+                }
+              }
+              
+              // If no specific category found, try generic selectors
+              if (!optionSelected) {
+                const $options = $body2.find('option, [role="option"], [role="menuitem"], .dropdown-item, li').filter(function() {
+                  const $opt = Cypress.$(this);
+                  const text = $opt.text().trim();
+                  return text.length > 0 && 
+                         !text.includes('Select') && 
+                         !text.includes('Choose') &&
+                         !text.includes('category is required') &&
+                         text !== 'Category';
+                });
+                
+                if ($options.length > 0) {
+                  cy.wrap($options.first()).click({ force: true });
+                  cy.log(`✅ Selected first available category: ${$options.first().text()}`);
+                  optionSelected = true;
+                  categoryFound = true;
+                }
+              }
+              
+              if (!optionSelected) {
+                cy.log('⚠️ No valid category options found in dropdown');
+              }
             });
             
-            if ($options.length > 0) {
-              cy.wrap($options.first()).click({ force: true });
-              cy.log('✅ Selected category option');
-            } else {
-              cy.log('⚠️ No category options found');
+            return false; // Break out of each loop
+          }
+        });
+      }
+      
+      // Strategy 2: Look for input field with Category placeholder
+      if (!categoryFound) {
+        const $categoryInputs = $body.find('input[placeholder*="categories"], input[placeholder*="Category"]');
+        if ($categoryInputs.length > 0) {
+          cy.log('✅ Found Category input field');
+          cy.wrap($categoryInputs.first()).click({ force: true });
+          cy.wait(2000);
+          
+          cy.get('body').then($body2 => {
+            const categoryOptions = ['Entertainment', 'Education', 'Gaming', 'Music', 'Sports', 'Technology'];
+            let selected = false;
+            
+            for (const categoryName of categoryOptions) {
+              if (!selected && $body2.find(`*:contains("${categoryName}")`).length > 0) {
+                cy.wrap($body2.find(`*:contains("${categoryName}")`).first()).click({ force: true });
+                cy.log(`✅ Selected category from input: ${categoryName}`);
+                selected = true;
+                categoryFound = true;
+                break;
+              }
+            }
+            
+            if (!selected) {
+              const $options = $body2.find('option, [role="option"], [role="menuitem"]').filter(function() {
+                const text = Cypress.$(this).text().trim();
+                return text.length > 0 && !text.includes('Select') && text !== 'Category';
+              });
+              
+              if ($options.length > 0) {
+                cy.wrap($options.first()).click({ force: true });
+                cy.log(`✅ Selected first category from input: ${$options.first().text()}`);
+                categoryFound = true;
+              }
             }
           });
         }
-      } else {
-        cy.log('⚠️ Category dropdown not found');
       }
+      
+      // Strategy 3: Look for any element with "Category" that has a dropdown
+      if (!categoryFound) {
+        const $categoryContainers = $body.find('*').filter(function() {
+          const $el = Cypress.$(this);
+          const text = $el.text();
+          return text.includes('Category') && !text.includes('category is required');
+        });
+        
+        if ($categoryContainers.length > 0) {
+          $categoryContainers.each((i, container) => {
+            if (!categoryFound) {
+              const $container = Cypress.$(container);
+              const $clickable = $container.find('button, [role="combobox"], select, [class*="dropdown"]');
+              
+              if ($clickable.length > 0) {
+                cy.wrap($clickable.first()).click({ force: true });
+                cy.wait(2000);
+                
+                cy.get('body').then($body2 => {
+                  const $options = $body2.find('option, [role="option"], [role="menuitem"]').filter(function() {
+                    const text = Cypress.$(this).text().trim();
+                    return text.length > 0 && !text.includes('Select') && text !== 'Category';
+                  });
+                  
+                  if ($options.length > 0) {
+                    cy.wrap($options.first()).click({ force: true });
+                    cy.log(`✅ Selected category from container: ${$options.first().text()}`);
+                    categoryFound = true;
+                  }
+                });
+                
+                return false; // Break out of each loop
+              }
+            }
+          });
+        }
+      }
+      
+      if (!categoryFound) {
+        cy.log('❌ CRITICAL: Category dropdown not found - this is a required field!');
+        // Take a screenshot for debugging
+        cy.screenshot('category-dropdown-not-found');
+      }
+    });
+    
+    // Verify Category was selected (required field validation)
+    cy.log('🔍 Verifying Category selection (REQUIRED - minimum 1)');
+    cy.wait(2000); // Give time for selection to register
+    
+    cy.get('body').should('satisfy', ($body) => {
+      const bodyText = $body.text();
+      // Category is successfully selected if the error message is gone
+      const hasCategoryError = bodyText.includes('Minimum 1 category is required');
+      const hasCategorySelected = !hasCategoryError;
+      
+      if (hasCategorySelected) {
+        cy.log('✅ Category successfully selected - error message gone');
+      } else {
+        cy.log('❌ Category still not selected - error message still visible');
+      }
+      
+      return hasCategorySelected;
     });
 
     // ============================================
@@ -937,12 +1190,33 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
 
     // ============================================
-    // STEP 3: CLICK PUBLISH BUTTON (FINAL STEP)
+    // STEP 3: FINAL VALIDATION AND PUBLISH
     // ============================================
-    cy.log('🚀 STEP 3: Publishing video');
+    cy.log('🚀 STEP 3: Final validation and publishing video');
     
     // Wait for all fields to be filled
     cy.wait(2000);
+    
+    // CRITICAL: Verify both required fields are filled before publishing
+    cy.log('🔍 FINAL VALIDATION: Checking required fields before publishing');
+    cy.get('body').should('satisfy', ($body) => {
+      const bodyText = $body.text();
+      
+      // Check that both required field error messages are gone
+      const hasChannelError = bodyText.includes('Channel is required');
+      const hasCategoryError = bodyText.includes('Minimum 1 category is required');
+      
+      const allRequiredFieldsFilled = !hasChannelError && !hasCategoryError;
+      
+      if (allRequiredFieldsFilled) {
+        cy.log('✅ All required fields validated - ready to publish');
+      } else {
+        if (hasChannelError) cy.log('❌ Channel is still required');
+        if (hasCategoryError) cy.log('❌ Category is still required');
+      }
+      
+      return allRequiredFieldsFilled;
+    });
     
     // Look for the blue Publish button
     cy.get('body').then($body => {
