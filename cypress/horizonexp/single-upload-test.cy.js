@@ -735,6 +735,66 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Wait for form to be fully loaded
     cy.wait(2000); // Give form time to render completely
     cy.log('✅ Form loaded, starting to fill fields');
+    
+    // Take a screenshot to help with debugging form structure
+    cy.screenshot('publish-form-loaded');
+    
+    // Log available form elements for debugging
+    cy.get('body').then($body => {
+      cy.log('📋 Available form elements:');
+      
+      // Log all select elements
+      const selects = $body.find('select');
+      if (selects.length > 0) {
+        cy.log(`📝 Found ${selects.length} select element(s)`);
+        selects.each((i, el) => {
+          const $el = Cypress.$(el);
+          cy.log(`  - Select ${i}: name="${$el.attr('name')}", id="${$el.attr('id')}", class="${$el.attr('class')}"`);
+        });
+      }
+      
+      // Log all input elements
+      const inputs = $body.find('input');
+      if (inputs.length > 0) {
+        cy.log(`📝 Found ${inputs.length} input element(s)`);
+        inputs.each((i, el) => {
+          const $el = Cypress.$(el);
+          cy.log(`  - Input ${i}: type="${$el.attr('type')}", name="${$el.attr('name')}", placeholder="${$el.attr('placeholder')}"`);
+        });
+      }
+      
+      // Log all buttons
+      const buttons = $body.find('button');
+      if (buttons.length > 0) {
+        cy.log(`📝 Found ${buttons.length} button element(s)`);
+        buttons.each((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          if (text) {
+            cy.log(`  - Button ${i}: "${text}" (class="${$el.attr('class')}")`);
+          }
+        });
+      }
+      
+      // Log elements with role="combobox"
+      const comboboxes = $body.find('[role="combobox"]');
+      if (comboboxes.length > 0) {
+        cy.log(`📝 Found ${comboboxes.length} combobox element(s)`);
+      }
+      
+      // Log all labels to understand form structure
+      const labels = $body.find('label');
+      if (labels.length > 0) {
+        cy.log(`📝 Found ${labels.length} label element(s)`);
+        labels.each((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          if (text) {
+            cy.log(`  - Label ${i}: "${text}"`);
+          }
+        });
+      }
+    });
 
     // ============================================
     // STEP 1: SELECT CHANNEL FIRST (REQUIRED)
@@ -1167,17 +1227,38 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // cy.scrollTo(0, 300, { duration: 300 });
     
     cy.get('body').then($body => {
-      // Look for the Category dropdown based on the screenshot structure
+      // Look for the Category dropdown with improved selectors
       const categoryDropdownSelectors = [
+        // Standard dropdown selectors
+        'select[name*="category"]',
+        'select[name*="Category"]',
+        '[data-testid*="category"] select',
+        '[data-testid*="Category"] select',
+        
+        // Custom dropdown selectors
         'div:contains("Select categories") button',
         'div:contains("Select categories") [role="combobox"]',
         'div:contains("Category") button',
         'div:contains("Category") [role="combobox"]',
         'div:contains("Category") div[class*="select"]',
+        
+        // Input-based selectors
         '[placeholder*="categories"]',
-        'select[name*="category"]',
-        'div:has(label:contains("Category")) button',
-        'div:has(label:contains("Category")) [role="combobox"]'
+        '[placeholder*="Category"]',
+        'input[placeholder*="categories"]',
+        
+        // Label-based selectors
+        'label:contains("Category") + *',
+        'label:contains("Category") ~ *',
+        '*:has(label:contains("Category")) select',
+        '*:has(label:contains("Category")) button',
+        '*:has(label:contains("Category")) [role="combobox"]',
+        '*:has(label:contains("Category")) input',
+        
+        // Generic selectors near Category text
+        '*:contains("Category"):not(label) button',
+        '*:contains("Category"):not(label) [role="combobox"]',
+        '*:contains("Category"):not(label) select'
       ];
       
       let categoryDropdownFound = false;
@@ -1186,67 +1267,95 @@ describe('HorizonExp Single Upload Test Suite', () => {
         if ($body.find(selector).length > 0 && !categoryDropdownFound) {
           cy.log(`✅ Found category dropdown with selector: ${selector}`);
           
-          // Click to open the dropdown
-          cy.get(selector).first().should('be.visible').click({ force: true });
-          cy.wait(1000); // Wait for dropdown to open
-          
-          // Look for category options in the dropdown
-          cy.get('body').then($body2 => {
-            const categoryOptions = [
-              'Entertainment',
-              'Education', 
-              'Gaming',
-              'Music',
-              'Sports',
-              'Technology',
-              'Lifestyle',
-              'Comedy'
-            ];
+          try {
+            // Click to open the dropdown
+            cy.get(selector).first().should('be.visible').click({ force: true });
+            cy.wait(1000); // Wait for dropdown to open
             
-            let categorySelected = false;
-            for (const categoryName of categoryOptions) {
-              if ($body2.text().includes(categoryName) && !categorySelected) {
-                cy.log(`✅ Found category option: ${categoryName}`);
-                cy.get('*').contains(categoryName).first().should('be.visible').click({ force: true });
-                cy.log(`✅ Selected category: ${categoryName}`);
-                categorySelected = true;
-                categoryDropdownFound = true;
-                break;
-              }
-            }
-            
-            // If no specific category found, select first available option
-            if (!categorySelected) {
-              const genericOptionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li'];
-              for (const optionSelector of genericOptionSelectors) {
-                if ($body2.find(optionSelector).length > 0) {
-                  cy.get(optionSelector).first().should('be.visible').click({ force: true });
-                  cy.log('✅ Selected first available category option');
+            // Look for category options in the dropdown
+            cy.get('body').then($body2 => {
+              const categoryOptions = [
+                'Entertainment',
+                'Education', 
+                'Gaming',
+                'Music',
+                'Sports',
+                'Technology',
+                'Lifestyle',
+                'Comedy'
+              ];
+              
+              let categorySelected = false;
+              for (const categoryName of categoryOptions) {
+                if ($body2.text().includes(categoryName) && !categorySelected) {
+                  cy.log(`✅ Found category option: ${categoryName}`);
+                  cy.get('*').contains(categoryName).first().should('be.visible').click({ force: true });
+                  cy.log(`✅ Selected category: ${categoryName}`);
+                  categorySelected = true;
                   categoryDropdownFound = true;
                   break;
                 }
               }
-            }
-          });
-          
-          if (categoryDropdownFound) break;
+              
+              // If no specific category found, select first available option
+              if (!categorySelected) {
+                const genericOptionSelectors = ['option', '[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li'];
+                for (const optionSelector of genericOptionSelectors) {
+                  if ($body2.find(optionSelector).length > 0) {
+                    cy.get(optionSelector).first().should('be.visible').click({ force: true });
+                    cy.log('✅ Selected first available category option');
+                    categoryDropdownFound = true;
+                    break;
+                  }
+                }
+              }
+            });
+            
+            if (categoryDropdownFound) break;
+          } catch (error) {
+            cy.log(`⚠️ Error with category selector ${selector}: ${error.message}`);
+            // Continue to next selector
+          }
         }
       }
       
-      // Fallback: try clicking on any element with "Category" text that looks clickable
+      // Enhanced fallback approach for category
       if (!categoryDropdownFound) {
-        cy.log('⚠️ Standard selectors failed, trying fallback approach for category');
-        cy.get('*').contains('Category').first().should('be.visible').click({ force: true });
-        cy.wait(1000);
+        cy.log('⚠️ Standard selectors failed, trying enhanced fallback approach for category');
         
-        // Try to select first category from opened dropdown
-        cy.get('body').then($body2 => {
-          if ($body2.text().includes('Entertainment')) {
-            cy.contains('Entertainment').first().should('be.visible').click({ force: true });
-            cy.log('✅ Selected Entertainment category via fallback');
-          } else if ($body2.find('[role="option"], [role="menuitem"]').length > 0) {
-            cy.get('[role="option"], [role="menuitem"]').first().click({ force: true });
-            cy.log('✅ Selected first available category via fallback');
+        cy.get('*').contains('Category').then($elements => {
+          if ($elements.length > 0) {
+            // Find the most likely dropdown trigger
+            const $clickableElements = $elements.filter('button, select, input, [role="combobox"], [class*="select"], [class*="dropdown"]');
+            
+            if ($clickableElements.length > 0) {
+              cy.wrap($clickableElements.first()).click({ force: true });
+              cy.wait(1000);
+              
+              // Try to select Entertainment from opened dropdown
+              cy.get('body').then($body2 => {
+                if ($body2.text().includes('Entertainment')) {
+                  cy.contains('Entertainment').first().should('be.visible').click({ force: true });
+                  cy.log('✅ Selected Entertainment category via enhanced fallback');
+                } else if ($body2.find('[role="option"], [role="menuitem"], option').length > 0) {
+                  cy.get('[role="option"], [role="menuitem"], option').first().click({ force: true });
+                  cy.log('✅ Selected first available category via enhanced fallback');
+                }
+              });
+            } else {
+              // Last resort: click on any element with Category text
+              cy.wrap($elements.first()).click({ force: true });
+              cy.wait(1000);
+              
+              cy.get('body').then($body2 => {
+                if ($body2.find('[role="option"], [role="menuitem"], option').length > 0) {
+                  cy.get('[role="option"], [role="menuitem"], option').first().click({ force: true });
+                  cy.log('✅ Selected first available category via last resort');
+                }
+              });
+            }
+          } else {
+            cy.log('⚠️ No Category elements found - skipping category selection');
           }
         });
       }
