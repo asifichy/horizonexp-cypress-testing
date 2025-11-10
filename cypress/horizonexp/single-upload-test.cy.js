@@ -845,7 +845,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
           
           // Directly use cy.contains() to find "DevOps Channel", "DevOps' Channel" or "DevOps's Channel"
           // This will work even if body.text() doesn't include the text
-          cy.contains(/DevOps'?s?\s*Channel/i, { timeout: 5000 })
+          cy.contains(/DevOps[’']?s?\s*Channel/i, { timeout: 5000 })
             .should('be.visible')
             .not('label') // Exclude the label itself
             .first()
