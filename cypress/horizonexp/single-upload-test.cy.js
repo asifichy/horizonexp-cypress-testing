@@ -509,33 +509,26 @@ describe('HorizonExp Single Upload Test Suite', () => {
                 
                 if ($readyButton.length > 0) {
                   cy.log('🎯 Found clickable Ready to publish button in container');
-                  cy.wrap($readyButton.first()).should('be.visible').then($btn => {
-                    // Scroll into view first
-                    cy.wrap($btn).scrollIntoView();
-                    cy.wait(1000);
-                    
-                    // Human-like interaction
-                    cy.wrap($btn).trigger('mouseover');
-                    cy.wait(500);
-                    cy.wrap($btn).click({ force: true });
-                    cy.log('✅ Clicked Ready to publish button');
-                    readyToPublishClicked = true;
-                  });
+                  
+                  // Break up the command chain to avoid DOM detachment issues
+                  cy.wrap($readyButton.first()).should('be.visible');
+                  cy.wrap($readyButton.first()).scrollIntoView();
+                  cy.wait(1000);
+                  cy.wrap($readyButton.first()).click({ force: true });
+                  cy.log('✅ Clicked Ready to publish button');
+                  readyToPublishClicked = true;
                   return false; // Break out of each loop
                 } else {
                   // If no specific button found, try clicking on the text itself
                   const $readyText = $container.find('*:contains("Ready to publish")').last();
                   if ($readyText.length > 0) {
                     cy.log('🎯 Trying to click on Ready to publish text directly');
-                    cy.wrap($readyText).should('be.visible').then($text => {
-                      cy.wrap($text).scrollIntoView();
-                      cy.wait(1000);
-                      cy.wrap($text).trigger('mouseover');
-                      cy.wait(500);
-                      cy.wrap($text).click({ force: true });
-                      cy.log('✅ Clicked Ready to publish text');
-                      readyToPublishClicked = true;
-                    });
+                    cy.wrap($readyText).should('be.visible');
+                    cy.wrap($readyText).scrollIntoView();
+                    cy.wait(1000);
+                    cy.wrap($readyText).click({ force: true });
+                    cy.log('✅ Clicked Ready to publish text');
+                    readyToPublishClicked = true;
                     return false;
                   }
                 }
@@ -563,15 +556,12 @@ describe('HorizonExp Single Upload Test Suite', () => {
         for (const selector of directSelectors) {
           if (!readyToPublishClicked && $body.find(selector).length > 0) {
             cy.log(`✅ Found Ready to publish button with direct selector: ${selector}`);
-            cy.get(selector).first().should('be.visible').then($btn => {
-              cy.wrap($btn).scrollIntoView();
-              cy.wait(1000);
-              cy.wrap($btn).trigger('mouseover');
-              cy.wait(500);
-              cy.wrap($btn).click({ force: true });
-              cy.log('✅ Clicked Ready to publish button (direct approach)');
-              readyToPublishClicked = true;
-            });
+            cy.get(selector).first().should('be.visible');
+            cy.get(selector).first().scrollIntoView();
+            cy.wait(1000);
+            cy.get(selector).first().click({ force: true });
+            cy.log('✅ Clicked Ready to publish button (direct approach)');
+            readyToPublishClicked = true;
             break;
           }
         }
@@ -580,14 +570,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
       // Final fallback - click any element containing "Ready to publish"
       if (!readyToPublishClicked) {
         cy.log('⚠️ Direct approach failed, trying final fallback');
-        cy.get('*').contains('Ready to publish').first().should('be.visible').then($el => {
-          cy.wrap($el).scrollIntoView();
-          cy.wait(1000);
-          cy.wrap($el).trigger('mouseover');
-          cy.wait(500);
-          cy.wrap($el).click({ force: true });
-          cy.log('✅ Clicked Ready to publish button (fallback approach)');
-        });
+        cy.get('*').contains('Ready to publish').first().should('be.visible');
+        cy.get('*').contains('Ready to publish').first().scrollIntoView();
+        cy.wait(1000);
+        cy.get('*').contains('Ready to publish').first().click({ force: true });
+        cy.log('✅ Clicked Ready to publish button (fallback approach)');
       }
     });
     
