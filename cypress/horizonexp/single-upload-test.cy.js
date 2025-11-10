@@ -748,18 +748,39 @@ describe('HorizonExp Single Upload Test Suite', () => {
              $body.find('select, [role="combobox"], [class*="dropdown"], [class*="select"]').length > 0;
     });
     
-    // Find and click the Channel dropdown based on the screenshot structure
+    // Find and click the Channel dropdown with improved robustness
     cy.get('body').then($body => {
-      // Look for the Channel dropdown - it appears to be a custom dropdown next to "Select Channel *" label
+      // Look for the Channel dropdown with more flexible selectors
       const channelDropdownSelectors = [
+        // Standard dropdown selectors
+        'select[name*="channel"]',
+        'select[name*="Channel"]',
+        '[data-testid*="channel"] select',
+        '[data-testid*="Channel"] select',
+        
+        // Custom dropdown selectors
         'div:contains("Select Channel") button',
         'div:contains("Select Channel") [role="combobox"]',
         'div:contains("Select Channel") div[class*="select"]',
-        '[placeholder="Channel"]',
-        'input[placeholder="Channel"]',
-        'select[name*="channel"]',
-        'div:has(label:contains("Channel")) button',
-        'div:has(label:contains("Channel")) [role="combobox"]'
+        'div:contains("Channel") button',
+        'div:contains("Channel") [role="combobox"]',
+        
+        // Input-based selectors
+        '[placeholder*="Channel"]',
+        'input[placeholder*="Channel"]',
+        
+        // Label-based selectors (more flexible)
+        'label:contains("Channel") + *',
+        'label:contains("Channel") ~ *',
+        '*:has(label:contains("Channel")) select',
+        '*:has(label:contains("Channel")) button',
+        '*:has(label:contains("Channel")) [role="combobox"]',
+        '*:has(label:contains("Channel")) input',
+        
+        // Generic selectors near Channel text
+        '*:contains("Channel"):not(label) button',
+        '*:contains("Channel"):not(label) [role="combobox"]',
+        '*:contains("Channel"):not(label) select'
       ];
       
       let channelDropdownFound = false;
@@ -768,66 +789,96 @@ describe('HorizonExp Single Upload Test Suite', () => {
         if ($body.find(selector).length > 0 && !channelDropdownFound) {
           cy.log(`✅ Found channel dropdown with selector: ${selector}`);
           
-          // Click to open the dropdown
-          cy.get(selector).first().should('be.visible').click({ force: true });
-          cy.wait(1000); // Wait for dropdown to open
-          
-          // Look for DevOps Channel option in the dropdown
-          cy.get('body').then($body2 => {
-            // Try to find DevOps channel option
-            const devopsChannelSelectors = [
-              '*:contains("DevOps Channel")',
-              '*:contains("DevOps\' Channel")', 
-              '*:contains("DevOps\'s Channel")',
-              '*:contains("DevOps")',
-              '[role="option"]:contains("DevOps")',
-              '[role="menuitem"]:contains("DevOps")'
-            ];
+          try {
+            // Click to open the dropdown
+            cy.get(selector).first().should('be.visible').click({ force: true });
+            cy.wait(1000); // Wait for dropdown to open
             
-            let devopsFound = false;
-            for (const devopsSelector of devopsChannelSelectors) {
-              if ($body2.find(devopsSelector).length > 0 && !devopsFound) {
-                cy.log(`✅ Found DevOps channel option: ${devopsSelector}`);
-                cy.get(devopsSelector).first().should('be.visible').click({ force: true });
-                cy.log('✅ Selected DevOps Channel');
-                devopsFound = true;
-                channelDropdownFound = true;
-                break;
-              }
-            }
-            
-            // If DevOps not found, select first available option
-            if (!devopsFound) {
-              const genericOptionSelectors = ['[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li'];
-              for (const optionSelector of genericOptionSelectors) {
-                if ($body2.find(optionSelector).length > 0) {
-                  cy.get(optionSelector).first().should('be.visible').click({ force: true });
-                  cy.log('✅ Selected first available channel option');
+            // Look for DevOps Channel option in the dropdown
+            cy.get('body').then($body2 => {
+              // Try to find DevOps channel option
+              const devopsChannelSelectors = [
+                '*:contains("DevOps Channel")',
+                '*:contains("DevOps\' Channel")', 
+                '*:contains("DevOps\'s Channel")',
+                '*:contains("DevOps")',
+                '[role="option"]:contains("DevOps")',
+                '[role="menuitem"]:contains("DevOps")',
+                'option:contains("DevOps")'
+              ];
+              
+              let devopsFound = false;
+              for (const devopsSelector of devopsChannelSelectors) {
+                if ($body2.find(devopsSelector).length > 0 && !devopsFound) {
+                  cy.log(`✅ Found DevOps channel option: ${devopsSelector}`);
+                  cy.get(devopsSelector).first().should('be.visible').click({ force: true });
+                  cy.log('✅ Selected DevOps Channel');
+                  devopsFound = true;
                   channelDropdownFound = true;
                   break;
                 }
               }
-            }
-          });
-          
-          if (channelDropdownFound) break;
+              
+              // If DevOps not found, select first available option
+              if (!devopsFound) {
+                const genericOptionSelectors = ['option', '[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li'];
+                for (const optionSelector of genericOptionSelectors) {
+                  if ($body2.find(optionSelector).length > 0) {
+                    cy.get(optionSelector).first().should('be.visible').click({ force: true });
+                    cy.log('✅ Selected first available channel option');
+                    channelDropdownFound = true;
+                    break;
+                  }
+                }
+              }
+            });
+            
+            if (channelDropdownFound) break;
+          } catch (error) {
+            cy.log(`⚠️ Error with selector ${selector}: ${error.message}`);
+            // Continue to next selector
+          }
         }
       }
       
-      // Fallback: try clicking on any element with "Channel" text that looks clickable
+      // Enhanced fallback approach
       if (!channelDropdownFound) {
-        cy.log('⚠️ Standard selectors failed, trying fallback approach');
-        cy.get('*').contains('Channel').first().should('be.visible').click({ force: true });
-        cy.wait(1000);
+        cy.log('⚠️ Standard selectors failed, trying enhanced fallback approach');
         
-        // Try to select DevOps from opened dropdown
-        cy.get('body').then($body2 => {
-          if ($body2.text().includes('DevOps')) {
-            cy.contains('DevOps').first().should('be.visible').click({ force: true });
-            cy.log('✅ Selected DevOps Channel via fallback');
-          } else if ($body2.find('[role="option"], [role="menuitem"]').length > 0) {
-            cy.get('[role="option"], [role="menuitem"]').first().click({ force: true });
-            cy.log('✅ Selected first available channel via fallback');
+        // Try to find any clickable element containing "Channel"
+        cy.get('*').contains('Channel').then($elements => {
+          if ($elements.length > 0) {
+            // Find the most likely dropdown trigger
+            const $clickableElements = $elements.filter('button, select, input, [role="combobox"], [class*="select"], [class*="dropdown"]');
+            
+            if ($clickableElements.length > 0) {
+              cy.wrap($clickableElements.first()).click({ force: true });
+              cy.wait(1000);
+              
+              // Try to select DevOps from opened dropdown
+              cy.get('body').then($body2 => {
+                if ($body2.text().includes('DevOps')) {
+                  cy.contains('DevOps').first().should('be.visible').click({ force: true });
+                  cy.log('✅ Selected DevOps Channel via enhanced fallback');
+                } else if ($body2.find('[role="option"], [role="menuitem"], option').length > 0) {
+                  cy.get('[role="option"], [role="menuitem"], option').first().click({ force: true });
+                  cy.log('✅ Selected first available channel via enhanced fallback');
+                }
+              });
+            } else {
+              // Last resort: click on any element with Channel text
+              cy.wrap($elements.first()).click({ force: true });
+              cy.wait(1000);
+              
+              cy.get('body').then($body2 => {
+                if ($body2.find('[role="option"], [role="menuitem"], option').length > 0) {
+                  cy.get('[role="option"], [role="menuitem"], option').first().click({ force: true });
+                  cy.log('✅ Selected first available channel via last resort');
+                }
+              });
+            }
+          } else {
+            cy.log('⚠️ No Channel elements found - skipping channel selection');
           }
         });
       }
