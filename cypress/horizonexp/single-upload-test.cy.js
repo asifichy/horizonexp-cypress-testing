@@ -25,18 +25,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(customDelay);
   };
 
-  // Helper function for human-like typing
-  const humanType = (selector, text, options = {}) => {
-    cy.get(selector).should('be.visible').then($el => {
-      // Add slight delay before typing
-      cy.wait(500);
-      cy.wrap($el).type(text, { 
-        delay: 100, // Delay between keystrokes
-        ...options 
-      });
-    });
-  };
-
   // Helper function for human-like clicking
   const humanClick = (selector, options = {}) => {
     cy.get(selector).should('be.visible').then($el => {
@@ -44,139 +32,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
       cy.wrap($el).trigger('mouseover');
       cy.wait(300);
       cy.wrap($el).click(options);
-    });
-  };
-
-  // Helper function to extract video metadata from various sources
-  const extractVideoMetadata = () => {
-    const metadata = {
-      thumbnailurl: null,
-      videourl: null,
-      previewurl: null
-    };
-
-    // Method 1: Check DOM for img/video elements with data attributes
-    return cy.get('body').then($body => {
-      // Look for thumbnail image
-      const thumbnailSelectors = [
-        'img[data-thumbnail-url]',
-        'img[data-thumbnailurl]',
-        '[data-testid*="thumbnail"] img',
-        '.thumbnail img',
-        'img[src*="thumbnail"]',
-        '[data-thumbnail-url]',
-        '[data-thumbnailurl]'
-      ];
-      
-      for (const selector of thumbnailSelectors) {
-        if ($body.find(selector).length > 0) {
-          const $img = $body.find(selector).first();
-          const url = $img.attr('data-thumbnail-url') || 
-                     $img.attr('data-thumbnailurl') || 
-                     $img.attr('src');
-          if (url && url.trim() !== '') {
-            metadata.thumbnailurl = url;
-            break;
-          }
-        }
-      }
-
-      // Look for video element
-      const videoSelectors = [
-        'video[data-video-url]',
-        'video[data-videourl]',
-        '[data-testid*="video"] video',
-        'video[src]',
-        'source[src*="video"]',
-        '[data-video-url]',
-        '[data-videourl]'
-      ];
-      
-      for (const selector of videoSelectors) {
-        if ($body.find(selector).length > 0) {
-          const $video = $body.find(selector).first();
-          let url = $video.attr('data-video-url') || 
-                   $video.attr('data-videourl') || 
-                   $video.attr('src');
-          if (!url) {
-            const $source = $video.find('source').first();
-            if ($source.length) {
-              url = $source.attr('src');
-            }
-          }
-          if (url && url.trim() !== '') {
-            metadata.videourl = url;
-            break;
-          }
-        }
-      }
-
-      // Look for preview URL
-      const previewSelectors = [
-        '[data-preview-url]',
-        '[data-previewurl]',
-        '[data-testid*="preview"]',
-        'a[href*="preview"]',
-        '[href*="preview"]'
-      ];
-      
-      for (const selector of previewSelectors) {
-        if ($body.find(selector).length > 0) {
-          const $preview = $body.find(selector).first();
-          const url = $preview.attr('data-preview-url') || 
-                     $preview.attr('data-previewurl') || 
-                     $preview.attr('href');
-          if (url && url.trim() !== '') {
-            metadata.previewurl = url;
-            break;
-          }
-        }
-      }
-
-      // Method 2: Check window object for video data
-      return cy.window().then((win) => {
-        try {
-          // Check various window object properties
-          const possibleDataSources = [
-            win.videoData,
-            win.uploadedVideo,
-            win.videoMetadata,
-            win.currentVideo,
-            win.selectedVideo
-          ];
-
-          for (const videoData of possibleDataSources) {
-            if (videoData && typeof videoData === 'object') {
-              if ((videoData.thumbnailUrl || videoData.thumbnailurl) && !metadata.thumbnailurl) {
-                metadata.thumbnailurl = videoData.thumbnailUrl || videoData.thumbnailurl;
-              }
-              if ((videoData.videoUrl || videoData.videourl) && !metadata.videourl) {
-                metadata.videourl = videoData.videoUrl || videoData.videourl;
-              }
-              if ((videoData.previewUrl || videoData.previewurl) && !metadata.previewurl) {
-                metadata.previewurl = videoData.previewUrl || videoData.previewurl;
-              }
-            }
-          }
-        } catch (e) {
-          cy.log('⚠️ Could not access window object metadata');
-        }
-
-        // Method 3: Check captured metadata from API intercepts
-        if (capturedMetadata.thumbnailurl && !metadata.thumbnailurl) {
-          metadata.thumbnailurl = capturedMetadata.thumbnailurl;
-        }
-        if (capturedMetadata.videourl && !metadata.videourl) {
-          metadata.videourl = capturedMetadata.videourl;
-        }
-        if (capturedMetadata.previewurl && !metadata.previewurl) {
-          metadata.previewurl = capturedMetadata.previewurl;
-        }
-
-        cy.log('📊 Extracted metadata:', JSON.stringify(metadata, null, 2));
-        // Use cy.wrap() to properly return value in async context
-        return cy.wrap(metadata);
-      });
     });
   };
 
@@ -725,9 +580,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
              $body.find('select, [role="combobox"], [class*="dropdown"], [class*="select"]').length > 0 ||
              $body.find('label:contains("Channel"), label:contains("Category")').length > 0;
     });
-    
-    // Human-like scroll to see the form
-    // cy.scrollTo('top', { duration: 500 }); // Commented out to avoid scrollTo errors
 
     // Step 12.6: Fill publish form
     cy.log('📝 Filling publish form');
@@ -797,575 +649,134 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
 
     // ============================================
-    // STEP 1: ATTEMPT TO FILL FORM FIELDS (NON-BLOCKING)
+    // STEP 1: FILL CHANNEL AND CATEGORY DROPDOWNS
     // ============================================
-    cy.log('📺 STEP 1: Attempting to fill form fields (non-blocking approach)');
+    cy.log('📺 STEP 1: Filling Channel and Category dropdowns');
     
     // Wait for form to be visible
     cy.get('body', { timeout: 15000 }).should('be.visible');
+
+    // Fill Channel dropdown - simple and direct approach
+    cy.log('📺 Attempting to select Channel dropdown');
     
-    // Try to fill form fields with a non-blocking approach
+    // Wait a moment for form to be ready
+    cy.wait(2000);
+    
+    // Look for Channel dropdown using a simple approach
     cy.get('body').then($body => {
-      cy.log('🔍 Attempting to fill available form fields...');
-      
-      // Try to fill Channel dropdown (non-blocking)
-      const channelElements = $body.find('select, [role="combobox"], button').filter(function() {
+      // Find any element that contains "Channel" text and looks clickable
+      const $channelElements = $body.find('*').filter(function() {
         const $el = Cypress.$(this);
-        const text = $el.text() + ' ' + ($el.attr('placeholder') || '') + ' ' + ($el.closest('*').text() || '');
-        return text.toLowerCase().includes('channel');
+        const text = $el.text().trim();
+        const hasChannelText = text === 'Channel' || text.includes('Select Channel');
+        const isClickable = $el.is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]') || 
+                           $el.parent().is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
+        return hasChannelText && (isClickable || $el.find('button, select, [role="combobox"]').length > 0);
       });
       
-      if (channelElements.length > 0) {
-        cy.log('📺 Found channel-related element, attempting to interact');
-        cy.wrap(channelElements.first()).click({ force: true }).then(() => {
-          cy.wait(1000);
-          // Try to select first available option
+      if ($channelElements.length > 0) {
+        cy.log('✅ Found Channel dropdown element');
+        
+        // Click on the channel element or its parent
+        const $clickTarget = $channelElements.first().is('button, select, [role="combobox"]') ? 
+                            $channelElements.first() : 
+                            $channelElements.first().closest('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
+        
+        if ($clickTarget.length > 0) {
+          cy.wrap($clickTarget).click({ force: true });
+          cy.log('🖱️ Clicked Channel dropdown');
+          
+          // Wait for dropdown to open
+          cy.wait(2000);
+          
+          // Look for any available options and select the first one
           cy.get('body').then($body2 => {
-            const options = $body2.find('option, [role="option"], [role="menuitem"]');
-            if (options.length > 0) {
-              cy.wrap(options.first()).click({ force: true });
-              cy.log('✅ Selected channel option');
+            const $options = $body2.find('option, [role="option"], [role="menuitem"], .dropdown-item, li').filter(function() {
+              const $opt = Cypress.$(this);
+              const optText = $opt.text().trim();
+              // Skip empty options or labels
+              return optText.length > 0 && !optText.includes('Select') && !optText.includes('Choose');
+            });
+            
+            if ($options.length > 0) {
+              cy.wrap($options.first()).click({ force: true });
+              cy.log('✅ Selected first available channel option');
+            } else {
+              cy.log('⚠️ No channel options found');
             }
           });
-        });
+        }
       } else {
-        cy.log('⚠️ No channel elements found - skipping');
-      }
-      
-      // Try to fill Category dropdown (non-blocking)
-      cy.wait(1000);
-      const categoryElements = $body.find('select, [role="combobox"], button').filter(function() {
-        const $el = Cypress.$(this);
-        const text = $el.text() + ' ' + ($el.attr('placeholder') || '') + ' ' + ($el.closest('*').text() || '');
-        return text.toLowerCase().includes('category') || text.toLowerCase().includes('categories');
-      });
-      
-      if (categoryElements.length > 0) {
-        cy.log('🎭 Found category-related element, attempting to interact');
-        cy.wrap(categoryElements.first()).click({ force: true }).then(() => {
-          cy.wait(1000);
-          // Try to select first available option
-          cy.get('body').then($body2 => {
-            const options = $body2.find('option, [role="option"], [role="menuitem"]');
-            if (options.length > 0) {
-              cy.wrap(options.first()).click({ force: true });
-              cy.log('✅ Selected category option');
-            }
-          });
-        });
-      } else {
-        cy.log('⚠️ No category elements found - skipping');
+        cy.log('⚠️ Channel dropdown not found');
       }
     });
+
+    // Fill Category dropdown - simple approach
+    cy.log('🎭 Attempting to select Category dropdown');
     
+    // Wait before trying category
+    cy.wait(2000);
+    
+    cy.get('body').then($body => {
+      // Find any element that contains "Category" text and looks clickable
+      const $categoryElements = $body.find('*').filter(function() {
+        const $el = Cypress.$(this);
+        const text = $el.text().trim();
+        const hasCategoryText = text === 'Category' || text.includes('Select categories') || text.includes('Auto & Vehicles');
+        const isClickable = $el.is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]') || 
+                           $el.parent().is('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
+        return hasCategoryText && (isClickable || $el.find('button, select, [role="combobox"]').length > 0);
+      });
+      
+      if ($categoryElements.length > 0) {
+        cy.log('✅ Found Category dropdown element');
+        
+        // Click on the category element or its parent
+        const $clickTarget = $categoryElements.first().is('button, select, [role="combobox"]') ? 
+                            $categoryElements.first() : 
+                            $categoryElements.first().closest('button, select, [role="combobox"], [class*="dropdown"], [class*="select"]');
+        
+        if ($clickTarget.length > 0) {
+          cy.wrap($clickTarget).click({ force: true });
+          cy.log('🖱️ Clicked Category dropdown');
+          
+          // Wait for dropdown to open
+          cy.wait(2000);
+          
+          // Look for any available category options and select the first one
+          cy.get('body').then($body2 => {
+            const $options = $body2.find('option, [role="option"], [role="menuitem"], .dropdown-item, li').filter(function() {
+              const $opt = Cypress.$(this);
+              const optText = $opt.text().trim();
+              // Look for actual category names
+              const categoryNames = ['Entertainment', 'Education', 'Gaming', 'Music', 'Sports', 'Technology', 'Auto & Vehicles'];
+              return categoryNames.some(cat => optText.includes(cat)) || (optText.length > 0 && !optText.includes('Select') && !optText.includes('Choose'));
+            });
+            
+            if ($options.length > 0) {
+              cy.wrap($options.first()).click({ force: true });
+              cy.log('✅ Selected category option');
+            } else {
+              cy.log('⚠️ No category options found');
+            }
+          });
+        }
+      } else {
+        cy.log('⚠️ Category dropdown not found');
+      }
+    });
+
     // ============================================
-    // STEP 2: FILL OTHER FORM FIELDS (NON-BLOCKING)
+    // STEP 2: FILL OTHER FORM FIELDS
     // ============================================
     cy.log('📝 STEP 2: Filling other form fields with dummy data');
     
-    // Try to find dropdown trigger - look for elements containing "Select Channel" or near "Channel" label
-    cy.get('body').then($body => {
-      // First, try to find any clickable element next to "Channel" label
-      const $channelLabel = $body.find('label:contains("Channel")');
-      if ($channelLabel.length > 0) {
-        cy.log('✅ Found Channel label, looking for associated input/dropdown');
-        
-        // Try to find the input/dropdown element - could be next sibling or parent's child
-        let $dropdownElement = $channelLabel.next();
-        
-        // If next() doesn't work, try looking in parent's children
-        if ($dropdownElement.length === 0) {
-          $dropdownElement = $channelLabel.parent().find('input, select, button, div[role="combobox"], div[class*="select"]').not('label');
-        }
-        
-        if ($dropdownElement.length > 0) {
-          cy.log(`📍 Found element for Channel: ${$dropdownElement.prop('tagName')} with class: ${$dropdownElement.attr('class')}`);
-          
-          // Click to open dropdown
-          cy.wrap($dropdownElement).should('be.visible').click({ force: true });
-          cy.log('🖱️ Clicked channel dropdown');
-          
-          // Wait for dropdown to open and options to render
-          cy.wait(2000); // Wait for dropdown to fully load
-          
-          // Look for the specific channel text and click ONLY that element
-          cy.log('🔍 Looking for DevOps channel option in dropdown');
-          
-          // Use cy.contains() to directly find and click "DevOps' Channel" or "DevOps's Channel"
-          // cy.contains() is more reliable than checking body text - it finds elements even if body.text() doesn't include them
-          cy.log('🔍 Attempting to find and click DevOps channel option');
-          
-          // Directly use cy.contains() to find "DevOps Channel", "DevOps' Channel" or "DevOps's Channel"
-          // This will work even if body.text() doesn't include the text
-          cy.contains(/DevOps[’']?s?\s*Channel/i, { timeout: 5000 })
-            .should('be.visible')
-            .not('label') // Exclude the label itself
-            .first()
-            .click({ force: true })
-            .then(() => {
-              cy.log('✅ Successfully clicked DevOps channel option');
-            });
-          
-          // CRITICAL: Verify channel was selected before proceeding to other fields
-          cy.log('⏳ Verifying channel selection before proceeding...');
-          cy.wait(2000); // Give time for selection to register
-          
-          // Check that channel field is no longer showing placeholder
-          // Note: Cannot use cy.log() inside should('satisfy') callback - must be pure function
-          cy.get('body', { timeout: 10000 }).should('satisfy', ($body) => {
-            // Null check to prevent errors
-            if (!$body || $body.length === 0) {
-              return false; // Body not found, retry
-            }
-            
-            try {
-              const bodyText = $body.text() || '';
-              
-              // Check if channel field shows a selected value (not placeholder)
-              // Channel is selected if:
-              // 1. It shows DevOps channel name, OR
-              // 2. The placeholder "Select Channel" is gone and field shows a value
-              const hasDevOpsChannel = bodyText.includes("DevOps Channel") || bodyText.includes("DevOps' Channel") || bodyText.includes("DevOps's Channel");
-              const hasChannelValue = bodyText.includes("Channel") && !bodyText.includes('Select Channel');
-              
-              // Also check if the input field itself has a value
-              const $channelInput = $body.find('input, select, [role="combobox"]').filter(function() {
-                const $el = Cypress.$(this);
-                const $label = $el.closest('*').find('label:contains("Channel")');
-                return $label.length > 0;
-              });
-              
-              let inputHasValue = false;
-              if ($channelInput.length > 0) {
-                const inputValue = $channelInput.first().val() || $channelInput.first().text() || '';
-                inputHasValue = inputValue.trim() !== '' && inputValue.trim() !== 'Channel' && inputValue.trim() !== 'Select Channel';
-              }
-              
-              const channelSelected = hasDevOpsChannel || hasChannelValue || inputHasValue;
-              
-              // Return true/false only - no cy commands allowed here
-              return channelSelected;
-            } catch (error) {
-              // Return false on error - no cy commands allowed here
-              return false;
-            }
-          }).then(() => {
-            // Log after verification succeeds
-            cy.log('✅ Channel selection VERIFIED - proceeding to next field');
-          });
-          
-          cy.log('✅ Channel selection complete - now proceeding to category');
-        } else {
-          cy.log('⚠️ Could not find dropdown element next to Channel label');
-        }
-      } else {
-        cy.log('⚠️ Could not find Channel label');
-      }
-      
-      // Fallback: Try multiple approaches to find the dropdown (simplified to avoid multiple clicks)
-      /* Commented out to prevent multiple dropdown attempts that interfere
-      const channelDropdownSelectors = [
-        'label:contains("Channel") + *',
-        'label:contains("Channel") ~ *',
-        '*:contains("Select Channel")',
-        'div:has(label:contains("Channel")) button',
-        'div:has(label:contains("Channel")) div[class*="select"]',
-        'div:has(label:contains("Channel")) [role="button"]',
-        '[role="combobox"]',
-        '[data-testid*="channel"]'
-      ];
-      */
-      
-      let dropdownFound = true; // Set to true to skip fallbacks if main logic already ran
-      
-      /* Commenting out entire fallback loop to prevent multiple dropdown interactions
-      for (const selector of channelDropdownSelectors) {
-        if (dropdownFound) break;
-        
-        if ($body.find(selector).length > 0) {
-          cy.log(`🔍 Trying channel dropdown selector: ${selector}`);
-          
-          cy.get(selector).first().should('exist').then($trigger => {
-            if ($trigger && $trigger.length > 0) {
-              const triggerText = $trigger.text();
-              const parentText = $trigger.closest('*').text();
-              const hasChannelLabel = $trigger.closest('*').find('label:contains("Channel")').length > 0;
-              
-              if (triggerText.includes('Channel') || parentText.includes('Channel') || hasChannelLabel) {
-                cy.log(`✅ Found channel dropdown trigger`);
-                
-                // Human-like hover before clicking
-                cy.wrap($trigger).trigger('mouseover');
-                // Click to open dropdown
-                cy.wrap($trigger).click({ force: true });
-                
-                // Give dropdown a moment to open (without strict requirement)
-                cy.wait(500);
-                
-                // Select the first available channel option
-                cy.get('body').then($body2 => {
-                  // First try to find channel by specific text content
-                  const channelNames = ["DevOps", "DevOps' Channel", "DevOps's Channel", "Test", "SQA"];
-                  let channelSelected = false;
-                  
-                  for (const channelName of channelNames) {
-                    if (!channelSelected && $body2.text().includes(channelName)) {
-                      cy.log(`🔍 Found channel option containing: ${channelName}`);
-                      cy.contains(channelName).first().should('be.visible').click({ force: true });
-                      cy.log(`✅ Selected channel: ${channelName}`);
-                      channelSelected = true;
-                      break;
-                    }
-                  }
-                  
-                  // If no specific channel found, try generic selectors
-                  if (!channelSelected) {
-                    const optionSelectors = [
-                      '[role="option"]',
-                      '[role="menuitem"]',
-                      '.dropdown-item',
-                      'li[class*="option"]',
-                      'div[class*="option"]'
-                    ];
-                    
-                    for (const optSelector of optionSelectors) {
-                      if ($body2.find(optSelector).length > 0 && !channelSelected) {
-                        cy.log(`✅ Found channel options with selector: ${optSelector}`);
-                        cy.get(optSelector).first().should('exist').then($opt => {
-                          if ($opt && $opt.length > 0) {
-                            cy.wrap($opt).trigger('mouseover');
-                            cy.wrap($opt).click({ force: true });
-                            const optionText = $opt.text().trim();
-                            cy.log(`✅ Selected first available channel: ${optionText}`);
-                          }
-                        });
-                        channelSelected = true;
-                        break;
-                      }
-                    }
-                  }
-                  
-                  // Final fallback: try to find any visible option
-                  if (!channelSelected) {
-                    cy.log('⚠️ Standard option selectors not found, trying text-based fallback');
-                    if ($body2.text().includes('DevOps') || $body2.text().includes('Channel')) {
-                      cy.contains(/DevOps|Channel/).first().click({ force: true });
-                      cy.log('✅ Selected channel using text fallback');
-                    }
-                  }
-                });
-                
-                dropdownFound = true;
-              }
-            }
-          });
-        }
-      }
-      */
-      
-      // Final fallback: try clicking on any element containing "Select Channel"
-      // Disabled to prevent multiple dropdown interactions
-      if (!dropdownFound && false) {
-        cy.log('⚠️ Channel dropdown not found, trying final fallback');
-        cy.get('body').then($b => {
-          if ($b.find('*:contains("Select Channel")').length > 0) {
-            cy.get('*').contains('Select Channel').first().should('exist').then($el => {
-              if ($el && $el.length > 0) {
-                cy.wrap($el).trigger('mouseover');
-                cy.wrap($el).click({ force: true });
-                
-                // Give dropdown a moment to open
-                cy.wait(500);
-                
-                // Select first available option - try text-based first
-                cy.get('body').then($body2 => {
-                  // First try to find channel by specific text content
-                  const channelNames = ["DevOps", "DevOps' Channel", "DevOps's Channel", "Test", "SQA"];
-                  let channelSelected = false;
-                  
-                  for (const channelName of channelNames) {
-                    if (!channelSelected && $body2.text().includes(channelName)) {
-                      cy.log(`🔍 Found channel option containing: ${channelName}`);
-                      cy.contains(channelName).first().should('be.visible').click({ force: true });
-                      cy.log(`✅ Selected channel: ${channelName}`);
-                      channelSelected = true;
-                      break;
-                    }
-                  }
-                  
-                  // If no specific channel found, try generic selectors
-                  if (!channelSelected) {
-                    if ($body2.find('[role="option"]').length > 0) {
-                      cy.get('[role="option"]').first().should('exist').then($opt => {
-                        if ($opt && $opt.length > 0) {
-                          cy.wrap($opt).trigger('mouseover');
-                          cy.wrap($opt).click({ force: true });
-                          cy.log('✅ Selected first available channel option');
-                        }
-                      });
-                    } else if ($body2.find('[role="menuitem"]').length > 0) {
-                      cy.get('[role="menuitem"]').first().should('exist').then($opt => {
-                        if ($opt && $opt.length > 0) {
-                          cy.wrap($opt).trigger('mouseover');
-                          cy.wrap($opt).click({ force: true });
-                          cy.log('✅ Selected first available channel option');
-                        }
-                      });
-                    } else if ($body2.find('.dropdown-item').length > 0) {
-                      cy.get('.dropdown-item').first().should('exist').then($opt => {
-                        if ($opt && $opt.length > 0) {
-                          cy.wrap($opt).trigger('mouseover');
-                          cy.wrap($opt).click({ force: true });
-                          cy.log('✅ Selected first available channel option');
-                        }
-                      });
-                    }
-                  }
-                });
-              }
-            });
-          } else {
-            cy.log('⚠️ No channel dropdown found at all, skipping channel selection');
-          }
-        });
-      }
-    });
+    // Wait before filling other fields
+    cy.wait(2000);
 
-    // ============================================
-    // STEP 2: SELECT CATEGORY (AFTER CHANNEL)
-    // ============================================
-    cy.log('🎭 STEP 2: Selecting category from dropdown');
-    
-    // Wait for channel selection to complete before proceeding
-    cy.wait(2000); // Ensure channel selection is complete and form updates
-    
-    // Scroll to find category dropdown (human-like behavior)
-    // cy.scrollTo(0, 300, { duration: 300 });
-    
+    // Fill Title field
+    cy.log('📝 Filling title field');
     cy.get('body').then($body => {
-      try {
-      // Look for the Category dropdown with improved selectors
-      const categoryDropdownSelectors = [
-        // Standard dropdown selectors
-        'select[name*="category"]',
-        'select[name*="Category"]',
-        '[data-testid*="category"] select',
-        '[data-testid*="Category"] select',
-        
-        // Custom dropdown selectors
-        'div:contains("Select categories") button',
-        'div:contains("Select categories") [role="combobox"]',
-        'div:contains("Category") button',
-        'div:contains("Category") [role="combobox"]',
-        'div:contains("Category") div[class*="select"]',
-        
-        // Input-based selectors
-        '[placeholder*="categories"]',
-        '[placeholder*="Category"]',
-        'input[placeholder*="categories"]',
-        
-        // Label-based selectors
-        'label:contains("Category") + *',
-        'label:contains("Category") ~ *',
-        '*:has(label:contains("Category")) select',
-        '*:has(label:contains("Category")) button',
-        '*:has(label:contains("Category")) [role="combobox"]',
-        '*:has(label:contains("Category")) input',
-        
-        // Generic selectors near Category text
-        '*:contains("Category"):not(label) button',
-        '*:contains("Category"):not(label) [role="combobox"]',
-        '*:contains("Category"):not(label) select'
-      ];
-      
-      let categoryDropdownFound = false;
-      
-      for (const selector of categoryDropdownSelectors) {
-        if ($body.find(selector).length > 0 && !categoryDropdownFound) {
-          cy.log(`✅ Found category dropdown with selector: ${selector}`);
-          
-          try {
-            // Click to open the dropdown
-            cy.get(selector).first().should('be.visible').click({ force: true });
-            cy.wait(1000); // Wait for dropdown to open
-            
-            // Look for category options in the dropdown
-            cy.get('body').then($body2 => {
-              const categoryOptions = [
-                'Entertainment',
-                'Education', 
-                'Gaming',
-                'Music',
-                'Sports',
-                'Technology',
-                'Lifestyle',
-                'Comedy'
-              ];
-              
-              let categorySelected = false;
-              for (const categoryName of categoryOptions) {
-                if ($body2.text().includes(categoryName) && !categorySelected) {
-                  cy.log(`✅ Found category option: ${categoryName}`);
-                  cy.get('*').contains(categoryName).first().should('be.visible').click({ force: true });
-                  cy.log(`✅ Selected category: ${categoryName}`);
-                  categorySelected = true;
-                  categoryDropdownFound = true;
-                  break;
-                }
-              }
-              
-              // If no specific category found, select first available option
-              if (!categorySelected) {
-                const genericOptionSelectors = ['option', '[role="option"]', '[role="menuitem"]', '.dropdown-item', 'li'];
-                for (const optionSelector of genericOptionSelectors) {
-                  if ($body2.find(optionSelector).length > 0) {
-                    cy.get(optionSelector).first().should('be.visible').click({ force: true });
-                    cy.log('✅ Selected first available category option');
-                    categoryDropdownFound = true;
-                    break;
-                  }
-                }
-              }
-            });
-            
-            if (categoryDropdownFound) break;
-          } catch (error) {
-            cy.log(`⚠️ Error with category selector ${selector}: ${error.message}`);
-            // Continue to next selector
-          }
-        }
-      }
-      
-      // Enhanced fallback approach for category
-      if (!categoryDropdownFound) {
-        cy.log('⚠️ Standard selectors failed, trying enhanced fallback approach for category');
-        
-        cy.get('*').contains('Category').then($elements => {
-          if ($elements.length > 0) {
-            // Find the most likely dropdown trigger
-            const $clickableElements = $elements.filter('button, select, input, [role="combobox"], [class*="select"], [class*="dropdown"]');
-            
-            if ($clickableElements.length > 0) {
-              cy.wrap($clickableElements.first()).click({ force: true });
-              cy.wait(1000);
-              
-              // Try to select Entertainment from opened dropdown
-              cy.get('body').then($body2 => {
-                if ($body2.text().includes('Entertainment')) {
-                  cy.contains('Entertainment').first().should('be.visible').click({ force: true });
-                  cy.log('✅ Selected Entertainment category via enhanced fallback');
-                } else if ($body2.find('[role="option"], [role="menuitem"], option').length > 0) {
-                  cy.get('[role="option"], [role="menuitem"], option').first().click({ force: true });
-                  cy.log('✅ Selected first available category via enhanced fallback');
-                }
-              });
-            } else {
-              // Last resort: click on any element with Category text
-              cy.wrap($elements.first()).click({ force: true });
-              cy.wait(1000);
-              
-              cy.get('body').then($body2 => {
-                if ($body2.find('[role="option"], [role="menuitem"], option').length > 0) {
-                  cy.get('[role="option"], [role="menuitem"], option').first().click({ force: true });
-                  cy.log('✅ Selected first available category via last resort');
-                }
-              });
-            }
-          } else {
-            cy.log('⚠️ No Category elements found - skipping category selection');
-          }
-        });
-      }
-      
-      // Fallback: try clicking on text containing "Category" or "Select categories"
-      // Note: Disabled to avoid conflicts with successful selections
-      /* 
-      if (!categoryDropdownFound) {
-        cy.log('⚠️ Category dropdown not found with selectors, trying fallback');
-        if ($body.text().includes('Select categories')) {
-          cy.get('*').contains('Select categories').first().should('exist').then($el => {
-            if ($el && $el.length > 0) {
-              cy.wrap($el).trigger('mouseover');
-              cy.wrap($el).click({ force: true });
-              
-              // Give dropdown a moment to open
-              cy.wait(500);
-              
-              // Try to find and click category option
-              cy.get('body').then($body2 => {
-                if ($body2.text().includes('Entertainment')) {
-                  cy.get('*').contains('Entertainment').first().should('exist').then($opt => {
-                    if ($opt && $opt.length > 0) {
-                      cy.wrap($opt).trigger('mouseover');
-                      cy.wrap($opt).click({ force: true });
-                      cy.log('✅ Selected Entertainment category');
-                    }
-                  });
-                } else if ($body2.find('[role="option"], [role="menuitem"], .dropdown-item').length > 0) {
-                  // Select first available option
-                  cy.get('[role="option"], [role="menuitem"], .dropdown-item').first().should('exist').then($opt => {
-                    if ($opt && $opt.length > 0) {
-                      cy.wrap($opt).trigger('mouseover');
-                      cy.wrap($opt).click({ force: true });
-                      cy.log('✅ Selected first available category');
-                    }
-                  });
-                }
-              });
-            }
-          });
-        } else if ($body.text().includes('Category')) {
-          cy.get('*').contains('Category').first().should('exist').then($el => {
-            if ($el && $el.length > 0) {
-              cy.wrap($el).trigger('mouseover');
-              cy.wrap($el).click({ force: true });
-              
-              // Give dropdown a moment to open
-              cy.wait(500);
-              
-              // Try to find and click category option
-              cy.get('body').then($body2 => {
-                if ($body2.text().includes('Entertainment')) {
-                  cy.get('*').contains('Entertainment').first().should('exist').then($opt => {
-                    if ($opt && $opt.length > 0) {
-                      cy.wrap($opt).trigger('mouseover');
-                      cy.wrap($opt).click({ force: true });
-                      cy.log('✅ Selected Entertainment category');
-                    }
-                  });
-                } else if ($body2.find('[role="option"], [role="menuitem"], .dropdown-item').length > 0) {
-                  // Select first available option
-                  cy.get('[role="option"], [role="menuitem"], .dropdown-item').first().should('exist').then($opt => {
-                    if ($opt && $opt.length > 0) {
-                      cy.wrap($opt).trigger('mouseover');
-                      cy.wrap($opt).click({ force: true });
-                      cy.log('✅ Selected first available category');
-                    }
-                  });
-                }
-              });
-            }
-          });
-        } else {
-          cy.log('⚠️ No category dropdown found at all, skipping category selection');
-        }
-      }
-      */
-      } catch (error) {
-        cy.log(`⚠️ Category selection failed: ${error.message} - continuing with test`);
-      }
-    });
-
-    // ============================================
-    // STEP 3: FILL TITLE (AFTER CATEGORY)
-    // ============================================
-    cy.log('📝 STEP 3: Filling title field');
-    
-    // Wait for category selection to complete
-    cy.wait(500);
-    
-    cy.get('body').then($body => {
-      // Look for title input field based on screenshot
       const titleSelectors = [
         'input[name*="title"]',
         'input[placeholder*="title"]',
@@ -1395,16 +806,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // ============================================
-    // STEP 4: FILL CAPTION (AFTER TITLE)
-    // ============================================
-    cy.log('📝 STEP 4: Filling caption');
-    
-    // Wait for title to be filled
+    // Fill Caption field
+    cy.log('📝 Filling caption');
     cy.wait(500);
     
     cy.get('body').then($body => {
-      // Look for caption input field based on screenshot - "Enter caption" placeholder
       const captionSelectors = [
         'textarea[placeholder="Enter caption"]',
         'input[placeholder="Enter caption"]',
@@ -1436,16 +842,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // ============================================
-    // STEP 5: FILL TAGS (AFTER CAPTION)
-    // ============================================
-    cy.log('🏷️ STEP 5: Filling tags');
-    
-    // Wait for caption to be filled
+    // Fill Tags field
+    cy.log('🏷️ Filling tags');
     cy.wait(500);
     
     cy.get('body').then($body => {
-      // Look for tags input field based on screenshot - "Press enter or comma to add tags"
       const tagsSelectors = [
         'input[placeholder*="Press enter or comma to add tags"]',
         'input[placeholder*="enter or comma"]',
@@ -1478,16 +879,12 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // ============================================
-    // STEP 6: FILL CTA BUTTON (AFTER TAGS)
-    // ============================================
-    cy.log('🔘 STEP 6: Filling CTA Button label and link');
-    
-    // Wait for tags to be filled
+    // Fill CTA Button fields
+    cy.log('🔘 Filling CTA Button label and link');
     cy.wait(500);
     
     cy.get('body').then($body => {
-      // Look for CTA Button label field based on screenshot
+      // CTA Button label
       const ctaLabelSelectors = [
         'input[placeholder="Button label"]',
         'input[placeholder*="Button label"]',
@@ -1512,7 +909,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
         }
       }
       
-      // Look for CTA Button link field based on screenshot
+      // CTA Button link
       const ctaLinkSelectors = [
         'input[placeholder="Button link"]',
         'input[placeholder*="Button link"]',
@@ -1540,149 +937,15 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
 
     // ============================================
-    // STEP 7: CONFIGURE TOGGLE SWITCHES (AFTER CTA)
+    // STEP 3: CLICK PUBLISH BUTTON (FINAL STEP)
     // ============================================
-    cy.log('� STEP 67: Configuring toggle switches');
+    cy.log('🚀 STEP 3: Publishing video');
     
-    // Wait for CTA fields to be filled
-    cy.wait(500);
-    
-    cy.get('body').then($body => {
-      // Configure Allow Comments toggle (should be enabled by default)
-      const allowCommentsSelectors = [
-        'label:contains("Allow Comments") input[type="checkbox"]',
-        'label:contains("Allow Comments") + input[type="checkbox"]',
-        '*:contains("Allow Comments") input[type="checkbox"]',
-        '*:contains("Allow Comments") button[role="switch"]',
-        '*:contains("Allow Comments") [class*="toggle"]',
-        '*:contains("Allow Comments") [class*="switch"]',
-        '[data-testid*="comments"] input',
-        '[data-testid*="comments"] button'
-      ];
-      
-      let commentsToggleFound = false;
-      for (const selector of allowCommentsSelectors) {
-        if ($body.find(selector).length > 0 && !commentsToggleFound) {
-          cy.log(`✅ Found Allow Comments toggle with selector: ${selector}`);
-          cy.get(selector).first().then($toggle => {
-            // For checkboxes
-            if ($toggle.is('input[type="checkbox"]')) {
-              if (!$toggle.is(':checked')) {
-                cy.wrap($toggle).click({ force: true });
-                cy.log('✅ Enabled Allow Comments');
-              } else {
-                cy.log('✅ Allow Comments already enabled');
-              }
-            } else {
-              // For buttons/switches, just click to ensure it's in the right state
-              cy.wrap($toggle).click({ force: true });
-              cy.log('✅ Configured Allow Comments toggle');
-            }
-          });
-          commentsToggleFound = true;
-          break;
-        }
-      }
-      
-      // Configure Allow Sharing toggle (should be enabled by default)
-      const allowSharingSelectors = [
-        'label:contains("Allow Sharing") input[type="checkbox"]',
-        'label:contains("Allow Sharing") + input[type="checkbox"]',
-        '*:contains("Allow Sharing") input[type="checkbox"]',
-        '*:contains("Allow Sharing") button[role="switch"]',
-        '*:contains("Allow Sharing") [class*="toggle"]',
-        '*:contains("Allow Sharing") [class*="switch"]',
-        '[data-testid*="sharing"] input',
-        '[data-testid*="sharing"] button'
-      ];
-      
-      let sharingToggleFound = false;
-      for (const selector of allowSharingSelectors) {
-        if ($body.find(selector).length > 0 && !sharingToggleFound) {
-          cy.log(`✅ Found Allow Sharing toggle with selector: ${selector}`);
-          cy.get(selector).first().then($toggle => {
-            // For checkboxes
-            if ($toggle.is('input[type="checkbox"]')) {
-              if (!$toggle.is(':checked')) {
-                cy.wrap($toggle).click({ force: true });
-                cy.log('✅ Enabled Allow Sharing');
-              } else {
-                cy.log('✅ Allow Sharing already enabled');
-              }
-            } else {
-              // For buttons/switches, just click to ensure it's in the right state
-              cy.wrap($toggle).click({ force: true });
-              cy.log('✅ Configured Allow Sharing toggle');
-            }
-          });
-          sharingToggleFound = true;
-          break;
-        }
-      }
-      
-      // Configure Do not allow Ads toggle (should be disabled by default)
-      const noAdsSelectors = [
-        'label:contains("Do not allow Ads") input[type="checkbox"]',
-        'label:contains("Do not allow Ads") + input[type="checkbox"]',
-        '*:contains("Do not allow Ads") input[type="checkbox"]',
-        '*:contains("Do not allow Ads") button[role="switch"]',
-        '*:contains("Do not allow Ads") [class*="toggle"]',
-        '*:contains("Do not allow Ads") [class*="switch"]',
-        '[data-testid*="ads"] input',
-        '[data-testid*="ads"] button'
-      ];
-      
-      let adsToggleFound = false;
-      for (const selector of noAdsSelectors) {
-        if ($body.find(selector).length > 0 && !adsToggleFound) {
-          cy.log(`✅ Found Do not allow Ads toggle with selector: ${selector}`);
-          cy.get(selector).first().then($toggle => {
-            // For checkboxes
-            if ($toggle.is('input[type="checkbox"]')) {
-              if ($toggle.is(':checked')) {
-                cy.wrap($toggle).click({ force: true });
-                cy.log('✅ Disabled Do not allow Ads (allowing ads)');
-              } else {
-                cy.log('✅ Do not allow Ads already disabled (ads allowed)');
-              }
-            } else {
-              // For buttons/switches, just click to ensure it's in the right state
-              cy.wrap($toggle).click({ force: true });
-              cy.log('✅ Configured Do not allow Ads toggle');
-            }
-          });
-          adsToggleFound = true;
-          break;
-        }
-      }
-    });
-
-    // ============================================
-    // STEP 8: CLICK PUBLISH BUTTON (FINAL STEP)
-    // ============================================
-    cy.log('🚀 STEP 8: Publishing video');
-    
-    // Wait for all fields to be filled and toggles configured
+    // Wait for all fields to be filled
     cy.wait(2000);
     
-    // Verify all required fields are filled before publishing
-    cy.log('✅ Verifying all form fields are completed before publishing');
-    cy.get('body').should('satisfy', ($body) => {
-      const bodyText = $body.text();
-      // Check that required fields are no longer showing placeholder text
-      const hasChannelSelected = !bodyText.includes('Select Channel') || bodyText.includes('DevOps');
-      const hasCategorySelected = !bodyText.includes('Select categories') || bodyText.includes('Entertainment');
-      
-      // Log verification status
-      if (hasChannelSelected && hasCategorySelected) {
-        return true;
-      }
-      return false;
-    });
-    
-    // Look for the blue Publish button in the top right corner (as shown in screenshot)
+    // Look for the blue Publish button
     cy.get('body').then($body => {
-      // Try multiple selectors to find the Publish button
       const publishButtonSelectors = [
         'button:contains("Publish")',
         '[data-testid*="publish"] button',
@@ -1706,7 +969,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
                 // Human-like hover before clicking
                 cy.wrap($el).trigger('mouseover');
                 cy.wrap($el).click({ force: true });
-                cy.log('✅ Clicked blue Publish button in top right corner');
+                cy.log('✅ Clicked Publish button');
                 publishButtonFound = true;
               }
             });
@@ -1727,7 +990,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
     
-    // Wait for publishing to complete and handle potential page redirect
+    // Wait for publishing to complete
     cy.log('⏳ Waiting for publishing to complete...');
     
     // Wait for either success indicators or page redirect after publishing
@@ -1755,15 +1018,14 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // Step 13: Verify publishing success and attempt metadata extraction
-    cy.log('🔍 Verifying publishing success and attempting metadata extraction');
+    // Final verification
+    cy.log('🔍 Verifying publishing success');
     
     // Wait a moment for any post-publish processing
     cy.wait(3000);
     
-    // Look for the uploaded video in the list without clicking on it (to avoid navigation)
+    // Look for the uploaded video in the list
     cy.get('body').then($body => {
-      // Look for the uploaded file in the list (now looking for processed video)
       const fileItemSelectors = [
         `div:contains("Video #")`,
         `div:contains("Published")`,
@@ -1781,7 +1043,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
       for (const selector of fileItemSelectors) {
         if ($body.find(selector).length > 0) {
           cy.log(`📍 Found uploaded file item: ${selector}`);
-          // Just verify the item exists without clicking to avoid navigation
           cy.get(selector).first().should('be.visible');
           fileItemFound = true;
           cy.log('✅ Video successfully published and visible in list');
@@ -1794,68 +1055,26 @@ describe('HorizonExp Single Upload Test Suite', () => {
       }
     });
 
-    // Attempt to extract metadata (optional - won't fail the test if it doesn't work)
-    cy.log('📊 Attempting to extract video metadata...');
-    
-    // Make metadata extraction optional and non-blocking
-    cy.get('body').then($body => {
-      try {
-        // Simple metadata check without complex extraction
-        const hasVideoElements = $body.find('video, img[src*="thumbnail"], [data-video], [data-thumbnail]').length > 0;
-        const hasVideoText = $body.text().includes('Video') || $body.text().includes('Published');
-        
-        if (hasVideoElements || hasVideoText) {
-          cy.log('✅ Video elements or published status detected - publishing appears successful');
-        } else {
-          cy.log('ℹ️ No immediate video metadata found - this may be normal if video is still processing');
-        }
-        
-        cy.log('📊 Basic metadata check completed');
-      } catch (error) {
-        cy.log('ℹ️ Metadata extraction skipped - continuing with test completion');
-      }
-    });
-
     // Final verification and cleanup
     cy.log('🎉 Video upload and publishing test completed successfully');
     
     // Take a screenshot for verification
     cy.screenshot('upload-and-publish-completed');
     
-    // Verify we're in a stable state (not navigating between pages)
+    // Verify we're in a stable state
     cy.url().should('satisfy', (url) => {
       return url.includes('app.horizonexp.com');
     });
     
     cy.log('✅ Test completed - video has been uploaded, published, and verified');
     
-    // Step 14: Stay signed in for 2 minutes after publishing (or even if publishing failed)
+    // Stay signed in for 2 minutes as requested
     cy.log('⏰ Staying signed in for 2 minutes as requested');
-    cy.log('📝 This ensures the session remains active after publishing or any publishing attempt');
+    cy.log('📝 This ensures the session remains active after publishing');
     
-    // Wait for 2 minutes (120000 milliseconds) - this is an explicit requirement
+    // Wait for 2 minutes (120000 milliseconds)
     cy.wait(120000);
     
     cy.log('✅ 2-minute wait completed - session maintained');
   });
-
-  // // Additional test for error handling
-  // it('Should handle authentication errors gracefully', () => {
-  //   cy.log('🔍 Testing error handling scenarios');
-    
-  //   // Visit signin page
-  //   humanWait();
-    
-  //   // Verify error handling elements exist
-  //   cy.get('body').should('be.visible');
-    
-  //   // Test can be extended to handle specific error scenarios
-  //   cy.log('✅ Error handling verification complete');
-  // });
-
-  // Cleanup after tests
-  // afterEach(() => {
-  //   // Add any cleanup logic if needed
-  //   cy.log('🧹 Test cleanup completed');
-  // });
 });
