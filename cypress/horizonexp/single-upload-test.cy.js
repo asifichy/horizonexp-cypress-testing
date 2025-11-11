@@ -7,8 +7,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
     humanDelay: 3000, // 3 seconds delay for human-like behavior
     humanTypeDelay: 120, // Delay between keystrokes for human-like typing
     uploadFile: {
-      path: 'C:\\Users\\user\\Downloads\\SPAM\\5.mp4',
-      fileName: '5.mp4'
+      path: 'C:\\Users\\user\\Downloads\\SPAM\\3.mp4',
+      fileName: '3.mp4'
     }
   };
 
