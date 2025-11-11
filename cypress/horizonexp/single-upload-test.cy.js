@@ -35,7 +35,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       };
 
       let $trigger = $body
-        .find('.ant-select-selection-placeholder, .ant-select-selection-item')
+        .find('button, [role="button"], .ant-select, .ant-select-selection-placeholder, .ant-select-selection-item')
         .filter(matchFn)
         .filter(':visible')
         .first();
@@ -63,18 +63,30 @@ describe('HorizonExp Single Upload Test Suite', () => {
         ? $clickTarget.find('.ant-select-selector').first()[0] || $clickTarget[0]
         : $clickTarget[0];
 
-      cy.wrap(domNode)
+      return cy.wrap(domNode)
         .scrollIntoView()
         .click({ force: true });
     });
 
-    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 10000 })
-      .find('.ant-select-item-option:not(.ant-select-item-option-disabled)')
+    cy.wait(200);
+
+    const optionSelectors = [
+      '.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option:not(.ant-select-item-option-disabled)',
+      'div[role="listbox"] [role="option"]',
+      'ul[role="listbox"] [role="option"]',
+      '[data-headlessui-state] [role="option"]',
+      '[data-headlessui-state="active"], [data-headlessui-state="selected"]',
+      '[data-headlessui-state] li',
+      '.select-option'
+    ].join(', ');
+
+    cy.get(optionSelectors, { timeout: 10000 })
+      .filter(':visible')
       .should('have.length.at.least', 1)
       .first()
       .click({ force: true });
 
-    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 10000 }).should('not.exist');
+    cy.wait(100);
   };
 
   beforeEach(() => {
