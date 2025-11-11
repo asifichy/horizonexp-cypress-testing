@@ -27,8 +27,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
   const selectDropdownOption = (labelText, optionText) => {
     cy.log(`🔽 Selecting "${optionText}" for dropdown "${labelText}"`);
 
-    cy.contains('label', labelText, { matchCase: false, timeout: 20000 })
-      .should('be.visible')
+    cy.contains('label, span', labelText, { matchCase: false, timeout: 20000 })
+      .filter(':visible')
+      .first()
       .then(($label) => {
         const $container =
           $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').length > 0
@@ -525,7 +526,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
     
     // Fill Category dropdown (REQUIRED) - Select first available option
-    selectDropdownOption('categories', 'Auto & Vehicles');
+    selectDropdownOption('Category', 'Auto & Vehicles');
     cy.wait(2000);
     
     // Verify Category is selected, retry if needed
@@ -533,7 +534,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       const bodyText = $body.text() || '';
       if (bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required')) {
         cy.log('⚠️ Category not selected, retrying...');
-        selectDropdownOption('categories', 'Auto & Vehicles');
+        selectDropdownOption('Category', 'Auto & Vehicles');
         cy.wait(2000);
       }
     });
