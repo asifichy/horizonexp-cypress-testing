@@ -351,25 +351,25 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     // Step 5a: First click on "Short-form" menu item in the sidebar
     cy.log('📱 Step 1: Clicking on Short-form menu');
+    
     cy.get('body').then($body => {
-      // Look for "Short-form" in the sidebar/navigation
       const shortFormSelectors = [
-        '*:contains("Short-form")',
         'a:contains("Short-form")',
         'button:contains("Short-form")',
+        '*:contains("Short-form")',
         '[data-testid*="short-form"]',
         '[data-testid*="short"]'
       ];
       
-      let clicked = false;
+      let found = false;
       for (const selector of shortFormSelectors) {
+        if (found) break;
         const $element = $body.find(selector).first();
-        if ($element.length > 0 && !clicked) {
+        if ($element.length > 0) {
           cy.log(`✅ Found Short-form menu: ${selector}`);
-          cy.get(selector).first().scrollIntoView().should('be.visible').click({ force: true });
-          clicked = true;
+          cy.wrap($element).should('exist').scrollIntoView().should('be.visible').click({ force: true });
           humanWait(2000);
-          break;
+          found = true;
         }
       }
     });
@@ -386,25 +386,24 @@ describe('HorizonExp Single Upload Test Suite', () => {
         '[href*="uploads"]'
       ];
       
-      let clicked = false;
+      let found = false;
       for (const selector of uploadsSelectors) {
+        if (found) break;
         const $element = $body.find(selector).filter((i, el) => {
           const $el = Cypress.$(el);
           const text = $el.text().trim();
           return text === 'Uploads' || text.includes('Uploads');
         }).first();
         
-        if ($element.length > 0 && !clicked) {
+        if ($element.length > 0) {
           cy.log(`✅ Found Uploads menu: ${selector}`);
-          cy.wrap($element).scrollIntoView().should('be.visible').click({ force: true });
-          cy.log('✅ Clicked Uploads menu');
-          clicked = true;
+          cy.wrap($element).should('exist').scrollIntoView().should('be.visible').click({ force: true });
           humanWait(2000);
-          break;
+          found = true;
         }
       }
       
-      if (!clicked) {
+      if (!found) {
         cy.log('⚠️ Uploads menu not found, trying direct navigation');
         cy.visit('https://app.horizonexp.com/shorts/uploads');
         humanWait(2000);
