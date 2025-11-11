@@ -35,7 +35,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       // Look for label or text containing the search text
       const $label = $body.find(`label:contains("${searchText}"), *:contains("${searchText}")`).first();
       
-      if ($label.length > 0) {
+    if ($label.length > 0) {
         // Find the associated input/select/button near the label
         $trigger = $label.closest('div, form, section').find('select, [role="combobox"], button, input').first();
         
@@ -93,8 +93,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
               return text.length > 0 && 
                      !text.toLowerCase().includes('select') && 
                      !text.toLowerCase().includes('choose') &&
-                     !text.toLowerCase().includes('channel') &&
-                     !text.toLowerCase().includes('category') &&
                      value !== '' &&
                      value !== null;
             });
@@ -575,8 +573,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.log('⏳ Waiting for publish form to load');
     
     // Wait for navigation to publish page (url contains /shorts/upload/<id>/publish)
-    cy.url({ timeout: 45000 }).should('include', '/shorts/upload/');
-    cy.url().should('include', '/publish');
+    cy.location('pathname', { timeout: 45000 }).should((pathname) => {
+      expect(pathname).to.match(/\/shorts\/upload\/[^/]+\/publish$/);
+    });
     
     // Ensure the form renders by waiting for Channel dropdown label
     cy.contains(/select channel/i, { timeout: 30000 }).should('be.visible');
@@ -599,7 +598,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.get('body').then($body => {
       if ($body.text().includes('Channel is required')) {
         cy.log('⚠️ Channel not selected, retrying...');
-        selectFromDropdown('Channel', 'Channel');
+        selectFromDropdown('Channel', 'Select Channel');
         cy.wait(2000);
       }
     });
@@ -613,7 +612,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       const bodyText = $body.text() || '';
       if (bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required')) {
         cy.log('⚠️ Category not selected, retrying...');
-        selectFromDropdown('Category', 'Category');
+        selectFromDropdown('Category', 'Select categories');
         cy.wait(2000);
       }
     });
