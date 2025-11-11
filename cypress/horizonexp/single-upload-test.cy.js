@@ -689,8 +689,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 15: Wait for publishing completion
     cy.log('⏳ Waiting for publishing to complete');
     
-    cy.wait('@publishRequest', { timeout: 30000 }).catch(() => {
-      cy.log('⚠️ Publish request intercept not caught, continuing...');
+    // Wait for publish API call (will timeout gracefully if not intercepted)
+    cy.wait('@publishRequest', { timeout: 30000 }).then(() => {
+      cy.log('📡 Publish API response received');
     });
     
     cy.wait(3000);
