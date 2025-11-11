@@ -27,73 +27,58 @@ describe('HorizonExp Single Upload Test Suite', () => {
   const selectDropdownFirstOption = (textToMatch) => {
     cy.log(`🔽 Selecting first option for dropdown using text "${textToMatch}"`);
 
-    cy.get('body').then(($body) => {
-      const matchFn = (_, el) => {
-        const $el = Cypress.$(el);
-        const label = ($el.attr('aria-label') || $el.text() || '').toLowerCase();
-        return label.includes(textToMatch.toLowerCase());
-      };
+    cy.contains('label', textToMatch, { matchCase: false, timeout: 20000 })
+      .should('be.visible')
+      .then(($label) => {
+        const $container =
+          $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').length > 0
+            ? $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').first()
+            : $label.parent();
 
-      let $trigger = $body
-        .find('button, [role="button"], .ant-select, .ant-select-selection-placeholder, .ant-select-selection-item')
-        .filter(matchFn)
-        .filter(':visible')
-        .first();
+        let $button = $container.find('button, [role="button"]').filter(':visible').first();
 
-      if (!$trigger || $trigger.length === 0) {
-        $trigger = $body.find('label, span, div').filter(matchFn).filter(':visible').first();
-      }
-
-      if (!$trigger || $trigger.length === 0) {
-        throw new Error(`Unable to find dropdown trigger containing "${textToMatch}"`);
-      }
-
-      let $clickTarget = $trigger.closest('.ant-select');
-      if (!$clickTarget || $clickTarget.length === 0) {
-        $clickTarget = $trigger.closest('[role="combobox"]');
-      }
-      if (!$clickTarget || $clickTarget.length === 0) {
-        $clickTarget = $trigger.parent().find('.ant-select').first();
-      }
-      if (!$clickTarget || $clickTarget.length === 0) {
-        $clickTarget = $trigger;
-      }
-
-      const domNode = $clickTarget.hasClass('ant-select')
-        ? $clickTarget.find('.ant-select-selector').first()[0] || $clickTarget[0]
-        : $clickTarget[0];
-
-      cy.wrap(domNode)
-        .scrollIntoView()
-        .click({ force: true });
-
-      cy.wait(150);
-
-      cy.get('body').then(($body) => {
-        const hasOptions = $body.find(optionSelectors).filter(':visible').length > 0;
-        if (!hasOptions) {
-          cy.wrap(domNode).click({ force: true });
+        if (!$button || $button.length === 0) {
+          $button = $label.nextAll('button').filter(':visible').first();
         }
+
+        if (!$button || $button.length === 0) {
+          throw new Error(`Unable to locate dropdown trigger button for "${textToMatch}"`);
+        }
+
+        cy.wrap($button)
+          .scrollIntoView()
+          .click({ force: true })
+          .then(($btn) => {
+            const listId = $btn.attr('aria-controls');
+            const optionSelector =
+              '[role="option"], [data-headlessui-state] button, [data-headlessui-state] li, .ant-select-item-option, .ant-select-item';
+
+            const getOptions = () => {
+              if (listId) {
+                const safeId = CSS && CSS.escape ? CSS.escape(listId) : listId;
+                return cy
+                  .get(`#${safeId}`, { timeout: 10000 })
+                  .find(optionSelector)
+                  .filter(':visible');
+              }
+              return cy.get(optionSelector, { timeout: 10000 }).filter(':visible');
+            };
+
+            getOptions()
+              .should('have.length.at.least', 1)
+              .first()
+              .click({ force: true });
+
+            if (listId) {
+              const safeId = CSS && CSS.escape ? CSS.escape(listId) : listId;
+              cy.get(`#${safeId}`, { timeout: 5000 }).should('not.exist');
+            } else {
+              cy.get(optionSelector)
+                .filter(':visible')
+                .should('have.length', 0);
+            }
+          });
       });
-    });
-
-    const optionSelectors = [
-      '.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option:not(.ant-select-item-option-disabled)',
-      'div[role="listbox"] [role="option"]',
-      'ul[role="listbox"] [role="option"]',
-      '[data-headlessui-state] [role="option"]',
-      '[data-headlessui-state="active"], [data-headlessui-state="selected"]',
-      '[data-headlessui-state] li',
-      '.select-option'
-    ].join(', ');
-
-    cy.get(optionSelectors, { timeout: 10000 })
-      .filter(':visible')
-      .should('have.length.at.least', 1)
-      .first()
-      .click({ force: true });
-
-    cy.wait(100);
   };
 
   beforeEach(() => {
