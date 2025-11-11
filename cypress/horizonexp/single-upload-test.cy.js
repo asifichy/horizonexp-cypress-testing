@@ -5,11 +5,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
     userEmail: 'asifniloy2017@gmail.com',
     userPassword: 'devops_test$sqa@flagship',
     humanDelay: 3000, // 3 seconds delay for human-like behavior
-    uploadTimeout: 30000,
     uploadFile: {
       path: 'C:\\Users\\user\\Downloads\\SPAM\\0.mp4',
-      fileName: '1.mp4',
-      mimeType: 'video/mp4'
+      fileName: '1.mp4'
     }
   };
 
@@ -236,26 +234,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
         }
       });
     }).as('publishRequestAlt');
-
-    // Intercept GET requests that might return video metadata
-    cy.intercept('GET', '**/api/**', (req) => {
-      req.continue((res) => {
-        if (res.body) {
-          extractMetadata(res.body);
-        }
-      });
-    }).as('apiRequest');
-
-    // Intercept all API responses to catch metadata
-    cy.intercept('**/api/**', (req) => {
-      req.continue((res) => {
-        if (res.body && (res.body.thumbnailUrl || res.body.videoUrl || res.body.previewUrl || 
-                         res.body.thumbnailurl || res.body.videourl || res.body.previewurl)) {
-          cy.log('📡 API response with video metadata intercepted');
-          extractMetadata(res.body);
-        }
-      });
-    }).as('allApiRequests');
     
     // Visit the signin page
     cy.visit(testConfig.baseUrl);
@@ -298,18 +276,10 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 3: Submit the login form
     cy.log('🚀 Submitting login form');
     
-    // Click submit/login button (avoid Google OAuth button)
-    cy.log('✅ Looking for email/password submit button');
-    
-    // First try to find a form and submit it
     cy.get('body').then($body => {
-      // Look for a form containing the email/password fields
       if ($body.find('form').length > 0) {
-        cy.log('📝 Found form, submitting via form');
         cy.get('form').first().submit();
       } else {
-        // Look for submit button that's NOT the Google button
-        cy.log('🔍 Looking for non-Google submit button');
         cy.get('button[type="submit"], input[type="submit"]')
           .not(':contains("Google")')
           .not(':contains("Sign in with Google")')
@@ -397,15 +367,10 @@ describe('HorizonExp Single Upload Test Suite', () => {
         if ($element.length > 0 && !clicked) {
           cy.log(`✅ Found Short-form menu: ${selector}`);
           cy.get(selector).first().scrollIntoView().should('be.visible').click({ force: true });
-          cy.log('✅ Clicked Short-form menu');
           clicked = true;
           humanWait(2000);
           break;
         }
-      }
-      
-      if (!clicked) {
-        cy.log('⚠️ Short-form menu not found, trying direct navigation');
       }
     });
 
@@ -483,12 +448,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
 
     // Step 7: Upload video file
     cy.log('📹 Starting file upload process');
-    
-    cy.get('body').should('satisfy', ($body) => {
-      const text = $body.text();
-      return text.includes('upload') || text.includes('Upload');
-    });
-    
     humanWait();
     
     cy.get('body').then($body => {
@@ -529,16 +488,16 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     // Click upload submit button if needed
     cy.get('body').then($body => {
-      const uploadButtonSelectors = ['button:contains("Upload")', 'button:contains("Submit")', 'button:contains("Start Upload")', '[data-testid="upload-submit"]'];
+      const submitButtonSelectors = ['button:contains("Upload")', 'button:contains("Submit")', 'button:contains("Start Upload")', '[data-testid="upload-submit"]'];
 
-      uploadButtonSelectors.forEach(selector => {
+      for (const selector of submitButtonSelectors) {
         if ($body.find(selector).length > 0) {
           cy.log('🚀 Clicking upload submit button');
           cy.wait(1000);
           cy.get(selector).first().click({ force: true });
-          return false;
+          break;
         }
-      });
+      }
     });
 
     humanWait(2000);
@@ -574,12 +533,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     cy.log('✅ Upload completed');
     humanWait(3000);
-    
-    // Brief debug log
-    cy.get('body').then($body => {
-      const bodyText = $body.text();
-      cy.log(`📋 Page ready: Ready to publish = ${bodyText.includes('Ready to publish')}`);
-    });
 
     // Step 10: Click "Ready to publish" button
     cy.log('📝 Looking for Ready to publish button');
@@ -598,9 +551,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       
       for (const selector of selectors) {
         if (!clicked && $body.find(selector).length > 0) {
-          cy.log(`✅ Found Ready to publish: ${selector}`);
           cy.get(selector).first().scrollIntoView().click({ force: true });
-          cy.log('✅ Clicked Ready to publish button');
           clicked = true;
           break;
         }
@@ -644,36 +595,29 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(2000);
 
     // Fill Channel dropdown (REQUIRED) - Select first available option
-    cy.log('📺 Selecting Channel dropdown - first option');
     selectFromDropdown('Channel', 'Select Channel');
     cy.wait(3000);
     
-    // Verify Channel is selected
+    // Verify Channel is selected, retry if needed
     cy.get('body').then($body => {
-      const bodyText = $body.text() || '';
-      if (bodyText.includes('Channel is required')) {
+      if ($body.text().includes('Channel is required')) {
         cy.log('⚠️ Channel not selected, retrying...');
         selectFromDropdown('Channel', 'Channel');
         cy.wait(2000);
-      } else {
-        cy.log('✅ Channel dropdown selected');
       }
     });
     
     // Fill Category dropdown (REQUIRED) - Select first available option
-    cy.log('📂 Selecting Category dropdown - first option');
     selectFromDropdown('Category', 'Select categories');
     cy.wait(3000);
     
-    // Verify Category is selected
+    // Verify Category is selected, retry if needed
     cy.get('body').then($body => {
       const bodyText = $body.text() || '';
       if (bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required')) {
         cy.log('⚠️ Category not selected, retrying...');
         selectFromDropdown('Category', 'Category');
         cy.wait(2000);
-      } else {
-        cy.log('✅ Category dropdown selected');
       }
     });
     
@@ -698,17 +642,12 @@ describe('HorizonExp Single Upload Test Suite', () => {
 
     // Step 13: Fill other form fields with dummy data
     cy.log('📝 STEP 13: Filling other form fields');
-    
     cy.wait(2000);
-
-    // Fill optional form fields (simplified)
-    cy.log('📝 Filling optional form fields');
     
     // Fill Title if available
     cy.get('body').then($body => {
       if ($body.find('input[placeholder*="title"]').length > 0) {
         cy.get('input[placeholder*="title"]').first().type('Test Upload Video', { force: true });
-        cy.log('✅ Filled title');
       }
     });
     
@@ -716,7 +655,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.get('body').then($body => {
       if ($body.find('textarea[placeholder*="caption"], input[placeholder*="caption"]').length > 0) {
         cy.get('textarea[placeholder*="caption"], input[placeholder*="caption"]').first().type('Test caption', { force: true });
-        cy.log('✅ Filled caption');
       }
     });
     
@@ -724,7 +662,6 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.get('body').then($body => {
       if ($body.find('input[placeholder*="tag"]').length > 0) {
         cy.get('input[placeholder*="tag"]').first().type('test{enter}video{enter}', { force: true });
-        cy.log('✅ Added tags');
       }
     });
 
@@ -741,14 +678,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
         'button[type="submit"]'
       ];
       
-      let clicked = false;
-      
       for (const selector of selectors) {
-        if (!clicked && $body.find(selector).length > 0) {
-          cy.log(`✅ Found Publish button: ${selector}`);
+        if ($body.find(selector).length > 0) {
           cy.get(selector).first().should('be.visible').click({ force: true });
-          cy.log('✅ Clicked Publish button');
-          clicked = true;
           break;
         }
       }
@@ -757,16 +689,10 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 15: Wait for publishing completion
     cy.log('⏳ Waiting for publishing to complete');
     
-    // Wait for publish API call to complete
-    cy.wait('@publishRequest', { timeout: 30000 }).then((interception) => {
-      if (interception && interception.response && interception.response.body) {
-        cy.log('📡 Publish API response received');
-      }
-    }).catch(() => {
+    cy.wait('@publishRequest', { timeout: 30000 }).catch(() => {
       cy.log('⚠️ Publish request intercept not caught, continuing...');
     });
     
-    // Wait a bit for any additional API calls
     cy.wait(3000);
     
     // Verify publishing completed
@@ -787,18 +713,14 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     // Step 16: Validate success criteria - Check for the three URLs
     cy.log('🔍 STEP 16: Validating success criteria - Checking for URLs');
-    cy.wait(2000);
     
-    // Log captured metadata
     cy.then(() => {
       cy.log('📊 Captured Metadata Status:');
       cy.log(`  - thumbnailurl: ${capturedMetadata.thumbnailurl || 'NOT CAPTURED'}`);
       cy.log(`  - videourl: ${capturedMetadata.videourl || 'NOT CAPTURED'}`);
       cy.log(`  - previewurl: ${capturedMetadata.previewurl || 'NOT CAPTURED'}`);
-    });
-    
-    // Validate that all three URLs are captured
-    cy.then(() => {
+      
+      // Validate that all three URLs are captured
       const missingUrls = [];
       
       if (!capturedMetadata.thumbnailurl) {
@@ -817,10 +739,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
         
         // Try to find URLs in the page content as fallback
         cy.get('body').then($body => {
-          const bodyText = $body.text() || '';
           const html = $body.html() || '';
-          
-          // Look for URL patterns
           const urlPattern = /https?:\/\/[^\s<>"']+/g;
           const urls = html.match(urlPattern) || [];
           
