@@ -27,53 +27,31 @@ describe('HorizonExp Single Upload Test Suite', () => {
   const selectDropdownFirstOption = (labelText) => {
     cy.log(`🔽 Selecting first option for dropdown with label containing "${labelText}"`);
 
-    cy.document().then((doc) => {
-      const $doc = Cypress.$(doc);
-      const textLower = labelText.toLowerCase();
+    cy.contains('label', labelText, { matchCase: false, timeout: 20000 })
+      .should('be.visible')
+      .then(($label) => {
+        const $container =
+          $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').length > 0
+            ? $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').first()
+            : $label.parent();
 
-      const candidates = $doc
-        .find('label, button, .ant-select, .ant-select-selector, .ant-select-selection-placeholder, span, div')
-        .filter((_, el) => {
-          const $el = Cypress.$(el);
-          const text = ($el.attr('aria-label') || $el.text() || '').toLowerCase();
-          return text.includes(textLower);
-        })
-        .filter(':visible');
+        const $selector =
+          $container.find('.ant-select-selector').length > 0
+            ? $container.find('.ant-select-selector').first()
+            : $container.find('.ant-select').first();
 
-      if (candidates.length === 0) {
-        throw new Error(`Dropdown trigger with text "${labelText}" not found`);
-      }
+        if ($selector.length === 0) {
+          throw new Error(`Unable to locate Ant select for label "${labelText}"`);
+        }
 
-      const $candidate = candidates.first();
-      let $select = $candidate.hasClass('ant-select')
-        ? $candidate
-        : $candidate.closest('.ant-select, [role="combobox"]');
+        cy.wrap($selector)
+          .scrollIntoView()
+          .click({ force: true });
+      });
 
-      if (!$select || $select.length === 0) {
-        $select = $candidate.nextAll('.ant-select').first();
-      }
-
-      if (!$select || $select.length === 0) {
-        $select = $candidate.find('.ant-select').first();
-      }
-
-      if (!$select || $select.length === 0) {
-        $select = $candidate;
-      }
-
-      const $clickTarget = $select.hasClass('ant-select-selector')
-        ? $select
-        : $select.find('.ant-select-selector').first().length > 0
-          ? $select.find('.ant-select-selector').first()
-          : $select;
-
-      cy.wrap($clickTarget)
-        .scrollIntoView()
-        .click({ force: true });
-    });
-
-    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 10000 })
-      .find('.ant-select-item-option')
+    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option:not(.ant-select-item-option-disabled)', {
+      timeout: 10000
+    })
       .should('have.length.at.least', 1)
       .first()
       .click({ force: true });
