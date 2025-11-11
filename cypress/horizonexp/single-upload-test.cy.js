@@ -23,11 +23,11 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(customDelay);
   };
 
-  // Helper to select the first available option in a dropdown within the publish form
-  const selectDropdownFirstOption = (textToMatch) => {
-    cy.log(`🔽 Selecting first option for dropdown using text "${textToMatch}"`);
+  // Helper to select a specific option from a dropdown identified by its label text
+  const selectDropdownOption = (labelText, optionText) => {
+    cy.log(`🔽 Selecting "${optionText}" for dropdown "${labelText}"`);
 
-    cy.contains('label', textToMatch, { matchCase: false, timeout: 20000 })
+    cy.contains('label', labelText, { matchCase: false, timeout: 20000 })
       .should('be.visible')
       .then(($label) => {
         const $container =
@@ -42,29 +42,17 @@ describe('HorizonExp Single Upload Test Suite', () => {
         }
 
         if (!$button || $button.length === 0) {
-          throw new Error(`Unable to locate dropdown trigger button for "${textToMatch}"`);
+          throw new Error(`Unable to locate dropdown trigger button for "${labelText}"`);
         }
 
         cy.wrap($button)
           .scrollIntoView()
-          .click({ force: true })
-          .then(() => {
-            const optionSelector =
-              '[role="option"], [data-headlessui-state] button, [data-headlessui-state] li, .ant-select-item-option, .ant-select-item';
+          .click({ force: true });
 
-            cy.wrap(null).should(() => {
-              const visibleOptions = Cypress.$(optionSelector).filter(':visible');
-              expect(
-                visibleOptions.length,
-                `Visible options for dropdown "${textToMatch}" should be greater than zero`
-              ).to.be.greaterThan(0);
-            });
-
-            cy.then(() => {
-              const visibleOptions = Cypress.$(optionSelector).filter(':visible');
-              cy.wrap(visibleOptions.first()).click({ force: true });
-            });
-          });
+        cy.contains('div, button, li', optionText, { timeout: 10000 })
+          .filter(':visible')
+          .first()
+          .click({ force: true });
       });
   };
 
@@ -524,20 +512,20 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(2000);
 
     // Fill Channel dropdown (REQUIRED) - Select first available option
-    selectDropdownFirstOption('Channel');
+    selectDropdownOption('Channel', `DevOps' Channel`);
     cy.wait(2000);
     
     // Verify Channel is selected, retry if needed
     cy.get('body').then($body => {
       if ($body.text().includes('Channel is required')) {
         cy.log('⚠️ Channel not selected, retrying...');
-        selectDropdownFirstOption('Select Channel');
+        selectDropdownOption('Channel', `DevOps' Channel`);
         cy.wait(2000);
       }
     });
     
     // Fill Category dropdown (REQUIRED) - Select first available option
-    selectDropdownFirstOption('categories');
+    selectDropdownOption('categories', 'Auto & Vehicles');
     cy.wait(2000);
     
     // Verify Category is selected, retry if needed
@@ -545,7 +533,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
       const bodyText = $body.text() || '';
       if (bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required')) {
         cy.log('⚠️ Category not selected, retrying...');
-        selectDropdownFirstOption('Select categories');
+        selectDropdownOption('categories', 'Auto & Vehicles');
         cy.wait(2000);
       }
     });
