@@ -542,21 +542,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Final verification that both required fields are filled
     cy.log('🔍 Final verification of required fields');
     cy.wait(2000);
-    cy.get('body').should('satisfy', ($body) => {
-      if (!$body || $body.length === 0) return false;
-      
-      const bodyText = $body.text() || '';
-      const hasChannelError = bodyText.includes('Channel is required');
-      const hasCategoryError = bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required');
-      
-      if (!hasChannelError && !hasCategoryError) {
-        cy.log('✅ All required fields are filled');
-        return true;
-      } else {
-        cy.log(`⚠️ Required fields still need attention - Channel error: ${hasChannelError}, Category error: ${hasCategoryError}`);
-        return false;
-      }
-    });
+    cy.contains('label', 'Select Channel', { matchCase: false }).should('not.exist');
+    cy.contains('label', 'Select categories', { matchCase: false }).should('not.exist');
+    cy.log('✅ All required fields are filled');
 
     // Step 13: Fill other form fields with dummy data
     cy.log('📝 STEP 13: Filling other form fields');
