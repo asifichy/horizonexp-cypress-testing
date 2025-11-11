@@ -574,27 +574,14 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 11: Wait for publish form to load
     cy.log('⏳ Waiting for publish form to load');
     
-    cy.url().then((currentUrl) => {
-      cy.log(`📍 Current URL: ${currentUrl}`);
-      
-      if (currentUrl.includes('/uploads')) {
-        cy.log('⚠️ Still on uploads page - trying direct navigation');
-        cy.visit('https://app.horizonexp.com/shorts/publish');
-        cy.wait(3000);
-      }
-    });
+    // Wait for navigation to publish page (url contains /shorts/upload/<id>/publish)
+    cy.url({ timeout: 45000 }).should('include', '/shorts/upload/');
+    cy.url().should('include', '/publish');
     
-    cy.get('body', { timeout: 20000 }).should('satisfy', ($body) => {
-      if (!$body || $body.length === 0) return false;
-      
-      const bodyText = $body.text() || '';
-      const hasFormElements = $body.find('select, [role="combobox"], input').length > 0;
-      const hasFormText = bodyText.includes('Channel') || bodyText.includes('Category');
-      
-      return hasFormElements || hasFormText;
-    });
+    // Ensure the form renders by waiting for Channel dropdown label
+    cy.contains(/select channel/i, { timeout: 30000 }).should('be.visible');
+    cy.contains(/select categories/i).should('be.visible');
 
-    cy.wait(2000);
     cy.log('✅ Form loaded');
     cy.screenshot('publish-form-loaded');
 
@@ -657,21 +644,27 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Fill Title if available
     cy.get('body').then($body => {
       if ($body.find('input[placeholder*="title"]').length > 0) {
-        cy.get('input[placeholder*="title"]').first().type('Test Upload Video', { force: true });
+        cy.get('input[placeholder*="title"]').first().clear({ force: true }).type('Test Upload Video', { force: true });
+      } else if ($body.find('input[name="title"]').length > 0) {
+        cy.get('input[name="title"]').first().clear({ force: true }).type('Test Upload Video', { force: true });
       }
     });
     
     // Fill Caption if available
     cy.get('body').then($body => {
       if ($body.find('textarea[placeholder*="caption"], input[placeholder*="caption"]').length > 0) {
-        cy.get('textarea[placeholder*="caption"], input[placeholder*="caption"]').first().type('Test caption', { force: true });
+        cy.get('textarea[placeholder*="caption"], input[placeholder*="caption"]').first().clear({ force: true }).type('Test caption', { force: true });
+      } else if ($body.find('textarea[name="caption"]').length > 0) {
+        cy.get('textarea[name="caption"]').first().clear({ force: true }).type('Test caption', { force: true });
       }
     });
     
     // Fill Tags if available
     cy.get('body').then($body => {
       if ($body.find('input[placeholder*="tag"]').length > 0) {
-        cy.get('input[placeholder*="tag"]').first().type('test{enter}video{enter}', { force: true });
+        cy.get('input[placeholder*="tag"]').first().clear({ force: true }).type('test{enter}video{enter}', { force: true });
+      } else if ($body.find('input[name="tags"]').length > 0) {
+        cy.get('input[name="tags"]').first().clear({ force: true }).type('test{enter}video{enter}', { force: true });
       }
     });
 
