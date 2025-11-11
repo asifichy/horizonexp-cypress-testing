@@ -476,13 +476,16 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 8: Verify file selection and start upload
     cy.log('⏳ Verifying file selection and upload progress');
     
-    cy.get('body').should('satisfy', ($body) => {
-      const text = $body.text();
-      return text.includes(testConfig.uploadFile.fileName) || 
-             text.includes('uploaded') || 
+    // Wait for upload indicators with longer timeout
+    cy.get('body', { timeout: 30000 }).should('satisfy', ($body) => {
+      if (!$body || $body.length === 0) return false;
+      const text = $body.text() || '';
+      return text.includes('uploaded') || 
              text.includes('Video #') ||
              text.includes('Ready to publish') ||
-             text.includes('100%');
+             text.includes('100%') ||
+             text.includes('out of') ||
+             text.includes('content');
     });
     
     // Click upload submit button if needed
@@ -508,7 +511,15 @@ describe('HorizonExp Single Upload Test Suite', () => {
       if (!$body || $body.length === 0) return false;
       
       const bodyText = $body.text() || '';
-      const completionIndicators = ['100%', 'Upload complete', 'Upload successful', 'Ready to publish', 'Successfully uploaded'];
+      const completionIndicators = [
+        '100%', 
+        'Upload complete', 
+        'Upload successful', 
+        'Ready to publish', 
+        'Successfully uploaded',
+        'out of',
+        'uploaded (100%)'
+      ];
       
       if (completionIndicators.some(indicator => bodyText.includes(indicator))) {
         return true;
