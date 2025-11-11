@@ -7,8 +7,8 @@ describe('HorizonExp Single Upload Test Suite', () => {
     humanDelay: 3000, // 3 seconds delay for human-like behavior
     humanTypeDelay: 120, // Delay between keystrokes for human-like typing
     uploadFile: {
-      path: 'C:\\Users\\user\\Downloads\\SPAM\\3.mp4',
-      fileName: '3.mp4'
+      path: 'C:\\Users\\user\\Downloads\\SPAM\\2.mp4',
+      fileName: '2.mp4'
     }
   };
 
@@ -155,6 +155,31 @@ describe('HorizonExp Single Upload Test Suite', () => {
         }
       });
     }).as('publishRequestAlt');
+
+    // Intercept GraphQL publish mutations which commonly contain the metadata
+    cy.intercept('POST', '**/graph.app.horizonexp.com/**', (req) => {
+      const operationName = req.body?.operationName || '';
+      const queryString = typeof req.body?.query === 'string' ? req.body.query : '';
+
+      const isPublishOperation =
+        (typeof operationName === 'string' && operationName.toLowerCase().includes('publish')) ||
+        (typeof queryString === 'string' && queryString.toLowerCase().includes('publish'));
+
+      if (isPublishOperation) {
+        req.alias = 'publishGraphRequest';
+      }
+
+      req.continue((res) => {
+        if (res.body) {
+          cy.log(
+            `📡 GraphQL response intercepted${
+              isPublishOperation ? ` (publish operation: ${operationName || 'unknown'})` : ''
+            }`
+          );
+          extractMetadata(res.body);
+        }
+      });
+    });
     
     // Visit the signin page
     cy.visit(testConfig.baseUrl);
@@ -645,11 +670,16 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.log('⏳ Waiting for publishing to complete');
     
     // Wait for publish API call (will timeout gracefully if not intercepted)
-    cy.wait('@publishRequest', { timeout: 30000 }).then(() => {
-      cy.log('📡 Publish API response received');
+    // Wait until publish mutation completes and metadata is captured
+    cy.wait('@publishGraphRequest', { timeout: 45000 }).then(() => {
+      cy.log('📡 Publish GraphQL publish call intercepted');
     });
-    
-    cy.wait(3000);
+
+    cy.wrap(null, { timeout: 45000 }).should(() => {
+      expect(capturedMetadata.thumbnailurl, 'thumbnailurl captured').to.not.be.null;
+      expect(capturedMetadata.videourl, 'videourl captured').to.not.be.null;
+      expect(capturedMetadata.previewurl, 'previewurl captured').to.not.be.null;
+    });
     
     // Verify publishing completed
     cy.url().then((currentUrl) => {
