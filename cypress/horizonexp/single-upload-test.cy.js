@@ -24,34 +24,52 @@ describe('HorizonExp Single Upload Test Suite', () => {
   };
 
   // Helper to select the first available option in a dropdown within the publish form
-  const selectDropdownFirstOption = (labelText) => {
-    cy.log(`🔽 Selecting first option for dropdown with label containing "${labelText}"`);
+  const selectDropdownFirstOption = (textToMatch) => {
+    cy.log(`🔽 Selecting first option for dropdown using text "${textToMatch}"`);
 
-    cy.contains('label', labelText, { matchCase: false, timeout: 20000 })
-      .should('be.visible')
-      .then(($label) => {
-        const $container =
-          $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').length > 0
-            ? $label.closest('.ant-space-item, .ant-form-item, .ant-row, form div').first()
-            : $label.parent();
+    cy.get('body').then(($body) => {
+      const matchFn = (_, el) => {
+        const $el = Cypress.$(el);
+        const label = ($el.attr('aria-label') || $el.text() || '').toLowerCase();
+        return label.includes(textToMatch.toLowerCase());
+      };
 
-        const $selector =
-          $container.find('.ant-select-selector').length > 0
-            ? $container.find('.ant-select-selector').first()
-            : $container.find('.ant-select').first();
+      let $trigger = $body
+        .find('.ant-select-selection-placeholder, .ant-select-selection-item')
+        .filter(matchFn)
+        .filter(':visible')
+        .first();
 
-        if ($selector.length === 0) {
-          throw new Error(`Unable to locate Ant select for label "${labelText}"`);
-        }
+      if (!$trigger || $trigger.length === 0) {
+        $trigger = $body.find('label, span, div').filter(matchFn).filter(':visible').first();
+      }
 
-        cy.wrap($selector)
-          .scrollIntoView()
-          .click({ force: true });
-      });
+      if (!$trigger || $trigger.length === 0) {
+        throw new Error(`Unable to find dropdown trigger containing "${textToMatch}"`);
+      }
 
-    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option:not(.ant-select-item-option-disabled)', {
-      timeout: 10000
-    })
+      let $clickTarget = $trigger.closest('.ant-select');
+      if (!$clickTarget || $clickTarget.length === 0) {
+        $clickTarget = $trigger.closest('[role="combobox"]');
+      }
+      if (!$clickTarget || $clickTarget.length === 0) {
+        $clickTarget = $trigger.parent().find('.ant-select').first();
+      }
+      if (!$clickTarget || $clickTarget.length === 0) {
+        $clickTarget = $trigger;
+      }
+
+      const domNode = $clickTarget.hasClass('ant-select')
+        ? $clickTarget.find('.ant-select-selector').first()[0] || $clickTarget[0]
+        : $clickTarget[0];
+
+      cy.wrap(domNode)
+        .scrollIntoView()
+        .click({ force: true });
+    });
+
+    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 10000 })
+      .find('.ant-select-item-option:not(.ant-select-item-option-disabled)')
       .should('have.length.at.least', 1)
       .first()
       .click({ force: true });
