@@ -7,7 +7,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     humanDelay: 3000, // 3 seconds delay for human-like behavior
     humanTypeDelay: 120, // Delay between keystrokes for human-like typing
     uploadFile: {
-      path: 'C:\\Users\\user\\Downloads\\SPAM\\0.mp4',
+      path: 'C:\\Users\\user\\Downloads\\SPAM\\5.mp4',
       fileName: '5.mp4'
     }
   };
@@ -370,10 +370,32 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.log('📹 Starting file upload process');
     humanWait();
     
-    cy.get('body').then($body => {
-      if ($body.find('input[type="file"]').length > 0) {
-        cy.log('✅ Using file input for upload');
-        cy.get('input[type="file"]').first().selectFile(testConfig.uploadFile.path, { force: true });
+    cy.get('body').then(($body) => {
+      const $fileInputs = $body.find('input[type="file"]');
+
+      const chooseableInputs = $fileInputs.filter((_, el) => {
+        const accept = (el.getAttribute('accept') || '').toLowerCase();
+
+        if (accept.includes('csv')) {
+          return false;
+        }
+
+        if (accept.includes('video') || accept.includes('mp4') || accept.includes('quicktime')) {
+          return true;
+        }
+
+        // If accept is empty, prefer elements that look like the React upload widget (data-testid etc.)
+        const dataTestId = (el.getAttribute('data-testid') || '').toLowerCase();
+        if (dataTestId.includes('video') || dataTestId.includes('upload')) {
+          return true;
+        }
+
+        return accept.trim() === '';
+      });
+
+      if (chooseableInputs.length > 0) {
+        cy.log(`✅ Using file input for upload (matching ${chooseableInputs.length} candidate(s))`);
+        cy.wrap(chooseableInputs.first()).selectFile(testConfig.uploadFile.path, { force: true });
       } else {
         cy.log('🎯 Using drag-drop upload method');
         const uploadAreaSelectors = ['.upload-area', '.drop-zone', '[data-testid="upload-area"]', '.file-drop-zone', '.upload-container'];
@@ -387,7 +409,12 @@ describe('HorizonExp Single Upload Test Suite', () => {
         });
 
         if (!uploadAreaFound) {
-          cy.get('[class*="upload"], [id*="upload"]').first().selectFile(testConfig.uploadFile.path, { force: true });
+          const genericSelectors = '[class*="upload"], [id*="upload"]';
+          if ($body.find(genericSelectors).length > 0) {
+            cy.get(genericSelectors).first().selectFile(testConfig.uploadFile.path, { force: true });
+          } else {
+            throw new Error('Unable to locate a suitable file input or drag-drop area for video upload.');
+          }
         }
       }
     });
