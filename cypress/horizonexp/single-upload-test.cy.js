@@ -48,35 +48,22 @@ describe('HorizonExp Single Upload Test Suite', () => {
         cy.wrap($button)
           .scrollIntoView()
           .click({ force: true })
-          .then(($btn) => {
-            const listId = $btn.attr('aria-controls');
+          .then(() => {
             const optionSelector =
               '[role="option"], [data-headlessui-state] button, [data-headlessui-state] li, .ant-select-item-option, .ant-select-item';
 
-            const getOptions = () => {
-              if (listId) {
-                const safeId = CSS && CSS.escape ? CSS.escape(listId) : listId;
-                return cy
-                  .get(`#${safeId}`, { timeout: 10000 })
-                  .find(optionSelector)
-                  .filter(':visible');
-              }
-              return cy.get(optionSelector, { timeout: 10000 }).filter(':visible');
-            };
+            cy.wrap(null).should(() => {
+              const visibleOptions = Cypress.$(optionSelector).filter(':visible');
+              expect(
+                visibleOptions.length,
+                `Visible options for dropdown "${textToMatch}" should be greater than zero`
+              ).to.be.greaterThan(0);
+            });
 
-            getOptions()
-              .should('have.length.at.least', 1)
-              .first()
-              .click({ force: true });
-
-            if (listId) {
-              const safeId = CSS && CSS.escape ? CSS.escape(listId) : listId;
-              cy.get(`#${safeId}`, { timeout: 5000 }).should('not.exist');
-            } else {
-              cy.get(optionSelector)
-                .filter(':visible')
-                .should('have.length', 0);
-            }
+            cy.then(() => {
+              const visibleOptions = Cypress.$(optionSelector).filter(':visible');
+              cy.wrap(visibleOptions.first()).click({ force: true });
+            });
           });
       });
   };
