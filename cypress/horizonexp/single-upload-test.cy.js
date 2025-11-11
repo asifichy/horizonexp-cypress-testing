@@ -542,8 +542,14 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Final verification that both required fields are filled
     cy.log('🔍 Final verification of required fields');
     cy.wait(2000);
-    cy.contains('label', 'Select Channel', { matchCase: false }).should('not.exist');
-    cy.contains('label', 'Select categories', { matchCase: false }).should('not.exist');
+    cy.contains('label, span', 'Channel', { matchCase: false }).first().parents('div').find('button, [role="button"]')
+      .filter(':visible')
+      .first()
+      .should('contain', `DevOps' Channel`);
+    cy.contains('label, span', 'Category', { matchCase: false }).first().parents('div').find('button, [role="button"]')
+      .filter(':visible')
+      .first()
+      .should('contain', 'Auto & Vehicles');
     cy.log('✅ All required fields are filled');
 
     // Step 13: Fill other form fields with dummy data
