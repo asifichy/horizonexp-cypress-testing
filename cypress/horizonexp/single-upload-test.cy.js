@@ -63,12 +63,19 @@ describe('HorizonExp Single Upload Test Suite', () => {
         ? $clickTarget.find('.ant-select-selector').first()[0] || $clickTarget[0]
         : $clickTarget[0];
 
-      return cy.wrap(domNode)
+      cy.wrap(domNode)
         .scrollIntoView()
         .click({ force: true });
-    });
 
-    cy.wait(200);
+      cy.wait(150);
+
+      cy.get('body').then(($body) => {
+        const hasOptions = $body.find(optionSelectors).filter(':visible').length > 0;
+        if (!hasOptions) {
+          cy.wrap(domNode).click({ force: true });
+        }
+      });
+    });
 
     const optionSelectors = [
       '.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option:not(.ant-select-item-option-disabled)',
