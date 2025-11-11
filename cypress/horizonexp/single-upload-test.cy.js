@@ -23,115 +23,40 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(customDelay);
   };
 
-  // Improved helper function for dropdown selection - selects first available option
-  const selectFromDropdown = (fieldName, searchText) => {
-    cy.log(`🔍 Looking for ${fieldName} dropdown with text: ${searchText}`);
-    
-    // Try multiple approaches to find the dropdown
-    cy.get('body').then($body => {
-      // Approach 1: Find by label text
-      let $trigger = null;
-      
-      // Look for label or text containing the search text
-      const $label = $body.find(`label:contains("${searchText}"), *:contains("${searchText}")`).first();
-      
-    if ($label.length > 0) {
-        // Find the associated input/select/button near the label
-        $trigger = $label.closest('div, form, section').find('select, [role="combobox"], button, input').first();
-        
-        if ($trigger.length === 0) {
-          // Try finding by going up the DOM tree
-          $trigger = $label.parent().find('select, [role="combobox"], button, input').first();
-        }
+  // Helper to select the first available option in a dropdown within the publish form
+  const selectDropdownFirstOption = (placeholderText) => {
+    cy.contains('span, div', placeholderText, { matchCase: false, timeout: 20000 }).then($elements => {
+      const $visible = $elements.filter(':visible');
+      if ($visible.length === 0) {
+        throw new Error(`Dropdown trigger "${placeholderText}" not visible`);
       }
-      
-      // Approach 2: Direct search for select/combobox elements
-      if (!$trigger || $trigger.length === 0) {
-        $trigger = $body.find(`select, [role="combobox"]`).filter((i, el) => {
-          const $el = Cypress.$(el);
-          const label = $el.closest('div, form').find('label, span, div').text();
-          return label.includes(searchText) || $el.attr('placeholder')?.includes(searchText);
-        }).first();
-      }
-      
-      // Approach 3: Find by placeholder or aria-label
-      if (!$trigger || $trigger.length === 0) {
-        $trigger = $body.find(`[placeholder*="${searchText}"], [aria-label*="${searchText}"]`).first();
-      }
-      
-      if ($trigger && $trigger.length > 0) {
-        cy.log(`✅ Found ${fieldName} dropdown element`);
-        
-        // Scroll into view and click
-        cy.wrap($trigger).scrollIntoView().should('be.visible');
-        cy.wait(500);
-        cy.wrap($trigger).click({ force: true });
-        cy.wait(1500);
-        
-        // Wait for dropdown options to appear and select the first available option
-        cy.get('body').then($body2 => {
-          // Look for dropdown options in various formats
-          const optionSelectors = [
-            '[role="option"]',
-            '[role="menuitem"]',
-            'li[role="option"]',
-            '.MuiMenuItem-root',
-            '.ant-select-item',
-            'option:not([value=""])',
-            '[data-option-index]'
-          ];
-          
-          let optionFound = false;
-          
-          for (const selector of optionSelectors) {
-            const $options = $body2.find(selector).filter(function() {
-              const $opt = Cypress.$(this);
-              const text = $opt.text().trim();
-              const value = $opt.attr('value') || $opt.text();
-              
-              // Skip placeholder/empty options
-              return text.length > 0 && 
-                     !text.toLowerCase().includes('select') && 
-                     !text.toLowerCase().includes('choose') &&
-                     value !== '' &&
-                     value !== null;
-            });
-            
-            if ($options.length > 0 && !optionFound) {
-              cy.log(`✅ Found ${$options.length} options for ${fieldName}, selecting first`);
-              cy.wrap($options.first()).scrollIntoView().click({ force: true });
-              cy.log(`✅ Selected first option for ${fieldName}`);
-              optionFound = true;
-              cy.wait(1000);
-              break;
-            }
-          }
-          
-          // Fallback: try clicking on any visible option-like element
-          if (!optionFound) {
-            cy.log(`⚠️ Standard options not found, trying fallback for ${fieldName}`);
-            cy.get('body').then($body3 => {
-              const $allOptions = $body3.find('div, li, span').filter(function() {
-                const $el = Cypress.$(this);
-                const text = $el.text().trim();
-                return text.length > 0 && 
-                       text.length < 100 && // Reasonable option text length
-                       !text.toLowerCase().includes('select') &&
-                       !text.toLowerCase().includes('channel') &&
-                       !text.toLowerCase().includes('category');
-              });
-              
-              if ($allOptions.length > 0) {
-                cy.wrap($allOptions.first()).scrollIntoView().click({ force: true });
-                cy.log(`✅ Selected fallback option for ${fieldName}`);
-                cy.wait(1000);
-              }
-            });
-          }
-        });
+
+      const $candidate = $visible.first();
+      const $trigger =
+        $candidate.closest('.ant-select, .ant-select-selector, .MuiSelect-root, .select, [role="button"], [aria-haspopup]');
+
+      if ($trigger.length > 0) {
+        cy.wrap($trigger.first())
+          .scrollIntoView()
+          .click({ force: true });
       } else {
-        cy.log(`⚠️ Could not find ${fieldName} dropdown, trying alternative approach`);
+        cy.wrap($candidate)
+          .scrollIntoView()
+          .click({ force: true });
       }
+    });
+    cy.wait(500);
+
+    cy.get(
+      'div[role="option"]:visible, li[role="option"]:visible, div[role="menuitem"]:visible, .ant-select-item-option-content:visible, .MuiAutocomplete-option:visible',
+      { timeout: 10000 }
+    )
+      .first()
+      .click({ force: true });
+
+    cy.get('body', { timeout: 10000 }).should($body => {
+      const $openDropdowns = $body.find('.ant-select-dropdown:visible, [role="listbox"]:visible');
+      expect($openDropdowns.length, `Dropdown "${placeholderText}" should close after selection`).to.eq(0);
     });
   };
 
@@ -591,28 +516,28 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(2000);
 
     // Fill Channel dropdown (REQUIRED) - Select first available option
-    selectFromDropdown('Channel', 'Select Channel');
-    cy.wait(3000);
+    selectDropdownFirstOption('Select Channel');
+    cy.wait(2000);
     
     // Verify Channel is selected, retry if needed
     cy.get('body').then($body => {
       if ($body.text().includes('Channel is required')) {
         cy.log('⚠️ Channel not selected, retrying...');
-        selectFromDropdown('Channel', 'Select Channel');
+        selectDropdownFirstOption('Select Channel');
         cy.wait(2000);
       }
     });
     
     // Fill Category dropdown (REQUIRED) - Select first available option
-    selectFromDropdown('Category', 'Select categories');
-    cy.wait(3000);
+    selectDropdownFirstOption('Select categories');
+    cy.wait(2000);
     
     // Verify Category is selected, retry if needed
     cy.get('body').then($body => {
       const bodyText = $body.text() || '';
       if (bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required')) {
         cy.log('⚠️ Category not selected, retrying...');
-        selectFromDropdown('Category', 'Select categories');
+        selectDropdownFirstOption('Select categories');
         cy.wait(2000);
       }
     });
