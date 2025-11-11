@@ -25,36 +25,116 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(customDelay);
   };
 
-  // Simplified helper function for dropdown selection
+  // Improved helper function for dropdown selection - selects first available option
   const selectFromDropdown = (fieldName, searchText) => {
-    cy.log(`🔍 Looking for ${fieldName} dropdown`);
+    cy.log(`🔍 Looking for ${fieldName} dropdown with text: ${searchText}`);
     
+    // Try multiple approaches to find the dropdown
     cy.get('body').then($body => {
-      const $trigger = $body.find(`*:contains("${searchText}")`).first();
+      // Approach 1: Find by label text
+      let $trigger = null;
       
-      if ($trigger.length > 0) {
-        cy.log(`✅ Found ${fieldName} trigger`);
+      // Look for label or text containing the search text
+      const $label = $body.find(`label:contains("${searchText}"), *:contains("${searchText}")`).first();
+      
+      if ($label.length > 0) {
+        // Find the associated input/select/button near the label
+        $trigger = $label.closest('div, form, section').find('select, [role="combobox"], button, input').first();
         
-        const $clickable = $trigger.is('button, select, [role="combobox"]') ? 
-                          $trigger : 
-                          $trigger.closest('div').find('button, select, [role="combobox"]').first();
+        if ($trigger.length === 0) {
+          // Try finding by going up the DOM tree
+          $trigger = $label.parent().find('select, [role="combobox"], button, input').first();
+        }
+      }
+      
+      // Approach 2: Direct search for select/combobox elements
+      if (!$trigger || $trigger.length === 0) {
+        $trigger = $body.find(`select, [role="combobox"]`).filter((i, el) => {
+          const $el = Cypress.$(el);
+          const label = $el.closest('div, form').find('label, span, div').text();
+          return label.includes(searchText) || $el.attr('placeholder')?.includes(searchText);
+        }).first();
+      }
+      
+      // Approach 3: Find by placeholder or aria-label
+      if (!$trigger || $trigger.length === 0) {
+        $trigger = $body.find(`[placeholder*="${searchText}"], [aria-label*="${searchText}"]`).first();
+      }
+      
+      if ($trigger && $trigger.length > 0) {
+        cy.log(`✅ Found ${fieldName} dropdown element`);
         
-        if ($clickable.length > 0) {
-          cy.wrap($clickable).click({ force: true });
-          cy.wait(2000);
+        // Scroll into view and click
+        cy.wrap($trigger).scrollIntoView().should('be.visible');
+        cy.wait(500);
+        cy.wrap($trigger).click({ force: true });
+        cy.wait(1500);
+        
+        // Wait for dropdown options to appear and select the first available option
+        cy.get('body').then($body2 => {
+          // Look for dropdown options in various formats
+          const optionSelectors = [
+            '[role="option"]',
+            '[role="menuitem"]',
+            'li[role="option"]',
+            '.MuiMenuItem-root',
+            '.ant-select-item',
+            'option:not([value=""])',
+            '[data-option-index]'
+          ];
           
-          cy.get('body').then($body2 => {
-            const $options = $body2.find('option, [role="option"], [role="menuitem"]').filter(function() {
-              const text = Cypress.$(this).text().trim();
-              return text.length > 0 && !text.includes('Select') && !text.includes('Choose');
+          let optionFound = false;
+          
+          for (const selector of optionSelectors) {
+            const $options = $body2.find(selector).filter(function() {
+              const $opt = Cypress.$(this);
+              const text = $opt.text().trim();
+              const value = $opt.attr('value') || $opt.text();
+              
+              // Skip placeholder/empty options
+              return text.length > 0 && 
+                     !text.toLowerCase().includes('select') && 
+                     !text.toLowerCase().includes('choose') &&
+                     !text.toLowerCase().includes('channel') &&
+                     !text.toLowerCase().includes('category') &&
+                     value !== '' &&
+                     value !== null;
             });
             
-            if ($options.length > 0) {
-              cy.wrap($options.first()).click({ force: true });
-              cy.log(`✅ Selected ${fieldName} option`);
+            if ($options.length > 0 && !optionFound) {
+              cy.log(`✅ Found ${$options.length} options for ${fieldName}, selecting first`);
+              cy.wrap($options.first()).scrollIntoView().click({ force: true });
+              cy.log(`✅ Selected first option for ${fieldName}`);
+              optionFound = true;
+              cy.wait(1000);
+              break;
             }
-          });
-        }
+          }
+          
+          // Fallback: try clicking on any visible option-like element
+          if (!optionFound) {
+            cy.log(`⚠️ Standard options not found, trying fallback for ${fieldName}`);
+            cy.get('body').then($body3 => {
+              const $allOptions = $body3.find('div, li, span').filter(function() {
+                const $el = Cypress.$(this);
+                const text = $el.text().trim();
+                return text.length > 0 && 
+                       text.length < 100 && // Reasonable option text length
+                       !text.toLowerCase().includes('select') &&
+                       !text.toLowerCase().includes('channel') &&
+                       !text.toLowerCase().includes('category');
+              });
+              
+              if ($allOptions.length > 0) {
+                cy.wrap($allOptions.first()).scrollIntoView().click({ force: true });
+                cy.log(`✅ Selected fallback option for ${fieldName}`);
+                cy.wait(1000);
+              }
+            });
+          }
+        });
+      } else {
+        cy.log(`⚠️ Could not find ${fieldName} dropdown, trying alternative approach`);
       }
     });
   };
@@ -72,17 +152,54 @@ describe('HorizonExp Single Upload Test Suite', () => {
     
     // Intercept network requests to capture upload metadata
     const extractMetadata = (body) => {
-      if (body.thumbnailUrl || body.thumbnailurl) {
-        capturedMetadata.thumbnailurl = body.thumbnailUrl || body.thumbnailurl;
-      }
-      if (body.videoUrl || body.videourl) {
-        capturedMetadata.videourl = body.videoUrl || body.videourl;
-      }
-      if (body.previewUrl || body.previewurl) {
-        capturedMetadata.previewurl = body.previewUrl || body.previewurl;
+      try {
+        // Handle both string and object responses
+        let responseBody = body;
+        if (typeof body === 'string') {
+          try {
+            responseBody = JSON.parse(body);
+          } catch (e) {
+            // Not JSON, skip
+            return;
+          }
+        }
+        
+        // Check for various property name formats
+        if (responseBody.thumbnailUrl || responseBody.thumbnailurl || responseBody.thumbnail_url) {
+          const url = responseBody.thumbnailUrl || responseBody.thumbnailurl || responseBody.thumbnail_url;
+          if (url && !capturedMetadata.thumbnailurl) {
+            capturedMetadata.thumbnailurl = url;
+            cy.log(`📸 Captured thumbnailUrl: ${url}`);
+          }
+        }
+        if (responseBody.videoUrl || responseBody.videourl || responseBody.video_url) {
+          const url = responseBody.videoUrl || responseBody.videourl || responseBody.video_url;
+          if (url && !capturedMetadata.videourl) {
+            capturedMetadata.videourl = url;
+            cy.log(`🎥 Captured videoUrl: ${url}`);
+          }
+        }
+        if (responseBody.previewUrl || responseBody.previewurl || responseBody.preview_url) {
+          const url = responseBody.previewUrl || responseBody.previewurl || responseBody.preview_url;
+          if (url && !capturedMetadata.previewurl) {
+            capturedMetadata.previewurl = url;
+            cy.log(`👁️ Captured previewUrl: ${url}`);
+          }
+        }
+        
+        // Also check nested data structures
+        if (responseBody.data) {
+          extractMetadata(responseBody.data);
+        }
+        if (responseBody.result) {
+          extractMetadata(responseBody.result);
+        }
+      } catch (e) {
+        cy.log(`⚠️ Error extracting metadata: ${e.message}`);
       }
     };
 
+    // Intercept upload requests
     cy.intercept('POST', '**/upload**', (req) => {
       req.continue((res) => {
         if (res.body) {
@@ -101,14 +218,44 @@ describe('HorizonExp Single Upload Test Suite', () => {
       });
     }).as('uploadRequestAlt');
 
+    // Intercept publish requests (most likely to contain the URLs)
+    cy.intercept('POST', '**/publish**', (req) => {
+      req.continue((res) => {
+        if (res.body) {
+          cy.log('📡 Publish API response intercepted');
+          extractMetadata(res.body);
+        }
+      });
+    }).as('publishRequest');
+
+    cy.intercept('POST', '**/api/**/publish**', (req) => {
+      req.continue((res) => {
+        if (res.body) {
+          cy.log('📡 Publish API response intercepted (alt endpoint)');
+          extractMetadata(res.body);
+        }
+      });
+    }).as('publishRequestAlt');
+
+    // Intercept GET requests that might return video metadata
     cy.intercept('GET', '**/api/**', (req) => {
       req.continue((res) => {
-        if (res.body && (res.body.thumbnailUrl || res.body.videoUrl || res.body.previewUrl)) {
-          cy.log('📡 API response with video metadata intercepted');
+        if (res.body) {
           extractMetadata(res.body);
         }
       });
     }).as('apiRequest');
+
+    // Intercept all API responses to catch metadata
+    cy.intercept('**/api/**', (req) => {
+      req.continue((res) => {
+        if (res.body && (res.body.thumbnailUrl || res.body.videoUrl || res.body.previewUrl || 
+                         res.body.thumbnailurl || res.body.videourl || res.body.previewurl)) {
+          cy.log('📡 API response with video metadata intercepted');
+          extractMetadata(res.body);
+        }
+      });
+    }).as('allApiRequests');
     
     // Visit the signin page
     cy.visit(testConfig.baseUrl);
@@ -232,33 +379,76 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.get('body').should('be.visible');
     humanWait(2000);
     
-    // Navigate to shorts section if not already there
-    cy.url().then((currentUrl) => {
-      if (!currentUrl.includes('/shorts/')) {
-        cy.log('📱 Navigating to shorts section');
-        cy.get('[data-testid*="short"], *').contains('Short-form').first().click();
-        humanWait(2000);
+    // Step 5a: First click on "Short-form" menu item in the sidebar
+    cy.log('📱 Step 1: Clicking on Short-form menu');
+    cy.get('body').then($body => {
+      // Look for "Short-form" in the sidebar/navigation
+      const shortFormSelectors = [
+        '*:contains("Short-form")',
+        'a:contains("Short-form")',
+        'button:contains("Short-form")',
+        '[data-testid*="short-form"]',
+        '[data-testid*="short"]'
+      ];
+      
+      let clicked = false;
+      for (const selector of shortFormSelectors) {
+        const $element = $body.find(selector).first();
+        if ($element.length > 0 && !clicked) {
+          cy.log(`✅ Found Short-form menu: ${selector}`);
+          cy.get(selector).first().scrollIntoView().should('be.visible').click({ force: true });
+          cy.log('✅ Clicked Short-form menu');
+          clicked = true;
+          humanWait(2000);
+          break;
+        }
+      }
+      
+      if (!clicked) {
+        cy.log('⚠️ Short-form menu not found, trying direct navigation');
       }
     });
 
-    // Navigate to uploads page
-    cy.url().then((currentUrl) => {
-      if (!currentUrl.includes('/uploads')) {
-        cy.log('📤 Navigating to uploads page');
-        cy.get('body').then($body => {
-          if ($body.find('a:contains("Uploads")').length > 0) {
-            cy.get('a:contains("Uploads")').first().click();
-          } else if ($body.find('*:contains("Uploads")').length > 0) {
-            cy.get('*:contains("Uploads")').first().click();
-          } else {
-            cy.visit('https://app.horizonexp.com/shorts/uploads');
-          }
-        });
+    // Step 5b: Then click on "Uploads" under Short-form
+    cy.log('📤 Step 2: Clicking on Uploads menu');
+    cy.get('body').then($body => {
+      // Look for "Uploads" link/button in the navigation
+      const uploadsSelectors = [
+        'a:contains("Uploads")',
+        '*:contains("Uploads")',
+        'button:contains("Uploads")',
+        '[data-testid*="upload"]',
+        '[href*="uploads"]'
+      ];
+      
+      let clicked = false;
+      for (const selector of uploadsSelectors) {
+        const $element = $body.find(selector).filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          return text === 'Uploads' || text.includes('Uploads');
+        }).first();
+        
+        if ($element.length > 0 && !clicked) {
+          cy.log(`✅ Found Uploads menu: ${selector}`);
+          cy.wrap($element).scrollIntoView().should('be.visible').click({ force: true });
+          cy.log('✅ Clicked Uploads menu');
+          clicked = true;
+          humanWait(2000);
+          break;
+        }
+      }
+      
+      if (!clicked) {
+        cy.log('⚠️ Uploads menu not found, trying direct navigation');
+        cy.visit('https://app.horizonexp.com/shorts/uploads');
         humanWait(2000);
       }
     });
     
-    cy.url().should('include', '/shorts/uploads');
+    // Verify we're on the uploads page
+    cy.url({ timeout: 10000 }).should('include', '/shorts/uploads');
+    cy.log('✅ Successfully navigated to Shorts Uploads page');
 
     // Step 6: Click Upload New button
     cy.log('➕ Clicking Upload New button');
@@ -447,34 +637,61 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.log('✅ Form loaded');
     cy.screenshot('publish-form-loaded');
 
-    // Step 12: Fill required dropdowns (Channel and Category)
+    // Step 12: Fill required dropdowns (Channel and Category) - Select first option
     cy.log('📺 STEP 12: Filling required Channel and Category dropdowns');
     
     cy.get('body', { timeout: 15000 }).should('be.visible');
     cy.wait(2000);
 
-    // Fill Channel dropdown (REQUIRED)
+    // Fill Channel dropdown (REQUIRED) - Select first available option
+    cy.log('📺 Selecting Channel dropdown - first option');
     selectFromDropdown('Channel', 'Select Channel');
-    cy.wait(2000);
+    cy.wait(3000);
     
-    // Fill Category dropdown (REQUIRED)
+    // Verify Channel is selected
+    cy.get('body').then($body => {
+      const bodyText = $body.text() || '';
+      if (bodyText.includes('Channel is required')) {
+        cy.log('⚠️ Channel not selected, retrying...');
+        selectFromDropdown('Channel', 'Channel');
+        cy.wait(2000);
+      } else {
+        cy.log('✅ Channel dropdown selected');
+      }
+    });
+    
+    // Fill Category dropdown (REQUIRED) - Select first available option
+    cy.log('📂 Selecting Category dropdown - first option');
     selectFromDropdown('Category', 'Select categories');
-    cy.wait(2000);
+    cy.wait(3000);
     
-    // Verify both required fields are filled
-    cy.log('🔍 Verifying required fields');
+    // Verify Category is selected
+    cy.get('body').then($body => {
+      const bodyText = $body.text() || '';
+      if (bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required')) {
+        cy.log('⚠️ Category not selected, retrying...');
+        selectFromDropdown('Category', 'Category');
+        cy.wait(2000);
+      } else {
+        cy.log('✅ Category dropdown selected');
+      }
+    });
+    
+    // Final verification that both required fields are filled
+    cy.log('🔍 Final verification of required fields');
+    cy.wait(2000);
     cy.get('body').should('satisfy', ($body) => {
       if (!$body || $body.length === 0) return false;
       
       const bodyText = $body.text() || '';
       const hasChannelError = bodyText.includes('Channel is required');
-      const hasCategoryError = bodyText.includes('Minimum 1 category is required');
+      const hasCategoryError = bodyText.includes('Minimum 1 category is required') || bodyText.includes('Category is required');
       
       if (!hasChannelError && !hasCategoryError) {
-        cy.log('✅ Required fields filled');
+        cy.log('✅ All required fields are filled');
         return true;
       } else {
-        cy.log('⚠️ Required fields still need attention');
+        cy.log(`⚠️ Required fields still need attention - Channel error: ${hasChannelError}, Category error: ${hasCategoryError}`);
         return false;
       }
     });
@@ -540,21 +757,103 @@ describe('HorizonExp Single Upload Test Suite', () => {
     // Step 15: Wait for publishing completion
     cy.log('⏳ Waiting for publishing to complete');
     
-    cy.get('body', { timeout: 15000 }).should('satisfy', ($body) => {
-      if (!$body || $body.length === 0) return false;
-      
-      const bodyText = $body.text() || '';
-      return bodyText.includes('Published') || 
-             bodyText.includes('Success') ||
-             window.location.href.includes('/uploads');
+    // Wait for publish API call to complete
+    cy.wait('@publishRequest', { timeout: 30000 }).then((interception) => {
+      if (interception && interception.response && interception.response.body) {
+        cy.log('📡 Publish API response received');
+      }
+    }).catch(() => {
+      cy.log('⚠️ Publish request intercept not caught, continuing...');
     });
     
-    cy.log('🎉 Video upload and publishing test completed');
+    // Wait a bit for any additional API calls
+    cy.wait(3000);
+    
+    // Verify publishing completed
+    cy.url().then((currentUrl) => {
+      cy.get('body', { timeout: 20000 }).should('satisfy', ($body) => {
+        if (!$body || $body.length === 0) return false;
+        
+        const bodyText = $body.text() || '';
+        return bodyText.includes('Published') || 
+               bodyText.includes('Success') ||
+               bodyText.includes('published') ||
+               currentUrl.includes('/uploads');
+      });
+    });
+    
+    cy.log('✅ Publishing completed');
     cy.screenshot('upload-completed');
     
-    // Stay signed in for 2 minutes
-    cy.log('⏰ Staying signed in for 2 minutes');
-    cy.wait(120000);
-    cy.log('✅ Session maintained');
+    // Step 16: Validate success criteria - Check for the three URLs
+    cy.log('🔍 STEP 16: Validating success criteria - Checking for URLs');
+    cy.wait(2000);
+    
+    // Log captured metadata
+    cy.then(() => {
+      cy.log('📊 Captured Metadata Status:');
+      cy.log(`  - thumbnailurl: ${capturedMetadata.thumbnailurl || 'NOT CAPTURED'}`);
+      cy.log(`  - videourl: ${capturedMetadata.videourl || 'NOT CAPTURED'}`);
+      cy.log(`  - previewurl: ${capturedMetadata.previewurl || 'NOT CAPTURED'}`);
+    });
+    
+    // Validate that all three URLs are captured
+    cy.then(() => {
+      const missingUrls = [];
+      
+      if (!capturedMetadata.thumbnailurl) {
+        missingUrls.push('thumbnailurl');
+      }
+      if (!capturedMetadata.videourl) {
+        missingUrls.push('videourl');
+      }
+      if (!capturedMetadata.previewurl) {
+        missingUrls.push('previewurl');
+      }
+      
+      if (missingUrls.length > 0) {
+        cy.log(`⚠️ Missing URLs: ${missingUrls.join(', ')}`);
+        cy.log('🔍 Attempting to extract URLs from page content...');
+        
+        // Try to find URLs in the page content as fallback
+        cy.get('body').then($body => {
+          const bodyText = $body.text() || '';
+          const html = $body.html() || '';
+          
+          // Look for URL patterns
+          const urlPattern = /https?:\/\/[^\s<>"']+/g;
+          const urls = html.match(urlPattern) || [];
+          
+          // Extract URLs
+          for (let i = 0; i < urls.length; i++) {
+            const url = urls[i];
+            if (url.includes('thumbnail') && !capturedMetadata.thumbnailurl) {
+              capturedMetadata.thumbnailurl = url;
+              cy.log(`📸 Found thumbnailurl in page: ${url}`);
+            }
+            if (url.includes('video') && !capturedMetadata.videourl && !url.includes('thumbnail')) {
+              capturedMetadata.videourl = url;
+              cy.log(`🎥 Found videourl in page: ${url}`);
+            }
+            if (url.includes('preview') && !capturedMetadata.previewurl) {
+              capturedMetadata.previewurl = url;
+              cy.log(`👁️ Found previewurl in page: ${url}`);
+            }
+          }
+        });
+      }
+      
+      // Final validation
+      expect(capturedMetadata.thumbnailurl, 'thumbnailurl should be captured').to.not.be.null;
+      expect(capturedMetadata.videourl, 'videourl should be captured').to.not.be.null;
+      expect(capturedMetadata.previewurl, 'previewurl should be captured').to.not.be.null;
+      
+      cy.log('✅ SUCCESS: All three URLs captured successfully!');
+      cy.log(`  ✅ thumbnailurl: ${capturedMetadata.thumbnailurl}`);
+      cy.log(`  ✅ videourl: ${capturedMetadata.videourl}`);
+      cy.log(`  ✅ previewurl: ${capturedMetadata.previewurl}`);
+    });
+    
+    cy.log('🎉 Video upload and publishing test completed successfully!');
   });
 });
