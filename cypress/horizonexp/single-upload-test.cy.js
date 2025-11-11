@@ -24,40 +24,61 @@ describe('HorizonExp Single Upload Test Suite', () => {
   };
 
   // Helper to select the first available option in a dropdown within the publish form
-  const selectDropdownFirstOption = (placeholderText) => {
-    cy.contains('span, div', placeholderText, { matchCase: false, timeout: 20000 }).then($elements => {
-      const $visible = $elements.filter(':visible');
-      if ($visible.length === 0) {
-        throw new Error(`Dropdown trigger "${placeholderText}" not visible`);
+  const selectDropdownFirstOption = (labelText) => {
+    cy.log(`🔽 Selecting first option for dropdown with label containing "${labelText}"`);
+
+    cy.document().then((doc) => {
+      const $doc = Cypress.$(doc);
+      const textLower = labelText.toLowerCase();
+
+      const candidates = $doc
+        .find('label, button, .ant-select, .ant-select-selector, .ant-select-selection-placeholder, span, div')
+        .filter((_, el) => {
+          const $el = Cypress.$(el);
+          const text = ($el.attr('aria-label') || $el.text() || '').toLowerCase();
+          return text.includes(textLower);
+        })
+        .filter(':visible');
+
+      if (candidates.length === 0) {
+        throw new Error(`Dropdown trigger with text "${labelText}" not found`);
       }
 
-      const $candidate = $visible.first();
-      const $trigger =
-        $candidate.closest('.ant-select, .ant-select-selector, .MuiSelect-root, .select, [role="button"], [aria-haspopup]');
+      const $candidate = candidates.first();
+      let $select = $candidate.hasClass('ant-select')
+        ? $candidate
+        : $candidate.closest('.ant-select, [role="combobox"]');
 
-      if ($trigger.length > 0) {
-        cy.wrap($trigger.first())
-          .scrollIntoView()
-          .click({ force: true });
-      } else {
-        cy.wrap($candidate)
-          .scrollIntoView()
-          .click({ force: true });
+      if (!$select || $select.length === 0) {
+        $select = $candidate.nextAll('.ant-select').first();
       }
+
+      if (!$select || $select.length === 0) {
+        $select = $candidate.find('.ant-select').first();
+      }
+
+      if (!$select || $select.length === 0) {
+        $select = $candidate;
+      }
+
+      const $clickTarget = $select.hasClass('ant-select-selector')
+        ? $select
+        : $select.find('.ant-select-selector').first().length > 0
+          ? $select.find('.ant-select-selector').first()
+          : $select;
+
+      cy.wrap($clickTarget)
+        .scrollIntoView()
+        .click({ force: true });
     });
-    cy.wait(500);
 
-    cy.get(
-      'div[role="option"]:visible, li[role="option"]:visible, div[role="menuitem"]:visible, .ant-select-item-option-content:visible, .MuiAutocomplete-option:visible',
-      { timeout: 10000 }
-    )
+    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 10000 })
+      .find('.ant-select-item-option')
+      .should('have.length.at.least', 1)
       .first()
       .click({ force: true });
 
-    cy.get('body', { timeout: 10000 }).should($body => {
-      const $openDropdowns = $body.find('.ant-select-dropdown:visible, [role="listbox"]:visible');
-      expect($openDropdowns.length, `Dropdown "${placeholderText}" should close after selection`).to.eq(0);
-    });
+    cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 10000 }).should('not.exist');
   };
 
   beforeEach(() => {
@@ -516,7 +537,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(2000);
 
     // Fill Channel dropdown (REQUIRED) - Select first available option
-    selectDropdownFirstOption('Select Channel');
+    selectDropdownFirstOption('Channel');
     cy.wait(2000);
     
     // Verify Channel is selected, retry if needed
@@ -529,7 +550,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
     
     // Fill Category dropdown (REQUIRED) - Select first available option
-    selectDropdownFirstOption('Select categories');
+    selectDropdownFirstOption('categories');
     cy.wait(2000);
     
     // Verify Category is selected, retry if needed
