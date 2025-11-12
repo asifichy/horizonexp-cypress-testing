@@ -514,55 +514,47 @@ describe('HorizonExp Single Upload Test Suite', () => {
       // Step 11: Click three-dot menu and import CSV metadata
       cy.log('📋 Step 11: Importing CSV metadata for bulk publish');
       
-      // Find the "Ready to Publish" button, then find the menu button in the same container
+      // Find the "Ready to Publish" button, then locate the menu button beside it
       cy.contains('button, a, *', 'Ready to publish', { matchCase: false, timeout: 30000 })
         .should('be.visible')
         .then(($readyButton) => {
           cy.log('✅ Found "Ready to Publish" button');
           humanWait(1000);
           
-          // Get the parent container that holds the buttons
-          const $parentContainer = $readyButton.parent();
-          const $grandParentContainer = $parentContainer.parent();
+          // Get position and container info for the Ready button
+          const readyRect = $readyButton[0].getBoundingClientRect();
+          const readyText = $readyButton.text().trim().toLowerCase();
           
-          // Look for menu button in the same container or parent containers
           cy.get('body').then($body => {
             let menuFound = false;
+            let foundButtons = [];
             
-            // First, try to find in the same parent container
-            const $siblingButtons = $parentContainer.find('button, [role="button"]').filter(':visible');
-            const readyText = $readyButton.text().trim().toLowerCase();
+            // Strategy 1: Find direct siblings (nextSibling, previousSibling)
+            cy.log('🔍 Strategy 1: Looking for direct siblings');
+            const $readyParent = $readyButton.parent();
+            const readyIndex = $readyParent.children().index($readyButton[0]);
             
-            $siblingButtons.each((i, el) => {
-              if (menuFound) return false;
-              
-              const $el = Cypress.$(el);
-              const elText = $el.text().trim().toLowerCase();
-              
-              // Skip the Ready button itself
-              if (elText.includes('ready') && elText.includes('publish')) {
-                return true;
+            // Check next sibling
+            const $nextSibling = $readyButton.next();
+            if ($nextSibling.length > 0 && ($nextSibling.is('button') || $nextSibling.find('button, [role="button"]').length > 0)) {
+              const $nextButton = $nextSibling.is('button') ? $nextSibling : $nextSibling.find('button, [role="button"]').first();
+              if ($nextButton.is(':visible')) {
+                const nextText = $nextButton.text().trim().toLowerCase();
+                const hasSvg = $nextButton.find('svg').length > 0;
+                if (hasSvg && !nextText.includes('ready') && !nextText.includes('publish')) {
+                  cy.log('✅ Found menu button as next sibling');
+                  cy.wrap($nextButton[0]).scrollIntoView().should('be.visible');
+                  humanWait(1000);
+                  cy.wrap($nextButton[0]).click({ force: true });
+                  menuFound = true;
+                }
               }
-              
-              // Check if it's a menu button (has SVG, minimal/no text)
-              const hasSvg = $el.find('svg').length > 0;
-              const hasMinimalText = elText.length === 0 || elText.length < 3;
-              const html = $el.html() || '';
-              
-              if (hasSvg && hasMinimalText) {
-                cy.log('✅ Found menu button in same container');
-                cy.wrap(el).scrollIntoView().should('be.visible');
-                humanWait(1000);
-                cy.wrap(el).click({ force: true });
-                menuFound = true;
-                return false;
-              }
-            });
+            }
             
-            // If not found, try parent container
+            // Strategy 2: Find buttons in the same parent container, positioned to the right
             if (!menuFound) {
-              const $parentButtons = $grandParentContainer.find('button, [role="button"]').filter(':visible');
-              const readyRect = $readyButton[0].getBoundingClientRect();
+              cy.log('🔍 Strategy 2: Looking in same parent container');
+              const $parentButtons = $readyParent.find('button, [role="button"]').filter(':visible');
               
               $parentButtons.each((i, el) => {
                 if (menuFound) return false;
@@ -570,20 +562,19 @@ describe('HorizonExp Single Upload Test Suite', () => {
                 const $el = Cypress.$(el);
                 const elText = $el.text().trim().toLowerCase();
                 
-                // Skip the Ready button
+                // Skip the Ready button itself
                 if (elText.includes('ready') && elText.includes('publish')) {
                   return true;
                 }
                 
                 const elRect = el.getBoundingClientRect();
-                const isNearReady = Math.abs(elRect.top - readyRect.top) < 50 && 
-                                  Math.abs(elRect.left - readyRect.left) < 200;
-                
+                const isToTheRight = elRect.left > readyRect.right - 10; // To the right of Ready button
+                const isSameRow = Math.abs(elRect.top - readyRect.top) < 30; // Same row
                 const hasSvg = $el.find('svg').length > 0;
-                const hasMinimalText = elText.length === 0 || elText.length < 3;
+                const hasMinimalText = elText.length === 0 || elText.length < 5;
                 
-                if (hasSvg && hasMinimalText && isNearReady) {
-                  cy.log('✅ Found menu button in parent container');
+                if (isToTheRight && isSameRow && hasSvg && hasMinimalText) {
+                  cy.log('✅ Found menu button in same container (to the right)');
                   cy.wrap(el).scrollIntoView().should('be.visible');
                   humanWait(1000);
                   cy.wrap(el).click({ force: true });
@@ -593,10 +584,48 @@ describe('HorizonExp Single Upload Test Suite', () => {
               });
             }
             
-            // Last resort: find any button with SVG near the Ready button
+            // Strategy 3: Find buttons in parent/grandparent containers
             if (!menuFound) {
-              cy.log('🔍 Trying page-wide search for menu button');
-              const readyRect = $readyButton[0].getBoundingClientRect();
+              cy.log('🔍 Strategy 3: Looking in parent/grandparent containers');
+              let $container = $readyButton.parent();
+              
+              for (let level = 0; level < 3 && !menuFound; level++) {
+                $container = $container.parent();
+                const $containerButtons = $container.find('button, [role="button"]').filter(':visible');
+                
+                $containerButtons.each((i, el) => {
+                  if (menuFound) return false;
+                  
+                  const $el = Cypress.$(el);
+                  const elText = $el.text().trim().toLowerCase();
+                  
+                  // Skip the Ready button
+                  if (elText.includes('ready') && elText.includes('publish')) {
+                    return true;
+                  }
+                  
+                  const elRect = el.getBoundingClientRect();
+                  const isNearReady = Math.abs(elRect.top - readyRect.top) < 50 && 
+                                    elRect.left > readyRect.right - 20 &&
+                                    elRect.left < readyRect.right + 100;
+                  const hasSvg = $el.find('svg').length > 0;
+                  const hasMinimalText = elText.length === 0 || elText.length < 5;
+                  
+                  if (isNearReady && hasSvg && hasMinimalText) {
+                    cy.log(`✅ Found menu button in container level ${level + 1}`);
+                    cy.wrap(el).scrollIntoView().should('be.visible');
+                    humanWait(1000);
+                    cy.wrap(el).click({ force: true });
+                    menuFound = true;
+                    return false;
+                  }
+                });
+              }
+            }
+            
+            // Strategy 4: Page-wide search for buttons with SVG positioned to the right
+            if (!menuFound) {
+              cy.log('🔍 Strategy 4: Page-wide search for menu button');
               const $allButtons = $body.find('button, [role="button"]').filter(':visible');
               
               $allButtons.each((i, el) => {
@@ -605,25 +634,31 @@ describe('HorizonExp Single Upload Test Suite', () => {
                 const $el = Cypress.$(el);
                 const elText = $el.text().trim().toLowerCase();
                 
-                // Skip buttons with significant text
+                // Skip buttons with significant text (not menu icons)
                 if (elText.length > 5 && !elText.includes('⋯') && !elText.includes('...')) {
                   return true;
                 }
                 
-                const elRect = el.getBoundingClientRect();
-                const isNearReady = Math.abs(elRect.top - readyRect.top) < 100 && 
-                                  Math.abs(elRect.left - readyRect.left) < 300 &&
-                                  elRect.left >= readyRect.right - 50; // To the right of Ready button
+                // Skip the Ready button
+                if (elText.includes('ready') && elText.includes('publish')) {
+                  return true;
+                }
                 
+                const elRect = el.getBoundingClientRect();
+                const isToTheRight = elRect.left >= readyRect.right - 20;
+                const isSameRow = Math.abs(elRect.top - readyRect.top) < 50;
+                const isClose = elRect.left < readyRect.right + 150;
                 const hasSvg = $el.find('svg').length > 0;
                 const html = $el.html() || '';
                 const hasMenuIndicators = html.includes('⋯') || 
                                         html.includes('ellipsis') ||
                                         html.includes('MoreVertical') ||
-                                        html.includes('more-vertical');
+                                        html.includes('more-vertical') ||
+                                        html.includes('DotsVertical') ||
+                                        html.includes('dots-vertical');
                 
-                if (isNearReady && (hasSvg || hasMenuIndicators)) {
-                  cy.log('✅ Found menu button near Ready to Publish');
+                if (isToTheRight && isSameRow && isClose && (hasSvg || hasMenuIndicators)) {
+                  cy.log('✅ Found menu button via page-wide search');
                   cy.wrap(el).scrollIntoView().should('be.visible');
                   humanWait(1000);
                   cy.wrap(el).click({ force: true });
@@ -634,8 +669,24 @@ describe('HorizonExp Single Upload Test Suite', () => {
             }
             
             if (!menuFound) {
-              cy.log('⚠️ Could not find menu button automatically. Taking screenshot for debugging.');
+              cy.log('⚠️ Could not find menu button. Taking screenshot for debugging.');
               cy.screenshot('menu-button-not-found');
+              
+              // Log all buttons near the Ready button for debugging
+              cy.log('🔍 Debug: All buttons near Ready to Publish button:');
+              const $allButtons = $body.find('button, [role="button"]').filter(':visible');
+              $allButtons.each((i, el) => {
+                const $el = Cypress.$(el);
+                const elRect = el.getBoundingClientRect();
+                const isNear = Math.abs(elRect.top - readyRect.top) < 100 && 
+                              Math.abs(elRect.left - readyRect.left) < 300;
+                if (isNear) {
+                  const text = $el.text().trim();
+                  const hasSvg = $el.find('svg').length > 0;
+                  cy.log(`  - Button ${i}: text="${text}", hasSvg=${hasSvg}, pos=(${elRect.left}, ${elRect.top})`);
+                }
+              });
+              
               throw new Error('Unable to locate three-dot menu button. Please check the page structure.');
             }
           });
