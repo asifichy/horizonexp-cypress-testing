@@ -514,102 +514,120 @@ describe('HorizonExp Single Upload Test Suite', () => {
       // Step 11: Click three-dot menu and import CSV metadata
       cy.log('📋 Step 11: Importing CSV metadata for bulk publish');
       
-      // Find the "Ready to Publish" button first, then locate the menu icon next to it
-      cy.contains('button, a, *', 'Ready to publish', { matchCase: false, timeout: 30000 })
+      // Find the batch card first, then locate the menu button within its container
+      cy.contains('*', 'Batch #', { matchCase: false, timeout: 30000 })
         .should('be.visible')
-        .then(($readyButton) => {
-          cy.log('✅ Found "Ready to Publish" button');
+        .then(($batchText) => {
+          cy.log('✅ Found batch card');
           humanWait(1000);
           
-          // Find the menu icon next to the "Ready to Publish" button
-          // Look for sibling elements or nearby buttons with three dots
-          const $container = $readyButton.parent();
-          const $siblings = $container.siblings();
-          const $parentSiblings = $container.parent().siblings();
+          // Find the container that holds both the batch info and the buttons
+          const $batchContainer = $batchText.closest('div, section, article, [class*="card"], [class*="batch"]');
           
-          let menuFound = false;
-          
-          // Check siblings of the Ready button
-          $siblings.each((i, el) => {
-            if (menuFound) return false;
-            const $el = Cypress.$(el);
-            if ($el.is('button, [role="button"]') && $el.is(':visible')) {
+          cy.get('body').then($body => {
+            // Get all buttons in the batch container area
+            const $allButtons = $batchContainer.length > 0 
+              ? $batchContainer.find('button, [role="button"]').filter(':visible')
+              : $body.find('button, [role="button"]').filter(':visible');
+            
+            let menuFound = false;
+            const readyButtonText = 'Ready to publish';
+            
+            // Find the Ready to Publish button first to get its position
+            let readyButtonRect = null;
+            $allButtons.each((i, el) => {
+              const $el = Cypress.$(el);
+              const text = $el.text().trim().toLowerCase();
+              if (text.includes(readyButtonText.toLowerCase())) {
+                readyButtonRect = el.getBoundingClientRect();
+                return false; // break
+              }
+            });
+            
+            // Now find the menu button near the Ready button
+            $allButtons.each((i, el) => {
+              if (menuFound) return false;
+              
+              const $el = Cypress.$(el);
+              const text = $el.text().trim().toLowerCase();
+              
+              // Skip the Ready to Publish button itself
+              if (text.includes(readyButtonText.toLowerCase())) {
+                return true; // continue
+              }
+              
               const html = $el.html() || '';
               const ariaLabel = ($el.attr('aria-label') || '').toLowerCase();
+              const elRect = el.getBoundingClientRect();
               
-              // Check if it looks like a menu button (has SVG, three dots, or menu-related aria-label)
-              if ($el.find('svg').length > 0 || html.includes('⋯') || html.includes('ellipsis') || 
-                  ariaLabel.includes('menu') || ariaLabel.includes('more') || ariaLabel.includes('options')) {
-                cy.log('✅ Found three-dot menu icon next to Ready to Publish button');
+              // Check if it's a menu button (has SVG, three dots, or menu-related attributes)
+              const looksLikeMenu = $el.find('svg').length > 0 || 
+                                   html.includes('⋯') || 
+                                   html.includes('ellipsis') ||
+                                   html.includes('MoreVertical') ||
+                                   html.includes('more-vertical') ||
+                                   ariaLabel.includes('menu') || 
+                                   ariaLabel.includes('more') || 
+                                   ariaLabel.includes('options') ||
+                                   $el.hasClass('dropdown') ||
+                                   $el.attr('data-testid')?.includes('menu');
+              
+              // Check if it's near the Ready button (if we found it)
+              let isNearReady = true;
+              if (readyButtonRect) {
+                isNearReady = Math.abs(elRect.top - readyButtonRect.top) < 100 && 
+                             Math.abs(elRect.left - readyButtonRect.left) < 300;
+              }
+              
+              if (looksLikeMenu && isNearReady) {
+                cy.log('✅ Found three-dot menu icon');
                 cy.wrap(el).scrollIntoView().should('be.visible');
                 humanWait(1000);
                 cy.wrap(el).click({ force: true });
                 menuFound = true;
                 return false;
               }
-            }
-          });
-          
-          // Check parent siblings if not found in direct siblings
-          if (!menuFound) {
-            $parentSiblings.each((i, el) => {
-              if (menuFound) return false;
-              const $el = Cypress.$(el);
-              const $menuButton = $el.find('button, [role="button"]').filter(':visible').first();
-              if ($menuButton.length > 0) {
-                const html = $menuButton.html() || '';
-                const ariaLabel = ($menuButton.attr('aria-label') || '').toLowerCase();
+            });
+            
+            // If still not found, try a broader search for any button with SVG near batch
+            if (!menuFound) {
+              cy.log('🔍 Trying broader search for menu button');
+              const batchRect = $batchText[0].getBoundingClientRect();
+              const $allPageButtons = $body.find('button, [role="button"]').filter(':visible');
+              
+              $allPageButtons.each((i, el) => {
+                if (menuFound) return false;
                 
-                if ($menuButton.find('svg').length > 0 || html.includes('⋯') || html.includes('ellipsis') || 
-                    ariaLabel.includes('menu') || ariaLabel.includes('more') || ariaLabel.includes('options')) {
-                  cy.log('✅ Found three-dot menu icon in parent siblings');
-                  cy.wrap($menuButton[0]).scrollIntoView().should('be.visible');
+                const $el = Cypress.$(el);
+                const text = $el.text().trim().toLowerCase();
+                
+                // Skip buttons with text (they're not menu icons)
+                if (text.length > 0 && !text.includes('⋯') && !text.includes('...')) {
+                  return true;
+                }
+                
+                const html = $el.html() || '';
+                const elRect = el.getBoundingClientRect();
+                
+                // Check if it's near the batch card and has SVG
+                const isNearBatch = Math.abs(elRect.top - batchRect.top) < 200 && 
+                                   Math.abs(elRect.left - batchRect.left) < 500;
+                
+                if (isNearBatch && ($el.find('svg').length > 0 || html.includes('⋯'))) {
+                  cy.log('✅ Found potential menu button near batch');
+                  cy.wrap(el).scrollIntoView().should('be.visible');
                   humanWait(1000);
-                  cy.wrap($menuButton[0]).click({ force: true });
+                  cy.wrap(el).click({ force: true });
                   menuFound = true;
                   return false;
                 }
-              }
-            });
-          }
-          
-          // Fallback: Look for any button with SVG near the Ready button by position
-          if (!menuFound) {
-            cy.get('body').then($body => {
-              const readyRect = $readyButton[0].getBoundingClientRect();
-              const $allButtons = $body.find('button, [role="button"]').filter(':visible');
-              
-              $allButtons.each((i, el) => {
-                if (menuFound) return false;
-                const $el = Cypress.$(el);
-                const elRect = el.getBoundingClientRect();
-                
-                // Check if button is near the Ready button (same row, close horizontally)
-                const isNearReady = Math.abs(elRect.top - readyRect.top) < 50 && 
-                                   Math.abs(elRect.left - readyRect.left) < 200 &&
-                                   elRect.left > readyRect.right;
-                
-                if (isNearReady) {
-                  const html = $el.html() || '';
-                  const ariaLabel = ($el.attr('aria-label') || '').toLowerCase();
-                  
-                  if ($el.find('svg').length > 0 || html.includes('⋯') || html.includes('ellipsis') || 
-                      ariaLabel.includes('menu') || ariaLabel.includes('more') || ariaLabel.includes('options')) {
-                    cy.log('✅ Found three-dot menu icon near Ready to Publish button');
-                    cy.wrap(el).scrollIntoView().should('be.visible');
-                    humanWait(1000);
-                    cy.wrap(el).click({ force: true });
-                    menuFound = true;
-                    return false;
-                  }
-                }
               });
-            });
-          }
-          
-          if (!menuFound) {
-            throw new Error('Unable to locate three-dot menu button next to "Ready to Publish" button');
-          }
+            }
+            
+            if (!menuFound) {
+              throw new Error('Unable to locate three-dot menu button. Please check the page structure.');
+            }
+          });
         });
 
       humanWait(2000);
