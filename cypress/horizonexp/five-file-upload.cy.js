@@ -171,6 +171,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
     });
   
     it('Should successfully upload a file through the complete user journey', () => {
+      const totalUploads = testConfig.uploadFiles.length;
+      const uploadCompletionPattern = new RegExp(`${totalUploads}\\s+out\\s+of\\s+${totalUploads}\\s+uploaded`, 'i');
+
       // Step 1: Navigate to signin page and verify it loads
       cy.title().should('contain', 'Horizon');
       cy.url().should('include', '/signin');
@@ -500,7 +503,9 @@ describe('HorizonExp Single Upload Test Suite', () => {
       cy.log('✅ Upload completed');
       humanWait(3000);
 
-      const totalUploads = testConfig.uploadFiles.length;
+      cy.contains('body', uploadCompletionPattern, { timeout: 90000 }).should('exist');
+      cy.contains('body', 'Ready to publish', { timeout: 90000 }).should('exist');
+
       const readyToPublishSelectors = [
         'button:contains("Ready to publish")',
         'a:contains("Ready to publish")',
@@ -522,7 +527,7 @@ describe('HorizonExp Single Upload Test Suite', () => {
         cy.url({ timeout: 45000 }).should('include', '/shorts/uploads');
 
         cy.log('📝 Looking for Ready to publish button');
-        cy.get('body', { timeout: 30000 }).should('contain.text', 'Ready to publish');
+        cy.contains('body', 'Ready to publish', { timeout: 90000 }).should('exist');
         cy.screenshot(`before-ready-to-publish-click-${index + 1}`);
 
         cy.get('body').then($body => {
