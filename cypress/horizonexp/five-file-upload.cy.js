@@ -514,88 +514,103 @@ describe('HorizonExp Single Upload Test Suite', () => {
       // Step 11: Click three-dot menu and import CSV metadata
       cy.log('📋 Step 11: Importing CSV metadata for bulk publish');
       
-      // Find the batch card and click the three-dot menu
-      cy.get('body').then($body => {
-        // Look for the three-dot menu button (common patterns: button with three dots, menu trigger, etc.)
-        const menuSelectors = [
-          'button[aria-label*="menu" i]',
-          'button[aria-label*="more" i]',
-          'button[aria-label*="options" i]',
-          '[data-testid*="menu"]',
-          '[data-testid*="more"]',
-          'button:has(svg)',
-          '.ant-dropdown-trigger',
-          '[role="button"]:has(svg)'
-        ];
-
-        let menuFound = false;
-        
-        // First, try to find menu near batch-related content
-        for (const selector of menuSelectors) {
-          if (menuFound) break;
+      // Find the "Ready to Publish" button first, then locate the menu icon next to it
+      cy.contains('button, a, *', 'Ready to publish', { matchCase: false, timeout: 30000 })
+        .should('be.visible')
+        .then(($readyButton) => {
+          cy.log('✅ Found "Ready to Publish" button');
+          humanWait(1000);
           
-          const $menus = $body.find(selector).filter(':visible');
-          if ($menus.length > 0) {
-            // Prefer menu that's near batch content
-            const $batchCard = $body.find('*:contains("Batch #"), *:contains("content")').first();
-            if ($batchCard.length > 0) {
-              const batchRect = $batchCard[0].getBoundingClientRect();
-              $menus.each((i, el) => {
-                if (menuFound) return false;
-                const menuRect = el.getBoundingClientRect();
-                // Check if menu is near the batch card (within reasonable distance)
-                const distance = Math.abs(menuRect.top - batchRect.top) + Math.abs(menuRect.left - batchRect.left);
-                if (distance < 500) {
-                  cy.log(`✅ Found three-dot menu near batch card: ${selector}`);
-                  cy.wrap(el).scrollIntoView().should('be.visible');
-                  humanWait(1000);
-                  cy.wrap(el).click({ force: true });
-                  menuFound = true;
-                  return false;
-                }
-              });
-            }
-            
-            // If no menu near batch, try the first visible one
-            if (!menuFound && $menus.length > 0) {
-              cy.log(`✅ Found three-dot menu: ${selector}`);
-              cy.wrap($menus.first()).scrollIntoView().should('be.visible');
-              humanWait(1000);
-              cy.wrap($menus.first()).click({ force: true });
-              menuFound = true;
-            }
-          }
-        }
-
-        // Fallback: look for any clickable element with three dots or ellipsis
-        if (!menuFound) {
-          cy.log('🔍 Trying alternative method to find menu');
-          cy.get('body').then($body2 => {
-            const $allButtons = $body2.find('button, [role="button"]').filter(':visible');
-            $allButtons.each((i, el) => {
-              if (menuFound) return false;
-              const $el = Cypress.$(el);
-              const text = $el.text().trim();
+          // Find the menu icon next to the "Ready to Publish" button
+          // Look for sibling elements or nearby buttons with three dots
+          const $container = $readyButton.parent();
+          const $siblings = $container.siblings();
+          const $parentSiblings = $container.parent().siblings();
+          
+          let menuFound = false;
+          
+          // Check siblings of the Ready button
+          $siblings.each((i, el) => {
+            if (menuFound) return false;
+            const $el = Cypress.$(el);
+            if ($el.is('button, [role="button"]') && $el.is(':visible')) {
               const html = $el.html() || '';
+              const ariaLabel = ($el.attr('aria-label') || '').toLowerCase();
               
-              // Look for three dots pattern in text or HTML
-              if (text === '⋯' || text === '...' || html.includes('⋯') || html.includes('ellipsis') || 
-                  $el.find('svg').length > 0 || $el.attr('aria-label')?.toLowerCase().includes('menu')) {
-                cy.log('✅ Found potential menu button');
+              // Check if it looks like a menu button (has SVG, three dots, or menu-related aria-label)
+              if ($el.find('svg').length > 0 || html.includes('⋯') || html.includes('ellipsis') || 
+                  ariaLabel.includes('menu') || ariaLabel.includes('more') || ariaLabel.includes('options')) {
+                cy.log('✅ Found three-dot menu icon next to Ready to Publish button');
                 cy.wrap(el).scrollIntoView().should('be.visible');
                 humanWait(1000);
                 cy.wrap(el).click({ force: true });
                 menuFound = true;
                 return false;
               }
-            });
+            }
           });
-        }
-
-        if (!menuFound) {
-          throw new Error('Unable to locate three-dot menu button');
-        }
-      });
+          
+          // Check parent siblings if not found in direct siblings
+          if (!menuFound) {
+            $parentSiblings.each((i, el) => {
+              if (menuFound) return false;
+              const $el = Cypress.$(el);
+              const $menuButton = $el.find('button, [role="button"]').filter(':visible').first();
+              if ($menuButton.length > 0) {
+                const html = $menuButton.html() || '';
+                const ariaLabel = ($menuButton.attr('aria-label') || '').toLowerCase();
+                
+                if ($menuButton.find('svg').length > 0 || html.includes('⋯') || html.includes('ellipsis') || 
+                    ariaLabel.includes('menu') || ariaLabel.includes('more') || ariaLabel.includes('options')) {
+                  cy.log('✅ Found three-dot menu icon in parent siblings');
+                  cy.wrap($menuButton[0]).scrollIntoView().should('be.visible');
+                  humanWait(1000);
+                  cy.wrap($menuButton[0]).click({ force: true });
+                  menuFound = true;
+                  return false;
+                }
+              }
+            });
+          }
+          
+          // Fallback: Look for any button with SVG near the Ready button by position
+          if (!menuFound) {
+            cy.get('body').then($body => {
+              const readyRect = $readyButton[0].getBoundingClientRect();
+              const $allButtons = $body.find('button, [role="button"]').filter(':visible');
+              
+              $allButtons.each((i, el) => {
+                if (menuFound) return false;
+                const $el = Cypress.$(el);
+                const elRect = el.getBoundingClientRect();
+                
+                // Check if button is near the Ready button (same row, close horizontally)
+                const isNearReady = Math.abs(elRect.top - readyRect.top) < 50 && 
+                                   Math.abs(elRect.left - readyRect.left) < 200 &&
+                                   elRect.left > readyRect.right;
+                
+                if (isNearReady) {
+                  const html = $el.html() || '';
+                  const ariaLabel = ($el.attr('aria-label') || '').toLowerCase();
+                  
+                  if ($el.find('svg').length > 0 || html.includes('⋯') || html.includes('ellipsis') || 
+                      ariaLabel.includes('menu') || ariaLabel.includes('more') || ariaLabel.includes('options')) {
+                    cy.log('✅ Found three-dot menu icon near Ready to Publish button');
+                    cy.wrap(el).scrollIntoView().should('be.visible');
+                    humanWait(1000);
+                    cy.wrap(el).click({ force: true });
+                    menuFound = true;
+                    return false;
+                  }
+                }
+              });
+            });
+          }
+          
+          if (!menuFound) {
+            throw new Error('Unable to locate three-dot menu button next to "Ready to Publish" button');
+          }
+        });
 
       humanWait(2000);
 
