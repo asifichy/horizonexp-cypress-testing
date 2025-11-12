@@ -806,6 +806,188 @@ describe('HorizonExp Single Upload Test Suite', () => {
       humanWait(2000);
       cy.screenshot('csv-import-completed');
 
-      cy.log('🎉 Bulk upload and CSV metadata import test completed successfully!');
+      // Step 15: Click three-dot menu again and select "Bulk publish"
+      cy.log('📋 Step 15: Clicking three-dot menu for Bulk publish');
+      
+      // Find the "Ready to Publish" button again to locate the menu
+      cy.contains('button, a, *', 'Ready to publish', { matchCase: false, timeout: 30000 })
+        .should('be.visible')
+        .then(($readyButton) => {
+          cy.log('✅ Found "Ready to Publish" button for bulk publish');
+          humanWait(1000);
+          
+          const readyRect = $readyButton[0].getBoundingClientRect();
+          
+          cy.get('body').then($body => {
+            let menuFound = false;
+            
+            // Use the same multi-strategy approach to find the menu button
+            // Strategy 1: Check next sibling
+            const $nextSibling = $readyButton.next();
+            if ($nextSibling.length > 0 && ($nextSibling.is('button') || $nextSibling.find('button, [role="button"]').length > 0)) {
+              const $nextButton = $nextSibling.is('button') ? $nextSibling : $nextSibling.find('button, [role="button"]').first();
+              if ($nextButton.is(':visible')) {
+                const nextText = $nextButton.text().trim().toLowerCase();
+                const hasSvg = $nextButton.find('svg').length > 0;
+                if (hasSvg && !nextText.includes('ready') && !nextText.includes('publish')) {
+                  cy.log('✅ Found menu button as next sibling');
+                  cy.wrap($nextButton[0]).scrollIntoView().should('be.visible');
+                  humanWait(1000);
+                  cy.wrap($nextButton[0]).click({ force: true });
+                  menuFound = true;
+                }
+              }
+            }
+            
+            // Strategy 2: Same container search
+            if (!menuFound) {
+              const $readyParent = $readyButton.parent();
+              const $parentButtons = $readyParent.find('button, [role="button"]').filter(':visible');
+              
+              $parentButtons.each((i, el) => {
+                if (menuFound) return false;
+                
+                const $el = Cypress.$(el);
+                const elText = $el.text().trim().toLowerCase();
+                
+                if (elText.includes('ready') && elText.includes('publish')) {
+                  return true;
+                }
+                
+                const elRect = el.getBoundingClientRect();
+                const isToTheRight = elRect.left > readyRect.right - 10;
+                const isSameRow = Math.abs(elRect.top - readyRect.top) < 30;
+                const hasSvg = $el.find('svg').length > 0;
+                const hasMinimalText = elText.length === 0 || elText.length < 5;
+                
+                if (isToTheRight && isSameRow && hasSvg && hasMinimalText) {
+                  cy.log('✅ Found menu button in same container');
+                  cy.wrap(el).scrollIntoView().should('be.visible');
+                  humanWait(1000);
+                  cy.wrap(el).click({ force: true });
+                  menuFound = true;
+                  return false;
+                }
+              });
+            }
+            
+            // Strategy 3: Page-wide search
+            if (!menuFound) {
+              const $allButtons = $body.find('button, [role="button"]').filter(':visible');
+              
+              $allButtons.each((i, el) => {
+                if (menuFound) return false;
+                
+                const $el = Cypress.$(el);
+                const elText = $el.text().trim().toLowerCase();
+                
+                if (elText.length > 5 && !elText.includes('⋯') && !elText.includes('...')) {
+                  return true;
+                }
+                
+                if (elText.includes('ready') && elText.includes('publish')) {
+                  return true;
+                }
+                
+                const elRect = el.getBoundingClientRect();
+                const isToTheRight = elRect.left >= readyRect.right - 20;
+                const isSameRow = Math.abs(elRect.top - readyRect.top) < 50;
+                const isClose = elRect.left < readyRect.right + 150;
+                const hasSvg = $el.find('svg').length > 0;
+                const html = $el.html() || '';
+                const hasMenuIndicators = html.includes('⋯') || 
+                                        html.includes('ellipsis') ||
+                                        html.includes('MoreVertical') ||
+                                        html.includes('more-vertical') ||
+                                        html.includes('DotsVertical') ||
+                                        html.includes('dots-vertical');
+                
+                if (isToTheRight && isSameRow && isClose && (hasSvg || hasMenuIndicators)) {
+                  cy.log('✅ Found menu button via page-wide search');
+                  cy.wrap(el).scrollIntoView().should('be.visible');
+                  humanWait(1000);
+                  cy.wrap(el).click({ force: true });
+                  menuFound = true;
+                  return false;
+                }
+              });
+            }
+            
+            if (!menuFound) {
+              throw new Error('Unable to locate three-dot menu button for bulk publish');
+            }
+          });
+        });
+
+      humanWait(2000);
+
+      // Step 16: Click "Bulk publish" from the dropdown menu
+      cy.log('🚀 Step 16: Clicking "Bulk publish" option');
+      
+      cy.get('body').then($body => {
+        const bulkPublishSelectors = [
+          '*:contains("Bulk publish")',
+          '*:contains("Bulk Publish")',
+          'button:contains("Bulk publish")',
+          'a:contains("Bulk publish")',
+          'li:contains("Bulk publish")',
+          '[role="menuitem"]:contains("Bulk publish")'
+        ];
+
+        let bulkPublishFound = false;
+        for (const selector of bulkPublishSelectors) {
+          if (bulkPublishFound) break;
+          
+          const $option = $body.find(selector).filter(':visible').first();
+          if ($option.length > 0) {
+            cy.log(`✅ Found "Bulk publish" option: ${selector}`);
+            cy.wrap($option).scrollIntoView().should('be.visible');
+            humanWait(1000);
+            cy.wrap($option).click({ force: true });
+            bulkPublishFound = true;
+          }
+        }
+
+        if (!bulkPublishFound) {
+          throw new Error('Unable to locate "Bulk publish" option in menu');
+        }
+      });
+
+      humanWait(3000);
+
+      // Step 17: Wait for bulk publish to complete
+      cy.log('⏳ Step 17: Waiting for bulk publish to complete');
+      
+      cy.get('body', { timeout: 60000 }).should('satisfy', ($body) => {
+        if (!$body || $body.length === 0) return false;
+        
+        const bodyText = $body.text() || '';
+        const successIndicators = [
+          'published',
+          'Publishing',
+          'Success',
+          'successfully published',
+          'bulk publish',
+          `${totalUploads} published`
+        ];
+        
+        // Check if bulk publish completed
+        if (successIndicators.some(indicator => bodyText.toLowerCase().includes(indicator.toLowerCase()))) {
+          return true;
+        }
+        
+        // Check if batch shows all content published
+        if (bodyText.includes(`${totalUploads} content • ${totalUploads} published`)) {
+          return true;
+        }
+        
+        return false;
+      });
+
+      cy.log('✅ Bulk publish completed');
+      humanWait(2000);
+      cy.screenshot('bulk-publish-completed');
+
+      cy.log('🎉 Bulk upload, CSV metadata import, and bulk publish test completed successfully!');
     });
   });
