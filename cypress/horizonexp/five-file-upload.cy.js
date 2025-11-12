@@ -921,35 +921,76 @@ describe('HorizonExp Single Upload Test Suite', () => {
 
       humanWait(2000);
 
-      // Step 16: Click "Bulk publish" from the dropdown menu
-      cy.log('🚀 Step 16: Clicking "Bulk publish" option');
+      // Step 16: Wait for menu dropdown to open, then click "Bulk publish"
+      cy.log('🚀 Step 16: Waiting for menu dropdown and clicking "Bulk publish" option');
       
-      cy.get('body').then($body => {
-        const bulkPublishSelectors = [
+      // First, wait for the dropdown menu to be visible
+      cy.get('body', { timeout: 10000 }).should('satisfy', ($body) => {
+        const menuSelectors = [
           '*:contains("Bulk publish")',
-          '*:contains("Bulk Publish")',
-          'button:contains("Bulk publish")',
-          'a:contains("Bulk publish")',
-          'li:contains("Bulk publish")',
-          '[role="menuitem"]:contains("Bulk publish")'
+          '*:contains("Import CSV metadata")',
+          '*:contains("Start Publishing")',
+          '*:contains("Rename batch")',
+          '[role="menu"]',
+          '.ant-dropdown-menu',
+          '[class*="dropdown"]',
+          '[class*="menu"]'
         ];
-
-        let bulkPublishFound = false;
-        for (const selector of bulkPublishSelectors) {
-          if (bulkPublishFound) break;
-          
-          const $option = $body.find(selector).filter(':visible').first();
-          if ($option.length > 0) {
-            cy.log(`✅ Found "Bulk publish" option: ${selector}`);
-            cy.wrap($option).scrollIntoView().should('be.visible');
-            humanWait(1000);
-            cy.wrap($option).click({ force: true });
-            bulkPublishFound = true;
+        
+        for (const selector of menuSelectors) {
+          if ($body.find(selector).filter(':visible').length > 0) {
+            return true;
           }
         }
-
-        if (!bulkPublishFound) {
-          throw new Error('Unable to locate "Bulk publish" option in menu');
+        return false;
+      });
+      
+      cy.log('✅ Menu dropdown is visible');
+      humanWait(1000);
+      
+      // Now find and click "Bulk publish" option
+      cy.get('body').then($body => {
+        // Search for "Bulk publish" option in the visible menu
+        const $bulkPublishOptions = $body.find('*').filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim().toLowerCase();
+          return text === 'bulk publish' || (text.includes('bulk publish') && !text.includes('replace'));
+        }).filter(':visible');
+        
+        if ($bulkPublishOptions.length > 0) {
+          // Found using jQuery search - click the first one
+          const $firstOption = $bulkPublishOptions.first();
+          cy.log('✅ Found "Bulk publish" option');
+          cy.wrap($firstOption[0]).scrollIntoView().should('be.visible');
+          humanWait(1000);
+          
+          // Try clicking the element or its clickable parent
+          if ($firstOption.is('button, a, [role="button"], [role="menuitem"]')) {
+            cy.wrap($firstOption[0]).click({ force: true });
+          } else {
+            const $clickable = $firstOption.closest('button, a, [role="button"], [role="menuitem"], li');
+            if ($clickable.length > 0) {
+              cy.wrap($clickable[0]).click({ force: true });
+            } else {
+              cy.wrap($firstOption[0]).click({ force: true });
+            }
+          }
+        } else {
+          // Fallback: use cy.contains
+          cy.contains('*', 'Bulk publish', { matchCase: false, timeout: 10000 })
+            .should('be.visible')
+            .then(($bulkPublishOption) => {
+              cy.log('✅ Found "Bulk publish" option via cy.contains');
+              cy.wrap($bulkPublishOption).scrollIntoView().should('be.visible');
+              humanWait(1000);
+              
+              const $clickable = $bulkPublishOption.closest('button, a, [role="button"], [role="menuitem"], li');
+              if ($clickable.length > 0) {
+                cy.wrap($clickable[0]).click({ force: true });
+              } else {
+                cy.wrap($bulkPublishOption[0]).click({ force: true });
+              }
+            });
         }
       });
 
