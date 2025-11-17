@@ -545,14 +545,14 @@ describe('HorizonExp Single Upload Test Suite', () => {
     cy.wait(2000);
 
     // Fill Channel dropdown (REQUIRED) - Select first available option
-    selectDropdownOption('Channel', `DevOps' Channel`);
+    selectDropdownOption('Channel', `DevOps`);
     cy.wait(2000);
     
     // Verify Channel is selected, retry if needed
     cy.get('body').then($body => {
       if ($body.text().includes('Channel is required')) {
         cy.log('⚠️ Channel not selected, retrying...');
-        selectDropdownOption('Channel', `DevOps' Channel`);
+        selectDropdownOption('Channel', `DevOps`);
         cy.wait(2000);
       }
     });
