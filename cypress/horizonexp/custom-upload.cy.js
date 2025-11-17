@@ -61,10 +61,42 @@ describe('Content Upload & Publishing', () => {
           .scrollIntoView()
           .click({ force: true });
 
-        cy.contains('div, button, li', optionText, { timeout: 10000 })
-          .filter(':visible')
-          .first()
-          .click({ force: true });
+        // Wait for dropdown menu to appear
+        cy.wait(1000);
+        
+        // Try to find the option - handle cases where dropdown shows partial text
+        // First try to find by exact or partial match
+        cy.get('body').then($body => {
+          // Extract the key part of the option text (e.g., "DevOps" from "DevOps' Channel")
+          const keyPart = optionText.split("'")[0].trim();
+          
+          // Try exact match first
+          let $option = $body.find('div, button, li').filter((i, el) => {
+            const $el = Cypress.$(el);
+            const text = $el.text().trim();
+            return text === optionText || text.includes(optionText);
+          }).filter(':visible').first();
+          
+          // If not found, try with key part
+          if ($option.length === 0 && keyPart) {
+            $option = $body.find('div, button, li').filter((i, el) => {
+              const $el = Cypress.$(el);
+              const text = $el.text().trim();
+              return text === keyPart || text.includes(keyPart);
+            }).filter(':visible').first();
+          }
+          
+          if ($option.length > 0) {
+            cy.wrap($option[0]).scrollIntoView().should('be.visible').click({ force: true });
+          } else {
+            // Fallback to cy.contains (should handle partial matches)
+            cy.contains('div, button, li', optionText, { timeout: 10000 })
+              .filter(':visible')
+              .first()
+              .scrollIntoView()
+              .click({ force: true });
+          }
+        });
       });
   };
 
