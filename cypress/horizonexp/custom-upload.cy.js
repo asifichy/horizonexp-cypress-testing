@@ -67,7 +67,7 @@ describe('Content Upload & Publishing', () => {
         // Try to find the option - handle cases where dropdown shows partial text
         // First try to find by exact or partial match
         cy.get('body').then($body => {
-          // Extract the key part of the option text (e.g., "DevOps" from "DevOps' Channel")
+          // Extract the key part of the option text (e.g., "DevOps" from "DevOps")
           const keyPart = optionText.split("'")[0].trim();
           
           // Try exact match first
@@ -784,13 +784,13 @@ describe('Content Upload & Publishing', () => {
     cy.log('📝 Filling publish form');
     
     // Fill Channel dropdown (REQUIRED)
-    selectDropdownOption('Channel', `DevOps' Channel`);
+    selectDropdownOption('Channel', `DevOps`);
     humanWait(2000);
     
     cy.get('body').then($body => {
       if ($body.text().includes('Channel is required')) {
         cy.log('⚠️ Channel not selected, retrying...');
-        selectDropdownOption('Channel', `DevOps' Channel`);
+        selectDropdownOption('Channel', `DevOps`);
         humanWait(2000);
       }
     });
