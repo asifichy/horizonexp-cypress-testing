@@ -1157,42 +1157,43 @@ describe('Content Upload & Publishing', () => {
     const clickBulkPublishOption = ({ expectToast = false } = {}) => {
       const matcher = /bulk\s+publish/i;
 
-      const waitForOption = (attempt = 1) => {
-        if (attempt > 20) {
-          cy.screenshot('error-no-bulk-publish-option');
-          throw new Error('Unable to locate "Bulk publish" option in dropdown.');
-        }
-
-        return cy.get('body').then(($body) => {
-          const $candidates = $body
-            .find('li, button, a, span, div, [role="menuitem"]')
-            .filter(':visible')
-            .filter((i, el) => matcher.test(Cypress.$(el).text().trim()));
-
-          if ($candidates.length > 0) {
-            return cy.wrap($candidates.first());
-          }
-
-          cy.log(`⏳ Waiting for "Bulk publish" option (attempt ${attempt})`);
-          return cy.wait(500).then(() => waitForOption(attempt + 1));
-        });
-      };
-
-      const ensureMenuClosed = () =>
-        cy.get('body', { timeout: 5000 }).should(($body) => {
-          const stillVisible =
-            $body
+      const findOptionInMenu = () =>
+        getVisibleDropdownMenu()
+          .should('exist')
+          .then(($menu) => {
+            const $option = $menu
               .find('li, button, a, span, div, [role="menuitem"]')
               .filter(':visible')
-              .filter((i, el) => matcher.test(Cypress.$(el).text().trim())).length > 0;
-          expect(stillVisible, 'Bulk publish option hidden after click').to.be.false;
-        });
+              .filter((i, el) => matcher.test(Cypress.$(el).text().trim()))
+              .first();
+
+            if (!$option.length) {
+              cy.screenshot('error-no-bulk-publish-option');
+              throw new Error('Unable to locate "Bulk publish" option in dropdown.');
+            }
+
+            return $option;
+          });
+
+      const ensureMenuClosed = () =>
+        getVisibleDropdownMenu()
+          .should('not.exist')
+          .catch(() => {
+            cy.screenshot('error-bulk-menu-still-open');
+            throw new Error('Bulk publish menu remained visible after clicking option.');
+          });
 
       const clickOption = (attempt = 1) => {
-        return waitForOption(attempt).then(($option) => {
+        if (attempt > 3) {
+          cy.screenshot('error-bulk-publish-option-retry-limit');
+          throw new Error('Unable to close bulk publish menu after multiple attempts.');
+        }
+
+        return findOptionInMenu().then(($option) => {
           const $target = $option.closest('button, a, [role="button"], [role="menuitem"]').length
             ? $option.closest('button, a, [role="button"], [role="menuitem"]')
             : $option;
+
           cy.wrap($target).scrollIntoView().should('be.visible');
           humanWait(300);
           cy.wrap($target).click({ force: true });
@@ -1200,26 +1201,13 @@ describe('Content Upload & Publishing', () => {
             humanWait(700);
           }
 
-          return cy.get('body').then(($body) => {
-            const stillVisible =
-              $body
-                .find('li, button, a, span, div, [role="menuitem"]')
-                .filter(':visible')
-                .filter((i, el) => matcher.test(Cypress.$(el).text().trim())).length > 0;
-
-            if (stillVisible && attempt < 3) {
-              cy.log('↪️ Bulk publish option still visible, retrying click...');
-              humanWait(300);
+          return getVisibleDropdownMenu()
+            .should('not.exist')
+            .catch(() => {
+              cy.log('↪️ Bulk publish menu still visible, retrying click...');
+              humanWait(400);
               return clickOption(attempt + 1);
-            }
-
-            if (stillVisible) {
-              cy.screenshot('error-bulk-publish-option-still-visible');
-              throw new Error('Bulk publish option remained visible after multiple clicks.');
-            }
-
-            return ensureMenuClosed();
-          });
+            });
         });
       };
 
