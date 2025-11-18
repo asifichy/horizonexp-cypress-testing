@@ -985,7 +985,7 @@ describe('Content Upload & Publishing', () => {
     });
     
     cy.contains('body', uploadCompletionPattern, { timeout: 90000 }).should('exist');
-    cy.contains('body', 'Ready to publish', { timeout: 90000 }).should('exist');
+    cy.contains('button, [role="button"]', /ready\s*to\s*publish/i, { timeout: 90000 }).should('exist');
     waitForBatchReadyCard();
     cy.log('✅ All bulk uploads completed successfully');
     humanWait(2000);
