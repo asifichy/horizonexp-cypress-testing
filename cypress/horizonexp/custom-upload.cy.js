@@ -275,10 +275,10 @@ describe('Content Upload & Publishing', () => {
 
           const $iconicButtons = $card
             .find('button, [role="button"]')
-            .filter(':visible')
+                .filter(':visible')
             .filter((i, el) => el !== $targetButton[0])
-            .filter((i, el) => {
-              const $el = Cypress.$(el);
+                .filter((i, el) => {
+                  const $el = Cypress.$(el);
               const text = $el.text().trim();
               const hasSvg = $el.find('svg').length > 0;
               const ariaLabel = $el.attr('aria-label') || '';
@@ -327,8 +327,8 @@ describe('Content Upload & Publishing', () => {
               return true;
             }
             const elRect = el.getBoundingClientRect();
-            const text = $el.text().trim().toLowerCase();
-            const hasSvg = $el.find('svg').length > 0;
+                  const text = $el.text().trim().toLowerCase();
+                  const hasSvg = $el.find('svg').length > 0;
             const minimalText = text.length === 0 || text.length < 4;
             const isToRight = elRect.left > readyRect.right - 10;
             const sameRow = Math.abs(elRect.top - readyRect.top) < 40;
@@ -392,7 +392,7 @@ describe('Content Upload & Publishing', () => {
 
         cy.screenshot('menu-button-not-found-batch');
         throw new Error('Unable to locate menu button near batch Ready to publish button.');
-      });
+    });
   };
 
   const getVisibleDropdownMenu = () =>
@@ -1155,63 +1155,71 @@ describe('Content Upload & Publishing', () => {
     };
 
     const clickBulkPublishOption = ({ expectToast = false } = {}) => {
-      const matcher = /bulk\s+publish/i;
-
-      const findOptionInMenu = () =>
-        getVisibleDropdownMenu()
-          .should('exist')
-          .then(($menu) => {
-            const $option = $menu
-              .find('li, button, a, span, div, [role="menuitem"]')
-              .filter(':visible')
-              .filter((i, el) => matcher.test(Cypress.$(el).text().trim()))
-              .first();
-
-            if (!$option.length) {
-              cy.screenshot('error-no-bulk-publish-option');
-              throw new Error('Unable to locate "Bulk publish" option in dropdown.');
-            }
-
-            return $option;
-          });
-
-      const ensureMenuClosed = () =>
-        getVisibleDropdownMenu()
-          .should('not.exist')
-          .catch(() => {
-            cy.screenshot('error-bulk-menu-still-open');
-            throw new Error('Bulk publish menu remained visible after clicking option.');
-          });
-
-      const clickOption = (attempt = 1) => {
-        if (attempt > 3) {
-          cy.screenshot('error-bulk-publish-option-retry-limit');
-          throw new Error('Unable to close bulk publish menu after multiple attempts.');
-        }
-
-        return findOptionInMenu().then(($option) => {
-          const $target = $option.closest('button, a, [role="button"], [role="menuitem"]').length
-            ? $option.closest('button, a, [role="button"], [role="menuitem"]')
-            : $option;
-
-          cy.wrap($target).scrollIntoView().should('be.visible');
-          humanWait(300);
-          cy.wrap($target).click({ force: true });
-          if (expectToast) {
-            humanWait(700);
-          }
-
-          return getVisibleDropdownMenu()
-            .should('not.exist')
-            .catch(() => {
-              cy.log('↪️ Bulk publish menu still visible, retrying click...');
-              humanWait(400);
-              return clickOption(attempt + 1);
-            });
+      cy.log('🔍 Searching for "Bulk publish" option in visible menu');
+      
+      // First, ensure menu is visible
+    getVisibleDropdownMenu()
+      .should('exist')
+        .then(() => {
+          cy.log('✅ Menu dropdown is visible');
+          humanWait(500);
         });
-      };
 
-      return clickOption();
+      // Search for "Bulk publish" option in the visible menu using body-wide search
+      cy.get('body').then($body => {
+        // Search for "Bulk publish" option in the visible menu
+        const $bulkPublishOptions = $body.find('*').filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim().toLowerCase();
+          return text === 'bulk publish' || (text.includes('bulk publish') && !text.includes('replace'));
+        }).filter(':visible');
+
+        if ($bulkPublishOptions.length > 0) {
+          // Found using jQuery search - click the first one
+          const $firstOption = $bulkPublishOptions.first();
+          cy.log('✅ Found "Bulk publish" option via body search');
+          cy.wrap($firstOption[0]).scrollIntoView().should('be.visible');
+          humanWait(1000);
+          
+          // Try clicking the element or its clickable parent
+          if ($firstOption.is('button, a, [role="button"], [role="menuitem"]')) {
+            cy.log('📌 Clicking "Bulk publish" directly (element is clickable)');
+            cy.wrap($firstOption[0]).click({ force: true });
+          } else {
+            const $clickable = $firstOption.closest('button, a, [role="button"], [role="menuitem"], li');
+            if ($clickable.length > 0) {
+              cy.log('📌 Clicking "Bulk publish" via closest clickable parent');
+              cy.wrap($clickable[0]).click({ force: true });
+            } else {
+              cy.log('📌 Clicking "Bulk publish" element directly (fallback)');
+              cy.wrap($firstOption[0]).click({ force: true });
+            }
+          }
+        } else {
+          // Fallback: use cy.contains
+          cy.log('⚠️ Body search failed, trying cy.contains fallback');
+          cy.contains('*', 'Bulk publish', { matchCase: false, timeout: 10000 })
+          .should('be.visible')
+            .then(($bulkPublishOption) => {
+              cy.log('✅ Found "Bulk publish" option via cy.contains');
+              cy.wrap($bulkPublishOption).scrollIntoView().should('be.visible');
+              humanWait(1000);
+              
+              const $clickable = $bulkPublishOption.closest('button, a, [role="button"], [role="menuitem"], li');
+              if ($clickable.length > 0) {
+                cy.log('📌 Clicking "Bulk publish" via cy.contains closest clickable');
+                cy.wrap($clickable[0]).click({ force: true });
+              } else {
+                cy.log('📌 Clicking "Bulk publish" via cy.contains directly');
+                cy.wrap($bulkPublishOption[0]).click({ force: true });
+              }
+            });
+        }
+      });
+
+      if (expectToast) {
+        humanWait(1000);
+      }
     };
 
     clickMenuOption(csvMenuMatchers, 'Unable to locate CSV import menu option.');
@@ -1260,7 +1268,7 @@ describe('Content Upload & Publishing', () => {
     cy.log('⏳ Step 14: Waiting for CSV metadata import to complete');
     cy.get('body', { timeout: 60000 }).should(($body) => {
       expect($body && $body.length, 'Body exists').to.be.ok;
-
+      
       const bodyText = ($body.text() || '').toLowerCase();
       const successIndicators = [
         'csv updated successfully',
@@ -1302,10 +1310,10 @@ describe('Content Upload & Publishing', () => {
 
     // Step 17: Wait for bulk publish to complete
     cy.log('⏳ Step 17: Waiting for bulk publish to complete');
-
+    
     cy.get('body', { timeout: 90000 }).should(($body) => {
       expect($body && $body.length, 'Body exists during publish wait').to.be.ok;
-
+      
       const bodyText = ($body.text() || '').toLowerCase();
       const successIndicators = [
         'published',
