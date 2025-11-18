@@ -69,6 +69,62 @@ describe('Content Upload & Publishing', () => {
       });
   };
 
+  const uploadCardSelector =
+    '[class*="ant-card"], .ant-list-item, .ant-space-item, .ant-row, [class*="card"], [class*="upload"]';
+
+  const hasReadyButton = ($element) =>
+    $element
+      .find('button, [role="button"]')
+      .filter((i, el) => {
+        const text = Cypress.$(el).text().trim().toLowerCase();
+        return text.includes('ready') && text.includes('publish');
+      })
+      .length > 0;
+
+  const collectCardsForContext = ($body, context) => {
+    const totalUploads = testConfig.bulkUploadFiles.length;
+    return $body
+      .find(uploadCardSelector)
+      .filter(':visible')
+      .filter((i, el) => {
+        const $el = Cypress.$(el);
+        if (!hasReadyButton($el)) {
+          return false;
+        }
+        const text = $el.text().trim().toLowerCase();
+        if (context === 'batch') {
+          return (
+            text.includes('batch') ||
+            text.includes(`${totalUploads} content`) ||
+            text.includes(`${totalUploads} out of`) ||
+            (text.includes('content') && text.includes('ready to publish')) ||
+            text.includes('0 published')
+          );
+        }
+        return text.includes('video') && !text.includes('batch');
+      });
+  };
+
+  const pickPreferredCard = ($cards, context) => {
+    if (context === 'batch') {
+      const $pending = $cards.filter((i, el) => {
+        const text = Cypress.$(el).text();
+        return /0\s+published/i.test(text) || !/\d+\s+published/i.test(text);
+      });
+      if ($pending.length > 0) {
+        cy.log('📌 Selected batch card with pending publish state');
+        return $pending.first();
+      }
+    }
+    return $cards.first();
+  };
+
+  const waitForBatchReadyCard = () => {
+    cy.log('⏳ Waiting for batch card indicators');
+    cy.get('body', { timeout: 45000 }).should(($body) => collectCardsForContext($body, 'batch').length > 0);
+    cy.log('✅ Batch card detected on page');
+  };
+
   // Helper function to navigate to Uploads section
   const navigateToUploads = () => {
     cy.log('📱 Navigating to Shorts Uploads section');
@@ -144,79 +200,30 @@ describe('Content Upload & Publishing', () => {
 
   // Helper function to find and click the three-dot menu button for a specific card
   const findAndClickMenuButton = (context = 'single') => {
-    const cardSelector = '[class*="ant-card"], .ant-list-item, .ant-space-item, .ant-row, [class*="card"], [class*="upload"]';
     cy.log(`📋 Opening menu for ${context} card`);
 
-    const hasReadyButton = ($element) =>
-      $element
-        .find('button, [role="button"]')
-        .filter((i, el) => {
-          const text = Cypress.$(el).text().trim().toLowerCase();
-          return text.includes('ready') && text.includes('publish');
-        })
-        .length > 0;
-
-    const filterCards = ($cards) => {
-      const totalUploads = testConfig.bulkUploadFiles.length;
-      const filtered = $cards
-        .filter(':visible')
-        .filter((i, el) => {
-          const $el = Cypress.$(el);
-          if (!hasReadyButton($el)) {
-            return false;
-          }
-          const text = $el.text().trim().toLowerCase();
-          
-          if (context === 'batch') {
-            // Look for batch indicators
-            return text.includes('batch') || 
-                   text.includes(`${totalUploads} content`) ||
-                   text.includes(`${totalUploads} out of`) ||
-                   (text.includes('content') && text.includes('0 published'));
-          } else {
-            // For single video
-            return text.includes('video') && !text.includes('batch');
-          }
-        });
-      
-      cy.log(`Found ${filtered.length} matching ${context} card(s)`);
-      return filtered;
-    };
-
-    const pickPreferredCard = ($cards) => {
-      if (context === 'batch') {
-        // Prefer cards with "0 published" or no published yet
-        const $pending = $cards.filter((i, el) => {
-          const text = Cypress.$(el).text();
-          return /0\s+published/i.test(text) || 
-                 !/\d+\s+published/i.test(text) ||
-                 text.includes('Ready to publish');
-        });
-        if ($pending.length > 0) {
-          cy.log(`Selected batch card (pending publish)`);
-          return $pending.first();
-        }
-      }
-      return $cards.first();
-    };
-
     return cy.get('body', { timeout: 30000 }).then(($body) => {
-      const $allCards = filterCards($body.find(cardSelector));
-      
+      const $allCards = collectCardsForContext($body, context);
+
       if (!$allCards.length) {
         cy.log(`⚠️ Card detection details:`);
-        cy.log(`Total potential cards found: ${$body.find(cardSelector).length}`);
-        cy.log(`Visible cards: ${$body.find(cardSelector).filter(':visible').length}`);
-        cy.log(`Cards with Ready button: ${$body.find(cardSelector).filter((i, el) => hasReadyButton(Cypress.$(el))).length}`);
-        
-        // Take screenshot for debugging
+        cy.log(`Total potential cards found: ${$body.find(uploadCardSelector).length}`);
+        cy.log(`Visible cards: ${$body.find(uploadCardSelector).filter(':visible').length}`);
+        cy.log(
+          `Cards with Ready button: ${
+            $body.find(uploadCardSelector).filter((i, el) => hasReadyButton(Cypress.$(el))).length
+          }`
+        );
+
         cy.screenshot(`error-${context}-card-not-found`);
         throw new Error(`Unable to locate ${context} upload card on the page. Check screenshot for details.`);
       }
 
-      const $card = pickPreferredCard($allCards);
-      
+      const $card = pickPreferredCard($allCards, context);
+      const cardSummary = $card.text().replace(/\s+/g, ' ').trim();
+
       cy.log(`✅ Found ${context} card, proceeding to click menu`);
+      cy.log(`🆔 ${context} card snapshot: ${cardSummary.substring(0, 160)}`);
       cy.wrap($card).screenshot(`${context}-card-before-menu-click`);
 
       cy.wrap($card).within(() => {
@@ -979,44 +986,9 @@ describe('Content Upload & Publishing', () => {
     
     cy.contains('body', uploadCompletionPattern, { timeout: 90000 }).should('exist');
     cy.contains('body', 'Ready to publish', { timeout: 90000 }).should('exist');
+    waitForBatchReadyCard();
     cy.log('✅ All bulk uploads completed successfully');
     humanWait(2000);
-
-    // NEW: Wait for batch card to render
-    cy.log('⏳ Waiting for batch card to render on page');
-    humanWait(3000);
-    cy.screenshot('page-before-csv-import');
-
-    // Verify batch content is visible
-    cy.get('body', { timeout: 30000 }).should('satisfy', ($body) => {
-      const bodyText = $body.text() || '';
-      const hasBatchIndicators = bodyText.includes('batch') || 
-                                 bodyText.includes('Batch') || 
-                                 bodyText.includes(`${totalUploads} content`) ||
-                                 bodyText.includes('0 published');
-      
-      if (hasBatchIndicators) {
-        cy.log('✅ Batch indicators found on page');
-      } else {
-        cy.log('⚠️ Batch indicators not immediately visible');
-        cy.log('Page content preview:', bodyText.substring(0, 500));
-      }
-      
-      return hasBatchIndicators || bodyText.includes('Ready to publish');
-    });
-
-    humanWait(2000);
-
-    // Fallback: Check if batch card is visible, if not refresh
-    cy.get('body').then($body => {
-      const bodyText = $body.text() || '';
-      
-      if (!bodyText.includes('batch') && !bodyText.includes('Batch') && !bodyText.includes(`${totalUploads} content`)) {
-        cy.log('⚠️ Batch card not clearly visible, attempting page refresh...');
-        cy.reload();
-        humanWait(3000);
-      }
-    });
 
     // Step 11: Click three-dot menu and import CSV metadata
     cy.log('📋 Step 11: Importing CSV metadata for bulk publish');
@@ -1116,6 +1088,7 @@ describe('Content Upload & Publishing', () => {
 
     // Step 15: Click three-dot menu again and select "Bulk publish"
     cy.log('📋 Step 15: Clicking three-dot menu for Bulk publish');
+    waitForBatchReadyCard();
     
     // Find the batch card menu again
     findAndClickMenuButton('batch');
