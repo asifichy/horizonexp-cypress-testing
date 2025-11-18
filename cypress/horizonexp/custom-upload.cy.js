@@ -1442,90 +1442,114 @@ describe('Content Upload & Publishing', () => {
     cy.log('⏳ Waiting in Library before logout');
     humanWait(5000); // Wait 5 seconds in library
     
-    // Logout - Try to find and click Sign Out button
-    cy.log('🚪 Logging out');
+    // Logout - Click on DevOps profile button, then Sign Out
+    cy.log('🚪 Logging out - Step 1: Click on DevOps profile button');
     
-    // First, try to find Sign Out button directly in the sidebar
+    // Step 1: Find and click the DevOps profile button at the bottom left
     cy.get('body', { timeout: 10000 }).then($body => {
-      let signOutClicked = false;
+      let profileClicked = false;
       
-      // Look for Sign Out button in sidebar
-      const $signOutButton = $body.find('*').filter((i, el) => {
-        const $el = Cypress.$(el);
-        const text = $el.text().trim();
-        const isVisible = $el.is(':visible');
-        return isVisible && (text === 'Sign Out' || text === 'Logout');
-      });
+      // Look for DevOps profile button/text in the sidebar
+      const devOpsSelectors = [
+        '*:contains("DevOps")',
+        'button:contains("DevOps")',
+        'div:contains("DevOps")',
+        'a:contains("DevOps")',
+        '[class*="workspace"]',
+        '[class*="profile"]',
+        '[class*="user-menu"]'
+      ];
       
-      if ($signOutButton.length > 0) {
-        cy.log(`✅ Found Sign Out button in sidebar`);
-        cy.wrap($signOutButton.first()).scrollIntoView().click({ force: true });
-        signOutClicked = true;
-        humanWait(2000);
-      } else {
-        cy.log('⚠️ Sign Out button not found in sidebar, trying alternative selectors');
+      for (const selector of devOpsSelectors) {
+        if (profileClicked) break;
         
-        // Try various selectors
-        const signOutSelectors = [
-          'button:contains("Sign Out")',
-          'a:contains("Sign Out")',
-          'div:contains("Sign Out")',
-          'span:contains("Sign Out")',
-          '[data-testid*="sign-out"]',
-          '[data-testid*="signout"]',
-          'button:contains("Logout")',
-          'a:contains("Logout")'
+        const $elements = $body.find(selector).filter(':visible');
+        
+        // Filter to find the one that contains "DevOps" text
+        const $devOpsElement = $elements.filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          return text.includes('DevOps');
+        });
+        
+        if ($devOpsElement.length > 0) {
+          cy.log(`✅ Found DevOps profile button using: ${selector}`);
+          
+          // Click on the DevOps profile element
+          cy.wrap($devOpsElement.first()).scrollIntoView().click({ force: true });
+          profileClicked = true;
+          cy.log('✅ Clicked on DevOps profile button');
+          humanWait(2000); // Wait for menu to open
+          break;
+        }
+      }
+      
+      if (!profileClicked) {
+        cy.log('⚠️ DevOps profile button not found, trying to find any profile/workspace button');
+        
+        // Try to find workspace selector or profile button at bottom of sidebar
+        const fallbackSelectors = [
+          '[class*="workspace-selector"]',
+          '[class*="workspace-switcher"]',
+          '[data-testid*="workspace"]',
+          '[data-testid*="profile"]'
         ];
         
-        for (const selector of signOutSelectors) {
-          if (signOutClicked) break;
-          
-          const $element = $body.find(selector).filter(':visible');
-          if ($element.length > 0) {
-            cy.log(`✅ Found Sign Out using selector: ${selector}`);
-            cy.wrap($element.first()).scrollIntoView().click({ force: true });
-            signOutClicked = true;
+        for (const selector of fallbackSelectors) {
+          if ($body.find(selector).filter(':visible').length > 0) {
+            cy.log(`🔍 Trying fallback selector: ${selector}`);
+            cy.get(selector).filter(':visible').first().click({ force: true });
+            profileClicked = true;
             humanWait(2000);
             break;
           }
         }
+      }
+    });
+    
+    // Step 2: Click on Sign Out from the opened menu
+    cy.log('🚪 Logging out - Step 2: Click on Sign Out');
+    humanWait(1000); // Extra wait to ensure menu is fully visible
+    
+    cy.get('body').then($body => {
+      let signOutClicked = false;
+      
+      // Look for Sign Out in the visible menu
+      const signOutSelectors = [
+        '*:contains("Sign Out")',
+        'button:contains("Sign Out")',
+        'a:contains("Sign Out")',
+        'div:contains("Sign Out")',
+        '*:contains("Logout")',
+        'button:contains("Logout")',
+        '[data-testid*="sign-out"]',
+        '[data-testid*="logout"]'
+      ];
+      
+      for (const selector of signOutSelectors) {
+        if (signOutClicked) break;
         
-        // If still not found, try profile menu
-        if (!signOutClicked) {
-          cy.log('🔍 Trying to find user profile menu');
-          const profileSelectors = [
-            '[data-testid*="user-menu"]',
-            '[class*="user-menu"]',
-            '[class*="profile-menu"]',
-            'button[aria-label*="user"]',
-            'button[aria-label*="profile"]',
-            '[class*="avatar"]'
-          ];
-          
-          for (const selector of profileSelectors) {
-            if ($body.find(selector).filter(':visible').length > 0) {
-              cy.log(`🔍 Found profile menu: ${selector}`);
-              cy.get(selector).filter(':visible').first().click({ force: true });
-              humanWait(1500);
-              
-              // Now look for Sign Out in the opened menu
-              cy.get('body').then($body2 => {
-                const $signOut = $body2.find('*:contains("Sign Out"), *:contains("Logout")').filter(':visible').first();
-                if ($signOut.length > 0) {
-                  cy.log('✅ Found Sign Out in profile menu');
-                  cy.wrap($signOut).click({ force: true });
-                  signOutClicked = true;
-                  humanWait(2000);
-                }
-              });
-              break;
-            }
-          }
+        const $elements = $body.find(selector).filter(':visible');
+        
+        // Filter to find exact "Sign Out" or "Logout" text
+        const $signOutElement = $elements.filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          return text === 'Sign Out' || text === 'Logout' || text.includes('Sign Out') || text.includes('Logout');
+        });
+        
+        if ($signOutElement.length > 0) {
+          cy.log(`✅ Found Sign Out button using: ${selector}`);
+          cy.wrap($signOutElement.first()).scrollIntoView().click({ force: true });
+          signOutClicked = true;
+          cy.log('✅ Clicked on Sign Out button');
+          humanWait(2000);
+          break;
         }
       }
       
       if (!signOutClicked) {
-        cy.log('⚠️ Could not find Sign Out button, test will continue');
+        cy.log('⚠️ Sign Out button not found in menu');
       }
     });
     
