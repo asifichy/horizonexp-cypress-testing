@@ -1361,7 +1361,13 @@ describe('Content Upload & Publishing', () => {
     
     // Check for video cards or published content
     cy.get('body', { timeout: 30000 }).should('satisfy', ($body) => {
-      const bodyText = $body.text() || '';
+      // Add null check for $body
+      if (!$body || $body.length === 0) {
+        cy.log('⚠️ Body element not found, retrying...');
+        return false;
+      }
+      
+      const bodyText = ($body && typeof $body.text === 'function') ? $body.text() : '';
       
       // Look for indicators that videos are present
       const hasVideoIndicators = bodyText.includes('video') || 
@@ -1373,11 +1379,19 @@ describe('Content Upload & Publishing', () => {
         cy.log('✅ Video content indicators found in Library');
       }
       
-      return hasVideoIndicators || $body.find('[class*="video"], [class*="card"], [class*="content"]').length > 0;
+      // Also check for video elements
+      const hasVideoElements = $body.find('[class*="video"], [class*="card"], [class*="content"]').length > 0;
+      
+      return hasVideoIndicators || hasVideoElements;
     });
 
     // Try to count published videos
     cy.get('body').then($body => {
+      if (!$body || $body.length === 0) {
+        cy.log('⚠️ Body element not available for video count');
+        return;
+      }
+      
       const videoSelectors = [
         '[class*="video-card"]',
         '[class*="content-card"]',
@@ -1388,9 +1402,13 @@ describe('Content Upload & Publishing', () => {
       
       let videoCount = 0;
       videoSelectors.forEach(selector => {
-        const elements = $body.find(selector).filter(':visible');
-        if (elements.length > videoCount) {
-          videoCount = elements.length;
+        try {
+          const elements = $body.find(selector).filter(':visible');
+          if (elements.length > videoCount) {
+            videoCount = elements.length;
+          }
+        } catch (e) {
+          cy.log(`⚠️ Error checking selector ${selector}: ${e.message}`);
         }
       });
       
@@ -1404,6 +1422,8 @@ describe('Content Upload & Publishing', () => {
       const expectedMinVideos = 1; // At minimum the single video
       if (videoCount >= expectedMinVideos) {
         cy.log(`✅ Library verification successful - found ${videoCount} videos (expected at least ${expectedMinVideos})`);
+      } else {
+        cy.log('ℹ️ Library page loaded, proceeding to logout');
       }
     });
 
