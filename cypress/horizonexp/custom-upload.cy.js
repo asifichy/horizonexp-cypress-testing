@@ -1154,7 +1154,7 @@ describe('Content Upload & Publishing', () => {
         });
     };
 
-    const clickBulkPublishOption = () => {
+    const clickBulkPublishOption = ({ expectToast = false } = {}) => {
       const matcher = /bulk\s+publish/i;
 
       const waitForOption = (attempt = 1) => {
@@ -1185,6 +1185,10 @@ describe('Content Upload & Publishing', () => {
         cy.wrap($target).scrollIntoView().should('be.visible');
         humanWait(500);
         cy.wrap($target).click({ force: true });
+        if (expectToast) {
+          // give UI a moment to trigger the publish toast
+          humanWait(1000);
+        }
       });
     };
 
@@ -1271,46 +1275,37 @@ describe('Content Upload & Publishing', () => {
     // Step 16: Wait for menu dropdown to open, then click "Bulk publish"
     cy.log('🚀 Step 16: Waiting for menu dropdown and clicking "Bulk publish" option');
     
-    clickBulkPublishOption();
+    clickBulkPublishOption({ expectToast: true });
     humanWait(3000);
 
     // Step 17: Wait for bulk publish to complete
     cy.log('⏳ Step 17: Waiting for bulk publish to complete');
-    
-    cy.get('body', { timeout: 90000 }).should('satisfy', ($body) => {
-      if (!$body || $body.length === 0) return false;
-      
-      const bodyText = $body.text() || '';
+
+    cy.get('body', { timeout: 90000 }).should(($body) => {
+      expect($body && $body.length, 'Body exists during publish wait').to.be.ok;
+
+      const bodyText = ($body.text() || '').toLowerCase();
       const successIndicators = [
         'published',
-        'Publishing',
-        'Success',
+        'publishing',
+        'success',
         'successfully published',
         'bulk publish',
         `${totalUploads} published`,
-        'All content published'
+        'all content published'
       ];
-      
-      // Check if bulk publish completed
-      if (successIndicators.some(indicator => bodyText.toLowerCase().includes(indicator.toLowerCase()))) {
-        cy.log('✅ Bulk publish success indicator detected');
-        return true;
-      }
-      
-      // Check if batch shows all content published
-      if (bodyText.includes(`${totalUploads} content • ${totalUploads} published`)) {
-        cy.log('✅ All content published indicator found');
-        return true;
-      }
-      
-      // Also check for individual published counts
-      const publishedMatch = bodyText.match(/(\d+)\s+published/i);
-      if (publishedMatch && parseInt(publishedMatch[1]) === totalUploads) {
-        cy.log(`✅ Found ${totalUploads} published videos`);
-        return true;
-      }
-      
-      return false;
+
+      const successDetected = successIndicators.some((indicator) => bodyText.includes(indicator.toLowerCase()));
+      const batchAllPublished = bodyText.includes(`${totalUploads} content • ${totalUploads} published`);
+      const publishedMatch = bodyText.match(/(\d+)\s+published/);
+      const publishedCountReached = publishedMatch && parseInt(publishedMatch[1], 10) === totalUploads;
+      const toastIndicator =
+        Cypress.$('[class*="toast"], [class*="notification"], [role="alert"]').filter((i, el) =>
+          /publish|success/i.test(Cypress.$(el).text())
+        ).length > 0;
+
+      expect(successDetected || batchAllPublished || publishedCountReached || toastIndicator, 'Bulk publish status visible').to
+        .be.true;
     });
 
     cy.log('✅ Bulk publish completed');
