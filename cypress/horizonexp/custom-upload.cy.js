@@ -1477,88 +1477,74 @@ describe('Content Upload & Publishing', () => {
     
     // Step 2: Click on Sign Out from the opened menu
     cy.log('🚪 Logging out - Step 2: Click on Sign Out');
-    humanWait(1500); // Extra wait to ensure menu is fully visible
+    humanWait(2000); // Wait for menu to fully open
     
-    // Use a more direct approach to find and click Sign Out
+    // Take screenshot to see the menu state
+    cy.screenshot('menu-opened-before-signout');
+    
+    // Find and click Sign Out button
     cy.get('body').then($body => {
-      // First, try to find any visible element containing "Sign Out"
-      const $allElements = $body.find('*').filter(':visible');
+      cy.log('🔍 Searching for Sign Out button in opened menu');
       
-      let signOutClicked = false;
-      
-      $allElements.each((i, el) => {
-        if (signOutClicked) return false;
-        
+      // Strategy 1: Look for exact "Sign Out" text in visible elements
+      const $signOutElements = $body.find('*:visible').filter((i, el) => {
         const $el = Cypress.$(el);
         const text = $el.text().trim();
-        
-        // Check if this element's direct text is "Sign Out" (not including children)
-        if (text === 'Sign Out' || text === 'Logout') {
-          cy.log(`✅ Found Sign Out button: "${text}"`);
-          cy.wrap($el).scrollIntoView().click({ force: true });
-          signOutClicked = true;
-          cy.log('✅ Clicked on Sign Out button');
-          return false; // Break the loop
-        }
+        // Check if element contains ONLY "Sign Out" text (with icon)
+        return text === 'Sign Out' || text.match(/^[\s\S]*Sign Out[\s\S]*$/);
       });
       
-      // If not found by exact match, try contains
-      if (!signOutClicked) {
-        cy.log('🔍 Trying alternative Sign Out selectors');
+      if ($signOutElements.length > 0) {
+        cy.log(`✅ Found ${$signOutElements.length} Sign Out element(s)`);
         
-        const signOutSelectors = [
-          'button:contains("Sign Out")',
-          'a:contains("Sign Out")',
-          'div:contains("Sign Out")',
-          '*:contains("Sign Out")',
-          'button:contains("Logout")',
-          'a:contains("Logout")',
-          '*:contains("Logout")'
-        ];
+        // Find the most specific one (smallest element = most likely the button itself)
+        let $bestMatch = null;
+        let smallestSize = Infinity;
         
-        for (const selector of signOutSelectors) {
-          if (signOutClicked) break;
+        $signOutElements.each((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          const size = text.length;
           
-          const $elements = $body.find(selector).filter(':visible');
-          
-          if ($elements.length > 0) {
-            // Find the one with the shortest text (most likely to be the actual button)
-            let $bestMatch = null;
-            let shortestLength = Infinity;
-            
-            $elements.each((i, el) => {
-              const $el = Cypress.$(el);
-              const text = $el.text().trim();
-              if (text.length < shortestLength && (text === 'Sign Out' || text === 'Logout')) {
-                $bestMatch = $el;
-                shortestLength = text.length;
-              }
-            });
-            
-            if ($bestMatch) {
-              cy.log(`✅ Found Sign Out using selector: ${selector}`);
-              cy.wrap($bestMatch).scrollIntoView().click({ force: true });
-              signOutClicked = true;
-              cy.log('✅ Clicked on Sign Out button');
-              break;
-            }
+          // Prefer elements with shorter text (more specific)
+          if (size < smallestSize && text.includes('Sign Out')) {
+            $bestMatch = $el;
+            smallestSize = size;
           }
+        });
+        
+        if ($bestMatch) {
+          cy.log(`✅ Clicking on Sign Out button (text: "${$bestMatch.text().trim()}")`);
+          cy.wrap($bestMatch).scrollIntoView().click({ force: true });
+          humanWait(2000);
         }
-      }
-      
-      if (!signOutClicked) {
-        cy.log('⚠️ Sign Out button not found in menu, taking screenshot for debugging');
-        cy.screenshot('sign-out-not-found');
+      } else {
+        cy.log('⚠️ Sign Out not found with Strategy 1, trying Strategy 2');
+        
+        // Strategy 2: Use Cypress contains selector
+        cy.contains('Sign Out').then($el => {
+          if ($el && $el.length > 0) {
+            cy.log('✅ Found Sign Out using cy.contains()');
+            cy.wrap($el).click({ force: true });
+            humanWait(2000);
+          } else {
+            cy.log('⚠️ Sign Out button not found, taking screenshot');
+            cy.screenshot('sign-out-not-found');
+          }
+        });
       }
     });
     
     // Wait for logout to process
-    humanWait(3000);
+    cy.log('⏳ Waiting for logout redirect...');
+    humanWait(4000); // Give more time for redirect
     
     // Verify logout successful
     cy.log('🔍 Verifying logout status');
     
     cy.url({ timeout: 15000 }).then((url) => {
+      cy.log(`📍 Current URL after logout attempt: ${url}`);
+      
       const isLoggedOut = url.includes('/signin') || 
                          url.includes('/login') || 
                          url.includes('accounts.google.com') ||
@@ -1566,10 +1552,20 @@ describe('Content Upload & Publishing', () => {
       
       if (isLoggedOut) {
         cy.log('✅ Successfully logged out - redirected to signin page');
-        cy.log(`✅ Current URL: ${url}`);
       } else {
-        cy.log(`ℹ️ Current URL: ${url}`);
-        cy.log('ℹ️ Logout may have completed (URL check inconclusive)');
+        cy.log('ℹ️ Still on application page - checking if session is cleared');
+        
+        // Try to verify by checking if we can access a protected page
+        cy.visit('https://app.horizonexp.com/shorts/library', { failOnStatusCode: false });
+        humanWait(2000);
+        
+        cy.url().then((newUrl) => {
+          if (newUrl.includes('/signin') || newUrl.includes('/login')) {
+            cy.log('✅ Logout verified - redirected to signin when accessing protected page');
+          } else {
+            cy.log('ℹ️ Logout status unclear, but Sign Out was clicked');
+          }
+        });
       }
     });
     
