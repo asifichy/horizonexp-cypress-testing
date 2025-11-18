@@ -146,66 +146,47 @@ describe('Content Upload & Publishing', () => {
 
   // Helper function to find and click the three-dot menu button for a specific card
   const findAndClickMenuButton = (context = 'single') => {
-    const identifierPatterns =
-      context === 'batch'
-        ? [/Batch\s*#/i, /\bBatch\b/i, /\d+\s+content\s+•\s+\d+\s+uploaded/i]
-        : [/Video\s*#/i, /\bVideo\b/i];
+    const cardSelector = '[class*="ant-card"], .ant-list-item, .ant-space-item, .ant-row';
     cy.log(`📋 Opening menu for ${context} card`);
 
-    const findLabel = ($body) => {
-      for (const pattern of identifierPatterns) {
-        const $match = $body
-          .find('*')
-          .filter((i, el) => pattern.test(Cypress.$(el).text().trim()))
-          .filter(':visible')
-          .first();
-        if ($match.length > 0) {
-          return $match;
-        }
-      }
-      return Cypress.$();
-    };
-
-    const hasReadyButton = ($element) => {
-      return (
-        $element.find('button, [role="button"]').filter((i, el) => {
+    const hasReadyButton = ($element) =>
+      $element
+        .find('button, [role="button"]')
+        .filter((i, el) => {
           const text = Cypress.$(el).text().trim().toLowerCase();
           return text.includes('ready') && text.includes('publish');
-        }).length > 0
-      );
-    };
+        })
+        .length > 0;
 
-    const findCardContainer = ($label) => {
-      if (hasReadyButton($label)) {
-        return $label;
-      }
+    const filterCards = ($cards) =>
+      $cards
+        .filter(':visible')
+        .filter((i, el) => {
+          const $el = Cypress.$(el);
+          if (!hasReadyButton($el)) {
+            return false;
+          }
+          const text = $el.text().trim().toLowerCase();
+          return context === 'batch' ? text.includes('batch') : text.includes('video');
+        });
 
-      const parents = $label.parents();
-      for (let i = 0; i < parents.length; i++) {
-        const $candidate = Cypress.$(parents[i]);
-        if (hasReadyButton($candidate)) {
-          return $candidate;
+    const pickPreferredCard = ($cards) => {
+      if (context === 'batch') {
+        const $pending = $cards.filter((i, el) => /0\s+published/i.test(Cypress.$(el).text()));
+        if ($pending.length > 0) {
+          return $pending.first();
         }
       }
-
-      const fallback = $label.closest('[class*="ant-card"], [class*="shadow"], [class*="bg-white"], [class*="rounded"], .ant-list-item, .ant-space-item, .ant-row');
-      if (fallback.length > 0 && hasReadyButton(fallback)) {
-        return fallback;
-      }
-
-      return Cypress.$();
+      return $cards.first();
     };
 
     return cy.get('body', { timeout: 30000 }).then(($body) => {
-      const $label = findLabel($body);
-      if (!$label.length) {
-        throw new Error(`Unable to locate ${context} upload card text on the page`);
+      const $allCards = filterCards($body.find(cardSelector));
+      if (!$allCards.length) {
+        throw new Error(`Unable to locate ${context} upload card on the page`);
       }
 
-      const $card = findCardContainer($label);
-      if (!$card.length) {
-        throw new Error(`Unable to locate upload card container for ${context} context`);
-      }
+      const $card = pickPreferredCard($allCards);
 
       cy.wrap($card).within(() => {
         cy.contains('button, [role="button"]', 'Ready to publish', { matchCase: false })
@@ -1211,5 +1192,6 @@ describe('Content Upload & Publishing', () => {
     humanWait(1000);
   });
 });
+
 
 
