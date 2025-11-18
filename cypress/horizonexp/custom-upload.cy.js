@@ -1282,46 +1282,48 @@ describe('Content Upload & Publishing', () => {
     // Step 12: Click "Import CSV metadata" from the dropdown menu
     cy.log('📥 Step 12: Clicking "Import CSV metadata" option');
     const csvMenuMatchers = [/import\s+csv\s+metadata/i, /import\s+metadata/i, /import\s+csv/i];
-    getVisibleDropdownMenu()
-      .should('exist')
-      .then(($menu) => {
-        let targetOption = Cypress.$();
-        csvMenuMatchers.forEach((matcher) => {
-          if (targetOption.length) {
-            return;
-          }
-          const $match = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) => {
-            const text = Cypress.$(el).text().trim();
-            return matcher.test(text);
+    const clickMenuOption = (menuMatchers, errorMessage) => {
+      return getVisibleDropdownMenu()
+        .should('exist')
+        .then(($menu) => {
+          let targetOption = Cypress.$();
+          menuMatchers.forEach((matcher) => {
+            if (targetOption.length) {
+              return;
+            }
+            const $match = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) => {
+              const text = Cypress.$(el).text().trim();
+              return matcher.test(text);
+            });
+            if ($match.length > 0) {
+              targetOption = $match.first();
+            }
           });
-          if ($match.length > 0) {
-            targetOption = $match.first();
+
+          if (!targetOption.length) {
+            cy.log('⚠️ No menu item matched. Searching globally.');
+            targetOption = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) =>
+              /csv/i.test(Cypress.$(el).text().trim())
+            );
           }
+
+          if (!targetOption.length) {
+            cy.screenshot('error-no-menu-option');
+            throw new Error(errorMessage);
+          }
+
+          cy.wrap(targetOption).should('be.visible').click({ force: true });
         });
+    };
 
-        if (!targetOption.length) {
-          cy.log('⚠️ No menu item directly matched CSV import text. Clicking fallback candidate.');
-          targetOption = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) =>
-            /csv/i.test(Cypress.$(el).text().trim())
-          );
-        }
-
-        if (!targetOption.length) {
-          cy.screenshot('error-no-csv-menu-option');
-          throw new Error('Unable to locate CSV import menu option.');
-        }
-
-        cy.wrap(targetOption).should('be.visible').click({ force: true });
-      });
+    clickMenuOption(csvMenuMatchers, 'Unable to locate CSV import menu option.');
     humanWait(2000);
 
     // Step 13: Upload the CSV file
     cy.log('📤 Step 13: Uploading CSV metadata file');
     
     const csvFilePath = testConfig.csvFilePath;
-    
-    cy.get('body').then($body => {
-      // Look for file input that accepts CSV
+    cy.get('body').then(($body) => {
       const $csvInputs = $body.find('input[type="file"]').filter((_, el) => {
         const accept = (el.getAttribute('accept') || '').toLowerCase();
         return accept.includes('csv') || accept.includes('.csv') || accept.trim() === '';
@@ -1331,7 +1333,6 @@ describe('Content Upload & Publishing', () => {
         cy.log(`✅ Found CSV file input (${$csvInputs.length} candidate(s))`);
         cy.wrap($csvInputs.first()).selectFile(csvFilePath, { force: true });
       } else {
-        // Try drag-drop method
         cy.log('🎯 Using drag-drop method for CSV upload');
         const uploadAreaSelectors = [
           '.upload-area',
@@ -1343,7 +1344,7 @@ describe('Content Upload & Publishing', () => {
         ];
 
         let csvUploaded = false;
-        uploadAreaSelectors.forEach(selector => {
+        uploadAreaSelectors.forEach((selector) => {
           if (!csvUploaded && $body.find(selector).length > 0) {
             cy.get(selector).first().selectFile(csvFilePath, { action: 'drag-drop', force: true });
             csvUploaded = true;
@@ -1351,7 +1352,6 @@ describe('Content Upload & Publishing', () => {
         });
 
         if (!csvUploaded) {
-          // Last resort: try any file input
           cy.get('input[type="file"]').first().selectFile(csvFilePath, { force: true });
         }
       }
