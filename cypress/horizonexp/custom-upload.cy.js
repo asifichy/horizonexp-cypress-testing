@@ -1155,28 +1155,37 @@ describe('Content Upload & Publishing', () => {
     };
 
     const clickBulkPublishOption = () => {
-      cy.get('body', { timeout: 10000 }).should(($body) => {
-        const matcher = /bulk\s+publish/i;
-        const hasOption = $body
-          .find('li, button, a, span, div, [role="menuitem"]')
-          .filter(':visible')
-          .toArray()
-          .some((el) => matcher.test(Cypress.$(el).text().trim()));
-        return hasOption;
-      });
+      const matcher = /bulk\s+publish/i;
 
-      cy.contains('li, button, a, span, div, [role="menuitem"]', /bulk\s+publish/i, {
-        matchCase: false,
-        timeout: 10000
-      })
-        .filter(':visible')
-        .first()
-        .then(($option) => {
-          cy.log('✅ Found "Bulk publish" option');
-          cy.wrap($option).scrollIntoView().should('be.visible');
-          humanWait(500);
-          cy.wrap($option).click({ force: true });
+      const waitForOption = (attempt = 1) => {
+        if (attempt > 20) {
+          cy.screenshot('error-no-bulk-publish-option');
+          throw new Error('Unable to locate "Bulk publish" option in dropdown.');
+        }
+
+        return cy.get('body').then(($body) => {
+          const $candidates = $body
+            .find('li, button, a, span, div, [role="menuitem"]')
+            .filter(':visible')
+            .filter((i, el) => matcher.test(Cypress.$(el).text().trim()));
+
+          if ($candidates.length > 0) {
+            return cy.wrap($candidates.first());
+          }
+
+          cy.log(`⏳ Waiting for "Bulk publish" option (attempt ${attempt})`);
+          return cy.wait(500).then(() => waitForOption(attempt + 1));
         });
+      };
+
+      waitForOption().then(($option) => {
+        const $target = $option.closest('button, a, [role="button"], [role="menuitem"]').length
+          ? $option.closest('button, a, [role="button"], [role="menuitem"]')
+          : $option;
+        cy.wrap($target).scrollIntoView().should('be.visible');
+        humanWait(500);
+        cy.wrap($target).click({ force: true });
+      });
     };
 
     clickMenuOption(csvMenuMatchers, 'Unable to locate CSV import menu option.');
