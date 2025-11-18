@@ -146,13 +146,33 @@ describe('Content Upload & Publishing', () => {
 
   // Helper function to find and click the three-dot menu button for a specific card
   const findAndClickMenuButton = (context = 'single') => {
-    const identifierPattern = context === 'batch' ? /Batch #/i : /Video #/i;
+    const identifierPatterns =
+      context === 'batch'
+        ? [/Batch\s*#/i, /Batch/i, /\d+\s+content\s+•\s+\d+\s+published/i]
+        : [/Video\s*#/i, /Video/i];
     cy.log(`📋 Opening menu for ${context} card`);
 
-    return cy.contains('body *', identifierPattern, { timeout: 30000 })
-      .filter(':visible')
-      .first()
-      .then(($label) => {
+    return cy.get('body', { timeout: 30000 }).then(($body) => {
+      let $label = Cypress.$();
+
+      for (const pattern of identifierPatterns) {
+        const $match = $body
+          .find('*')
+          .filter((i, el) => pattern.test(Cypress.$(el).text().trim()))
+          .filter(':visible')
+          .first();
+
+        if ($match.length > 0) {
+          $label = $match;
+          break;
+        }
+      }
+
+      if (!$label.length) {
+        throw new Error(`Unable to locate ${context} upload card text on the page`);
+      }
+
+      return cy.wrap($label).then(() => {
         let $card = $label.closest('[class*="ant-card"], [class*="shadow"], [class*="bg-white"], [class*="rounded"], .ant-list-item, .ant-space-item, .ant-row');
         if (!$card || $card.length === 0) {
           $card = $label.parent();
@@ -213,6 +233,7 @@ describe('Content Upload & Publishing', () => {
         humanWait(1000);
         cy.wrap(menuButton).click({ force: true });
       });
+    });
   };
 
   // Helper function to navigate to Library
