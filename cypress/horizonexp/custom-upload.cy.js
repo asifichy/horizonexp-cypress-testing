@@ -1286,28 +1286,26 @@ describe('Content Upload & Publishing', () => {
       return getVisibleDropdownMenu()
         .should('exist')
         .then(($menu) => {
-          let targetOption = Cypress.$();
-          menuMatchers.forEach((matcher) => {
-            if (targetOption.length) {
-              return;
-            }
+          let targetOption = null;
+          for (const matcher of menuMatchers) {
             const $match = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) => {
               const text = Cypress.$(el).text().trim();
               return matcher.test(text);
             });
             if ($match.length > 0) {
               targetOption = $match.first();
+              break;
             }
-          });
+          }
 
-          if (!targetOption.length) {
+          if (!targetOption) {
             cy.log('⚠️ No menu item matched. Searching globally.');
             targetOption = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) =>
               /csv/i.test(Cypress.$(el).text().trim())
-            );
+            ).first();
           }
 
-          if (!targetOption.length) {
+          if (!targetOption || targetOption.length === 0) {
             cy.screenshot('error-no-menu-option');
             throw new Error(errorMessage);
           }
@@ -1344,12 +1342,12 @@ describe('Content Upload & Publishing', () => {
         ];
 
         let csvUploaded = false;
-        uploadAreaSelectors.forEach((selector) => {
+        for (const selector of uploadAreaSelectors) {
           if (!csvUploaded && $body.find(selector).length > 0) {
             cy.get(selector).first().selectFile(csvFilePath, { action: 'drag-drop', force: true });
             csvUploaded = true;
           }
-        });
+        }
 
         if (!csvUploaded) {
           cy.get('input[type="file"]').first().selectFile(csvFilePath, { force: true });
@@ -1403,47 +1401,7 @@ describe('Content Upload & Publishing', () => {
     cy.log('🚀 Step 16: Waiting for menu dropdown and clicking "Bulk publish" option');
     
     const bulkPublishMatchers = [/^bulk\s*publish$/i, /bulk\s+publish/i, /publish\s+all/i];
-
-    const clickBulkPublishOption = () => {
-      return getVisibleDropdownMenu()
-        .should('exist')
-        .then(($menu) => {
-          const findMatchIn = ($root) => {
-            let $option = Cypress.$();
-            bulkPublishMatchers.forEach((matcher) => {
-              if ($option.length) {
-                return;
-              }
-              const $matches = $root
-                .find('li, button, a, span, div, [role="menuitem"]')
-                .filter(':visible')
-                .filter((i, el) => matcher.test(Cypress.$(el).text().trim()));
-              if ($matches.length) {
-                $option = $matches.first();
-              }
-            });
-            return $option;
-          };
-
-          let $target = findMatchIn($menu);
-
-          if (!$target || !$target.length) {
-            cy.log('⚠️ "Bulk publish" option not found inside dropdown, searching globally.');
-            $target = findMatchIn(Cypress.$('body'));
-          }
-
-          if (!$target || !$target.length) {
-            cy.screenshot('error-no-bulk-publish-option');
-            throw new Error('Unable to locate "Bulk publish" option in dropdown.');
-          }
-
-          cy.wrap($target).scrollIntoView().should('be.visible');
-          humanWait(500);
-          cy.wrap($target).click({ force: true });
-        });
-    };
-
-    clickBulkPublishOption();
+    clickMenuOption(bulkPublishMatchers, 'Unable to locate "Bulk publish" option in dropdown.');
     humanWait(3000);
 
     // Step 17: Wait for bulk publish to complete
