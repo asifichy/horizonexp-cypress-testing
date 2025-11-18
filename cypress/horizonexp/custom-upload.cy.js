@@ -1154,6 +1154,31 @@ describe('Content Upload & Publishing', () => {
         });
     };
 
+    const clickBulkPublishOption = () => {
+      cy.get('body', { timeout: 10000 }).should(($body) => {
+        const matcher = /bulk\s+publish/i;
+        const hasOption = $body
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter(':visible')
+          .toArray()
+          .some((el) => matcher.test(Cypress.$(el).text().trim()));
+        return hasOption;
+      });
+
+      cy.contains('li, button, a, span, div, [role="menuitem"]', /bulk\s+publish/i, {
+        matchCase: false,
+        timeout: 10000
+      })
+        .filter(':visible')
+        .first()
+        .then(($option) => {
+          cy.log('✅ Found "Bulk publish" option');
+          cy.wrap($option).scrollIntoView().should('be.visible');
+          humanWait(500);
+          cy.wrap($option).click({ force: true });
+        });
+    };
+
     clickMenuOption(csvMenuMatchers, 'Unable to locate CSV import menu option.');
     humanWait(2000);
 
@@ -1240,8 +1265,7 @@ describe('Content Upload & Publishing', () => {
     // Step 16: Wait for menu dropdown to open, then click "Bulk publish"
     cy.log('🚀 Step 16: Waiting for menu dropdown and clicking "Bulk publish" option');
     
-    const bulkPublishMatchers = [/^bulk\s*publish$/i, /bulk\s+publish/i, /publish\s+all/i];
-    clickMenuOption(bulkPublishMatchers, 'Unable to locate "Bulk publish" option in dropdown.');
+    clickBulkPublishOption();
     humanWait(3000);
 
     // Step 17: Wait for bulk publish to complete
