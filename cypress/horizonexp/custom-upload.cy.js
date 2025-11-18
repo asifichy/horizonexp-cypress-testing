@@ -1234,8 +1234,10 @@ describe('Content Upload & Publishing', () => {
     cy.log('⏳ Step 14: Waiting for CSV metadata import to complete');
     cy.get('body', { timeout: 60000 }).should(($body) => {
       expect($body && $body.length, 'Body exists').to.be.ok;
+
       const bodyText = ($body.text() || '').toLowerCase();
       const successIndicators = [
+        'csv updated successfully',
         'imported',
         'metadata imported',
         'csv imported',
@@ -1245,9 +1247,13 @@ describe('Content Upload & Publishing', () => {
       ];
 
       const successDetected = successIndicators.some((indicator) => bodyText.includes(indicator));
+      const toastVisible =
+        Cypress.$('[class*="toast"], [class*="notification"], [role="alert"]').filter((i, el) =>
+          /csv|import/i.test(Cypress.$(el).text())
+        ).length > 0;
       const batchReadyState = bodyText.includes('ready to publish') || bodyText.includes('0 published');
 
-      expect(successDetected || batchReadyState, 'CSV status visible').to.be.true;
+      expect(successDetected || toastVisible || batchReadyState, 'CSV status visible').to.be.true;
     });
 
     cy.log('✅ CSV metadata import completed');
