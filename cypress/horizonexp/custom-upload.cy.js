@@ -253,6 +253,9 @@ describe('Content Upload & Publishing', () => {
     });
   };
 
+  const getVisibleDropdownMenu = () =>
+    cy.get('[role="menu"], .ant-dropdown-menu').filter(':visible').first();
+
   // Helper function to navigate to Library
   const navigateToLibrary = () => {
     cy.log('📚 Navigating to Library section');
@@ -974,35 +977,15 @@ describe('Content Upload & Publishing', () => {
 
     // Step 12: Click "Import CSV metadata" from the dropdown menu
     cy.log('📥 Step 12: Clicking "Import CSV metadata" option');
-    cy.get('body').then($body => {
-      const csvMenuSelectors = [
-        '*:contains("Import CSV metadata")',
-        '*:contains("Import CSV")',
-        '*:contains("CSV metadata")',
-        'button:contains("Import CSV metadata")',
-        'a:contains("Import CSV metadata")',
-        'li:contains("Import CSV metadata")',
-        '[role="menuitem"]:contains("Import CSV metadata")'
-      ];
-
-      let csvOptionFound = false;
-      for (const selector of csvMenuSelectors) {
-        if (csvOptionFound) break;
-        
-        const $option = $body.find(selector).filter(':visible').first();
-        if ($option.length > 0) {
-          cy.log(`✅ Found "Import CSV metadata" option: ${selector}`);
-          cy.wrap($option).scrollIntoView().should('be.visible');
-          humanWait(1000);
-          cy.wrap($option).click({ force: true });
-          csvOptionFound = true;
-        }
-      }
-
-      if (!csvOptionFound) {
-        throw new Error('Unable to locate "Import CSV metadata" option in menu');
-      }
-    });
+    getVisibleDropdownMenu()
+      .should('exist')
+      .within(() => {
+        cy.contains('li, button, a, span, div, [role="menuitem"]', 'Import CSV metadata', {
+          matchCase: false
+        })
+          .should('be.visible')
+          .click({ force: true });
+      });
     humanWait(2000);
 
     // Step 13: Upload the CSV file
@@ -1089,69 +1072,18 @@ describe('Content Upload & Publishing', () => {
     // Step 16: Wait for menu dropdown to open, then click "Bulk publish"
     cy.log('🚀 Step 16: Waiting for menu dropdown and clicking "Bulk publish" option');
     
-    cy.get('body', { timeout: 10000 }).should('satisfy', ($body) => {
-      const menuSelectors = [
-        '*:contains("Bulk publish")',
-        '*:contains("Import CSV metadata")',
-        '*:contains("Start Publishing")',
-        '*:contains("Rename batch")',
-        '[role="menu"]',
-        '.ant-dropdown-menu',
-        '[class*="dropdown"]',
-        '[class*="menu"]'
-      ];
-      
-      for (const selector of menuSelectors) {
-        if ($body.find(selector).filter(':visible').length > 0) {
-          return true;
-        }
-      }
-      return false;
-    });
-    
-    cy.log('✅ Menu dropdown is visible');
-    humanWait(1000);
-    
-    cy.get('body').then($body => {
-      const $bulkPublishOptions = $body.find('*').filter((i, el) => {
-        const $el = Cypress.$(el);
-        const text = $el.text().trim().toLowerCase();
-        return text === 'bulk publish' || (text.includes('bulk publish') && !text.includes('replace'));
-      }).filter(':visible');
-      
-      if ($bulkPublishOptions.length > 0) {
-        const $firstOption = $bulkPublishOptions.first();
-        cy.log('✅ Found "Bulk publish" option');
-        cy.wrap($firstOption[0]).scrollIntoView().should('be.visible');
-        humanWait(1000);
-        
-        if ($firstOption.is('button, a, [role="button"], [role="menuitem"]')) {
-          cy.wrap($firstOption[0]).click({ force: true });
-        } else {
-          const $clickable = $firstOption.closest('button, a, [role="button"], [role="menuitem"], li');
-          if ($clickable.length > 0) {
-            cy.wrap($clickable[0]).click({ force: true });
-          } else {
-            cy.wrap($firstOption[0]).click({ force: true });
-          }
-        }
-      } else {
-        cy.contains('*', 'Bulk publish', { matchCase: false, timeout: 10000 })
+    getVisibleDropdownMenu()
+      .should('exist')
+      .within(() => {
+        cy.contains('li, button, a, span, div, [role="menuitem"]', /^Bulk publish$/i)
           .should('be.visible')
-          .then(($bulkPublishOption) => {
-            cy.log('✅ Found "Bulk publish" option via cy.contains');
-            cy.wrap($bulkPublishOption).scrollIntoView().should('be.visible');
+          .then(($option) => {
+            cy.log('✅ Found "Bulk publish" option');
+            cy.wrap($option).scrollIntoView().should('be.visible');
             humanWait(1000);
-            
-            const $clickable = $bulkPublishOption.closest('button, a, [role="button"], [role="menuitem"], li');
-            if ($clickable.length > 0) {
-              cy.wrap($clickable[0]).click({ force: true });
-            } else {
-              cy.wrap($bulkPublishOption[0]).click({ force: true });
-            }
+            cy.wrap($option).click({ force: true });
           });
-      }
-    });
+      });
     humanWait(3000);
 
     // Step 17: Wait for bulk publish to complete
