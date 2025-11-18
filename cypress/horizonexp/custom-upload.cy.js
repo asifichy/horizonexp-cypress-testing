@@ -200,130 +200,161 @@ describe('Content Upload & Publishing', () => {
 
   // Helper function to find and click the three-dot menu button for a specific card
   const openMenuNearReadyButton = (context = 'batch') => {
-    cy.log(`📋 Opening menu next to Ready to publish button (${context})`);
+    cy.log(`📋 Opening menu for ${context} Ready to publish card`);
 
-    return cy
-      .contains('button, a, [role="button"], *', 'Ready to publish', { matchCase: false, timeout: 45000 })
-      .filter(':visible')
-      .first()
-      .then(($readyButton) => {
-        cy.wrap($readyButton).scrollIntoView().should('be.visible');
-        humanWait(500);
-        const readyRect = $readyButton[0].getBoundingClientRect();
+    const locateReadyButton = () =>
+      cy.get('body', { timeout: 45000 }).then(($body) => {
+        const $allCards = collectCardsForContext($body, context);
 
-        const clickCandidate = ($btn, reason) => {
-          cy.log(`✅ Found menu trigger (${reason})`);
-          cy.wrap($btn)
-            .scrollIntoView()
-            .should('be.visible')
-            .then(($btnEl) => {
-              const clickWithRetry = (attempt = 1) => {
-                cy.wrap($btnEl)
-                  .click({ force: true })
-                  .then(() => {
-                    humanWait(400);
-                    const menuVisible =
-                      Cypress.$('[role="menu"]:visible, .ant-dropdown:visible, .ant-menu:visible').length > 0;
-                    if (menuVisible) {
-                      cy.log('✅ Menu dropdown visible');
-                    } else if (attempt < 3) {
-                      cy.log(`↪️ Menu not visible after click (attempt ${attempt}). Retrying...`);
-                      clickWithRetry(attempt + 1);
-                    } else {
-                      cy.screenshot(`menu-not-visible-${context}`);
-                      throw new Error('Unable to open menu dropdown near Ready to publish button.');
-                    }
-                  });
-              };
-              clickWithRetry();
-            });
-        };
+        if (!$allCards.length) {
+          cy.log(`⚠️ Card detection details for ${context}:`);
+          cy.log(`Total potential cards: ${$body.find(uploadCardSelector).length}`);
+          cy.log(`Visible cards: ${$body.find(uploadCardSelector).filter(':visible').length}`);
+          cy.screenshot(`error-${context}-card-not-found`);
+          throw new Error(`Unable to locate ${context} upload card for menu interaction.`);
+        }
 
-        const strategyNextSibling = () => {
-          const $nextSibling = $readyButton.next();
-          if ($nextSibling.length > 0) {
-            const $nextButton = $nextSibling.is('button, [role="button"]')
-              ? $nextSibling
-              : $nextSibling.find('button, [role="button"]').first();
-            if ($nextButton.length && $nextButton.is(':visible')) {
-              const text = $nextButton.text().trim().toLowerCase();
-              const hasSvg = $nextButton.find('svg').length > 0;
-              if (hasSvg && !/ready|publish/.test(text)) {
-                clickCandidate($nextButton, 'next sibling');
-                return true;
-              }
+        const $card = pickPreferredCard($allCards, context);
+        const cardSummary = $card.text().replace(/\s+/g, ' ').trim();
+        cy.log(`🆔 ${context} card snapshot: ${cardSummary.substring(0, 160)}`);
+
+        const $readyButton = $card
+          .find('button, [role="button"]')
+          .filter((i, el) => /ready\s+to\s+publish/i.test(Cypress.$(el).text()))
+          .first();
+
+        if (!$readyButton.length) {
+          cy.screenshot(`error-no-ready-button-${context}`);
+          throw new Error(`Unable to find "Ready to publish" button inside ${context} card.`);
+        }
+
+        return { cardEl: $card.get(0), readyButtonEl: $readyButton.get(0) };
+      });
+
+    const clickMenuForReadyButton = ({ cardEl, readyButtonEl }) => {
+      const $cardEl = Cypress.$(cardEl);
+      const $readyButton = Cypress.$(readyButtonEl);
+
+      cy.wrap($cardEl).scrollIntoView().should('be.visible');
+      cy.wrap($readyButton).scrollIntoView().should('be.visible');
+      humanWait(500);
+      const readyRect = readyButtonEl.getBoundingClientRect();
+
+      const clickCandidate = ($btn, reason) => {
+        cy.log(`✅ Found menu trigger (${reason})`);
+        cy.wrap($btn)
+          .scrollIntoView()
+          .should('be.visible')
+          .then(($btnEl) => {
+            const clickWithRetry = (attempt = 1) => {
+              cy.wrap($btnEl)
+                .click({ force: true })
+                .then(() => {
+                  humanWait(400);
+                  const menuVisible =
+                    Cypress.$('[role="menu"]:visible, .ant-dropdown:visible, .ant-menu:visible').length > 0;
+                  if (menuVisible) {
+                    cy.log('✅ Menu dropdown visible');
+                  } else if (attempt < 3) {
+                    cy.log(`↪️ Menu not visible after click (attempt ${attempt}). Retrying...`);
+                    clickWithRetry(attempt + 1);
+                  } else {
+                    cy.screenshot(`menu-not-visible-${context}`);
+                    throw new Error(`Unable to open menu dropdown for ${context} card.`);
+                  }
+                });
+            };
+            clickWithRetry();
+          });
+      };
+
+      const strategyNextSibling = () => {
+        const $nextSibling = $readyButton.next();
+        if ($nextSibling.length > 0) {
+          const $nextButton = $nextSibling.is('button, [role="button"]')
+            ? $nextSibling
+            : $nextSibling.find('button, [role="button"]').first();
+          if ($nextButton.length && $nextButton.is(':visible')) {
+            const text = $nextButton.text().trim().toLowerCase();
+            const hasSvg = $nextButton.find('svg').length > 0;
+            if (hasSvg && !/ready|publish/.test(text)) {
+              clickCandidate($nextButton, 'next sibling');
+              return true;
             }
           }
-          return false;
-        };
+        }
+        return false;
+      };
 
-        const strategySameContainer = () => {
-          const $parentButtons = $readyButton.parent().find('button, [role="button"]').filter(':visible');
-          let found = false;
-          $parentButtons.each((_, el) => {
+      const strategySameContainer = () => {
+        const $parentButtons = $readyButton.parent().find('button, [role="button"]').filter(':visible');
+        let found = false;
+        $parentButtons.each((_, el) => {
+          if (found) return false;
+          const $el = Cypress.$(el);
+          if ($el.is($readyButton)) {
+            return true;
+          }
+          const elRect = el.getBoundingClientRect();
+          const text = $el.text().trim().toLowerCase();
+          const hasSvg = $el.find('svg').length > 0;
+          const minimalText = text.length === 0 || text.length < 4;
+          const isToRight = elRect.left > readyRect.right - 10;
+          const sameRow = Math.abs(elRect.top - readyRect.top) < 40;
+
+          if (isToRight && sameRow && hasSvg && minimalText) {
+            clickCandidate($el, 'same container');
+            found = true;
+          }
+          return true;
+        });
+        return found;
+      };
+
+      const strategyGlobalSearch = () => {
+        let found = false;
+        Cypress.$('body')
+          .find('button, [role="button"]')
+          .filter(':visible')
+          .each((_, el) => {
             if (found) return false;
             const $el = Cypress.$(el);
-            if ($el.is($readyButton)) {
+            const text = $el.text().trim().toLowerCase();
+            if (text.includes('ready') && text.includes('publish')) {
               return true;
             }
             const elRect = el.getBoundingClientRect();
-            const text = $el.text().trim().toLowerCase();
+            const isToRight = elRect.left >= readyRect.right - 20;
+            const sameRow = Math.abs(elRect.top - readyRect.top) < 60;
+            const closeEnough = elRect.left < readyRect.right + 200;
             const hasSvg = $el.find('svg').length > 0;
-            const minimalText = text.length === 0 || text.length < 4;
-            const isToRight = elRect.left > readyRect.right - 10;
-            const sameRow = Math.abs(elRect.top - readyRect.top) < 40;
+            const html = $el.html() || '';
+            const hasDots =
+              html.includes('⋯') ||
+              html.includes('ellipsis') ||
+              html.includes('MoreVertical') ||
+              html.includes('more-vertical') ||
+              html.includes('DotsVertical') ||
+              html.includes('dots-vertical');
 
-            if (isToRight && sameRow && hasSvg && minimalText) {
-              clickCandidate($el, 'same container');
+            if (isToRight && sameRow && closeEnough && (hasSvg || hasDots || text === '' || text === '...')) {
+              clickCandidate($el, 'global search');
               found = true;
             }
             return true;
           });
-          return found;
-        };
+        return found;
+      };
 
-        const strategyGlobalSearch = () => {
-          let found = false;
-          Cypress.$('body')
-            .find('button, [role="button"]')
-            .filter(':visible')
-            .each((_, el) => {
-              if (found) return false;
-              const $el = Cypress.$(el);
-              const text = $el.text().trim().toLowerCase();
-              if (text.includes('ready') && text.includes('publish')) {
-                return true;
-              }
-              const elRect = el.getBoundingClientRect();
-              const isToRight = elRect.left >= readyRect.right - 20;
-              const sameRow = Math.abs(elRect.top - readyRect.top) < 60;
-              const closeEnough = elRect.left < readyRect.right + 200;
-              const hasSvg = $el.find('svg').length > 0;
-              const html = $el.html() || '';
-              const hasDots =
-                html.includes('⋯') ||
-                html.includes('ellipsis') ||
-                html.includes('MoreVertical') ||
-                html.includes('more-vertical') ||
-                html.includes('DotsVertical') ||
-                html.includes('dots-vertical');
+      if (strategyNextSibling()) return;
+      if (strategySameContainer()) return;
+      if (strategyGlobalSearch()) return;
 
-              if (isToRight && sameRow && closeEnough && (hasSvg || hasDots || text === '' || text === '...')) {
-                clickCandidate($el, 'global search');
-                found = true;
-              }
-              return true;
-            });
-          return found;
-        };
+      cy.screenshot(`menu-button-not-found-${context}`);
+      throw new Error(`Unable to locate menu button near Ready to publish button for ${context} card.`);
+    };
 
-        if (strategyNextSibling()) return;
-        if (strategySameContainer()) return;
-        if (strategyGlobalSearch()) return;
-
-        cy.screenshot(`menu-button-not-found-${context}`);
-        throw new Error('Unable to locate menu button near Ready to publish button.');
-      });
+    return locateReadyButton().then(clickMenuForReadyButton);
   };
 
   const findAndClickMenuButton = (context = 'single') => {
@@ -1371,18 +1402,48 @@ describe('Content Upload & Publishing', () => {
     // Step 16: Wait for menu dropdown to open, then click "Bulk publish"
     cy.log('🚀 Step 16: Waiting for menu dropdown and clicking "Bulk publish" option');
     
-    getVisibleDropdownMenu()
-      .should('exist')
-      .within(() => {
-        cy.contains('li, button, a, span, div, [role="menuitem"]', /^Bulk publish$/i)
-          .should('be.visible')
-          .then(($option) => {
-            cy.log('✅ Found "Bulk publish" option');
-            cy.wrap($option).scrollIntoView().should('be.visible');
-            humanWait(1000);
-            cy.wrap($option).click({ force: true });
-          });
-      });
+    const bulkPublishMatchers = [/^bulk\s*publish$/i, /bulk\s+publish/i, /publish\s+all/i];
+
+    const clickBulkPublishOption = () => {
+      return getVisibleDropdownMenu()
+        .should('exist')
+        .then(($menu) => {
+          const findMatchIn = ($root) => {
+            let $option = Cypress.$();
+            bulkPublishMatchers.forEach((matcher) => {
+              if ($option.length) {
+                return;
+              }
+              const $matches = $root
+                .find('li, button, a, span, div, [role="menuitem"]')
+                .filter(':visible')
+                .filter((i, el) => matcher.test(Cypress.$(el).text().trim()));
+              if ($matches.length) {
+                $option = $matches.first();
+              }
+            });
+            return $option;
+          };
+
+          let $target = findMatchIn($menu);
+
+          if (!$target || !$target.length) {
+            cy.log('⚠️ "Bulk publish" option not found inside dropdown, searching globally.');
+            $target = findMatchIn(Cypress.$('body'));
+          }
+
+          if (!$target || !$target.length) {
+            cy.screenshot('error-no-bulk-publish-option');
+            throw new Error('Unable to locate "Bulk publish" option in dropdown.');
+          }
+
+          cy.wrap($target).scrollIntoView().should('be.visible');
+          humanWait(500);
+          cy.wrap($target).click({ force: true });
+        });
+    };
+
+    clickBulkPublishOption();
     humanWait(3000);
 
     // Step 17: Wait for bulk publish to complete
