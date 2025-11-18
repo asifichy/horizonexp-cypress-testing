@@ -1178,18 +1178,52 @@ describe('Content Upload & Publishing', () => {
         });
       };
 
-      waitForOption().then(($option) => {
-        const $target = $option.closest('button, a, [role="button"], [role="menuitem"]').length
-          ? $option.closest('button, a, [role="button"], [role="menuitem"]')
-          : $option;
-        cy.wrap($target).scrollIntoView().should('be.visible');
-        humanWait(500);
-        cy.wrap($target).click({ force: true });
-        if (expectToast) {
-          // give UI a moment to trigger the publish toast
-          humanWait(1000);
-        }
-      });
+      const ensureMenuClosed = () =>
+        cy.get('body', { timeout: 5000 }).should(($body) => {
+          const stillVisible =
+            $body
+              .find('li, button, a, span, div, [role="menuitem"]')
+              .filter(':visible')
+              .filter((i, el) => matcher.test(Cypress.$(el).text().trim())).length > 0;
+          expect(stillVisible, 'Bulk publish option hidden after click').to.be.false;
+        });
+
+      const clickOption = (attempt = 1) => {
+        return waitForOption(attempt).then(($option) => {
+          const $target = $option.closest('button, a, [role="button"], [role="menuitem"]').length
+            ? $option.closest('button, a, [role="button"], [role="menuitem"]')
+            : $option;
+          cy.wrap($target).scrollIntoView().should('be.visible');
+          humanWait(300);
+          cy.wrap($target).click({ force: true });
+          if (expectToast) {
+            humanWait(700);
+          }
+
+          return cy.get('body').then(($body) => {
+            const stillVisible =
+              $body
+                .find('li, button, a, span, div, [role="menuitem"]')
+                .filter(':visible')
+                .filter((i, el) => matcher.test(Cypress.$(el).text().trim())).length > 0;
+
+            if (stillVisible && attempt < 3) {
+              cy.log('↪️ Bulk publish option still visible, retrying click...');
+              humanWait(300);
+              return clickOption(attempt + 1);
+            }
+
+            if (stillVisible) {
+              cy.screenshot('error-bulk-publish-option-still-visible');
+              throw new Error('Bulk publish option remained visible after multiple clicks.');
+            }
+
+            return ensureMenuClosed();
+          });
+        });
+      };
+
+      return clickOption();
     };
 
     clickMenuOption(csvMenuMatchers, 'Unable to locate CSV import menu option.');
