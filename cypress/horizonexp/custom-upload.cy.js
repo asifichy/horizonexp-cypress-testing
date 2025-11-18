@@ -1413,65 +1413,101 @@ describe('Content Upload & Publishing', () => {
     // Logout - Click on DevOps profile button, then Sign Out
     cy.log('🚪 Logging out - Step 1: Click on DevOps profile button');
     
+    // Take screenshot before clicking
+    cy.screenshot('before-clicking-profile');
+    
     // Step 1: Find and click the DevOps profile button at the bottom left
+    // The button should have the DevOps text and avatar icon
     cy.get('body', { timeout: 10000 }).then($body => {
       let profileClicked = false;
       
-      // Look for DevOps profile button/text in the sidebar
-      const devOpsSelectors = [
-        '*:contains("DevOps")',
-        'button:contains("DevOps")',
-        'div:contains("DevOps")',
-        'a:contains("DevOps")',
-        '[class*="workspace"]',
-        '[class*="profile"]',
-        '[class*="user-menu"]'
-      ];
+      cy.log('🔍 Looking for DevOps profile button with avatar at bottom of sidebar');
       
-      for (const selector of devOpsSelectors) {
-        if (profileClicked) break;
+      // Strategy 1: Find button/div that contains both avatar and "DevOps" text
+      // Look for elements that have an image/avatar and DevOps text together
+      const $candidates = $body.find('button, div, a').filter(':visible').filter((i, el) => {
+        const $el = Cypress.$(el);
+        const text = $el.text().trim();
+        const hasAvatar = $el.find('img, svg, [class*="avatar"]').length > 0;
+        const hasDevOpsText = text.includes('DevOps');
         
-        const $elements = $body.find(selector).filter(':visible');
+        // Must have both avatar and DevOps text
+        return hasAvatar && hasDevOpsText;
+      });
+      
+      if ($candidates.length > 0) {
+        cy.log(`✅ Found ${$candidates.length} candidate(s) with avatar and DevOps text`);
         
-        // Filter to find the one that contains "DevOps" text
-        const $devOpsElement = $elements.filter((i, el) => {
+        // Click on the first matching element
+        const $profileButton = $candidates.first();
+        cy.log(`✅ Clicking on profile button: ${$profileButton.prop('tagName')}`);
+        cy.wrap($profileButton).scrollIntoView().click({ force: true });
+        profileClicked = true;
+        cy.log('✅ Clicked on DevOps profile button');
+        humanWait(2000); // Wait for menu to open
+      }
+      
+      // Strategy 2: If not found, look for any clickable element at bottom with DevOps text
+      if (!profileClicked) {
+        cy.log('🔍 Strategy 2: Looking for any element with DevOps text at bottom');
+        
+        const $devOpsElements = $body.find('*:visible').filter((i, el) => {
           const $el = Cypress.$(el);
           const text = $el.text().trim();
-          return text.includes('DevOps');
+          // Look for elements that have ONLY "DevOps" or "DevOps" with minimal extra text
+          return text === 'DevOps' || (text.includes('DevOps') && text.length < 50);
         });
         
-        if ($devOpsElement.length > 0) {
-          cy.log(`✅ Found DevOps profile button using: ${selector}`);
+        if ($devOpsElements.length > 0) {
+          // Find the smallest/most specific element
+          let $bestMatch = null;
+          let smallestSize = Infinity;
           
-          // Click on the DevOps profile element
-          cy.wrap($devOpsElement.first()).scrollIntoView().click({ force: true });
-          profileClicked = true;
-          cy.log('✅ Clicked on DevOps profile button');
-          humanWait(2000); // Wait for menu to open
-          break;
+          $devOpsElements.each((i, el) => {
+            const $el = Cypress.$(el);
+            const text = $el.text().trim();
+            if (text.length < smallestSize) {
+              $bestMatch = $el;
+              smallestSize = text.length;
+            }
+          });
+          
+          if ($bestMatch) {
+            cy.log(`✅ Found DevOps element: "${$bestMatch.text().trim()}"`);
+            cy.wrap($bestMatch).scrollIntoView().click({ force: true });
+            profileClicked = true;
+            humanWait(2000);
+          }
         }
       }
       
+      // Strategy 3: Try to find by looking at bottom of page
       if (!profileClicked) {
-        cy.log('⚠️ DevOps profile button not found, trying to find any profile/workspace button');
+        cy.log('🔍 Strategy 3: Looking for workspace/profile button at bottom of sidebar');
         
-        // Try to find workspace selector or profile button at bottom of sidebar
-        const fallbackSelectors = [
-          '[class*="workspace-selector"]',
-          '[class*="workspace-switcher"]',
-          '[data-testid*="workspace"]',
-          '[data-testid*="profile"]'
-        ];
-        
-        for (const selector of fallbackSelectors) {
-          if ($body.find(selector).filter(':visible').length > 0) {
-            cy.log(`🔍 Trying fallback selector: ${selector}`);
-            cy.get(selector).filter(':visible').first().click({ force: true });
+        // Scroll to bottom of sidebar first
+        cy.get('body').then(() => {
+          // Look for elements near bottom of viewport
+          const $bottomElements = $body.find('button, div, a').filter(':visible').filter((i, el) => {
+            const rect = el.getBoundingClientRect();
+            const isNearBottom = rect.bottom > (window.innerHeight - 200);
+            const $el = Cypress.$(el);
+            const text = $el.text().trim();
+            return isNearBottom && text.includes('DevOps');
+          });
+          
+          if ($bottomElements.length > 0) {
+            cy.log(`✅ Found element near bottom with DevOps text`);
+            cy.wrap($bottomElements.first()).click({ force: true });
             profileClicked = true;
             humanWait(2000);
-            break;
           }
-        }
+        });
+      }
+      
+      if (!profileClicked) {
+        cy.log('⚠️ DevOps profile button not found after all strategies');
+        cy.screenshot('profile-button-not-found');
       }
     });
     
@@ -1521,15 +1557,42 @@ describe('Content Upload & Publishing', () => {
       } else {
         cy.log('⚠️ Sign Out not found with Strategy 1, trying Strategy 2');
         
-        // Strategy 2: Use Cypress contains selector
-        cy.contains('Sign Out').then($el => {
-          if ($el && $el.length > 0) {
-            cy.log('✅ Found Sign Out using cy.contains()');
-            cy.wrap($el).click({ force: true });
+        // Strategy 2: Use Cypress contains selector with timeout
+        cy.get('body').then($body2 => {
+          const $signOut = $body2.find('*:visible:contains("Sign Out")');
+          
+          if ($signOut.length > 0) {
+            cy.log(`✅ Found ${$signOut.length} element(s) containing "Sign Out"`);
+            cy.wrap($signOut.first()).click({ force: true });
             humanWait(2000);
           } else {
-            cy.log('⚠️ Sign Out button not found, taking screenshot');
-            cy.screenshot('sign-out-not-found');
+            cy.log('⚠️ Sign Out button not found with Strategy 2, trying Strategy 3');
+            
+            // Strategy 3: Try to find by looking for logout icon or text variations
+            const logoutVariations = ['Sign Out', 'Signout', 'Log Out', 'Logout', 'Sign out'];
+            let found = false;
+            
+            for (const variation of logoutVariations) {
+              if (found) break;
+              
+              const $elements = $body2.find('*:visible').filter((i, el) => {
+                const text = Cypress.$(el).text().trim();
+                return text.toLowerCase().includes(variation.toLowerCase());
+              });
+              
+              if ($elements.length > 0) {
+                cy.log(`✅ Found element with text variation: "${variation}"`);
+                cy.wrap($elements.first()).click({ force: true });
+                found = true;
+                humanWait(2000);
+                break;
+              }
+            }
+            
+            if (!found) {
+              cy.log('⚠️ Sign Out button not found after all strategies, taking screenshot');
+              cy.screenshot('sign-out-not-found-final');
+            }
           }
         });
       }
