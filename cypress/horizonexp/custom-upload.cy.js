@@ -1232,31 +1232,22 @@ describe('Content Upload & Publishing', () => {
 
     // Step 14: Wait for CSV import to complete
     cy.log('⏳ Step 14: Waiting for CSV metadata import to complete');
-    cy.get('body', { timeout: 60000 }).should('satisfy', ($body) => {
-      if (!$body || $body.length === 0) return false;
-      
-      const bodyText = $body.text() || '';
+    cy.get('body', { timeout: 60000 }).should(($body) => {
+      expect($body && $body.length, 'Body exists').to.be.ok;
+      const bodyText = ($body.text() || '').toLowerCase();
       const successIndicators = [
         'imported',
         'metadata imported',
-        'CSV imported',
+        'csv imported',
         'successfully imported',
         'import complete',
-        'Import successful'
+        'import successful'
       ];
-      
-      if (successIndicators.some(indicator => bodyText.toLowerCase().includes(indicator))) {
-        cy.log('✅ CSV import success indicator detected');
-        return true;
-      }
-      
-      // Check if batch shows published count increased or still ready
-      if (bodyText.includes('Ready to publish') || bodyText.includes('0 published')) {
-        cy.log('✅ Batch card still shows ready state after CSV');
-        return true;
-      }
-      
-      return false;
+
+      const successDetected = successIndicators.some((indicator) => bodyText.includes(indicator));
+      const batchReadyState = bodyText.includes('ready to publish') || bodyText.includes('0 published');
+
+      expect(successDetected || batchReadyState, 'CSV status visible').to.be.true;
     });
 
     cy.log('✅ CSV metadata import completed');
