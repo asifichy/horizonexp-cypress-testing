@@ -1412,11 +1412,101 @@ describe('Content Upload & Publishing', () => {
 
     // Final success log
     cy.log('✅ PART 3 COMPLETED: Library verification successful');
+    
+    // ============================================
+    // PART 4: WAIT IN LIBRARY AND LOGOUT
+    // ============================================
+    cy.log('🎬 PART 4: Waiting in Library and logging out');
+    
+    // Wait in library for a moment
+    cy.log('⏳ Waiting in Library before logout');
+    humanWait(5000); // Wait 5 seconds in library
+    
+    // Logout
+    cy.log('🚪 Logging out');
+    cy.get('body').then($body => {
+      const signOutSelectors = [
+        'button:contains("Sign Out")',
+        'a:contains("Sign Out")',
+        '*:contains("Sign Out")',
+        '[data-testid*="sign-out"]',
+        '[data-testid*="signout"]',
+        'button:contains("Logout")',
+        'a:contains("Logout")',
+        '*:contains("Logout")'
+      ];
+      
+      let found = false;
+      for (const selector of signOutSelectors) {
+        if (found) break;
+        const $element = $body.find(selector).filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          return text === 'Sign Out' || text.includes('Sign Out') || text === 'Logout' || text.includes('Logout');
+        }).first();
+        
+        if ($element.length > 0) {
+          cy.log(`✅ Found Sign Out button: ${selector}`);
+          cy.wrap($element).should('exist').scrollIntoView().should('be.visible').click({ force: true });
+          humanWait(2000);
+          found = true;
+        }
+      }
+      
+      if (!found) {
+        cy.log('⚠️ Sign Out button not found, trying alternative methods');
+        
+        // Try to find user profile menu that might contain logout
+        const profileSelectors = [
+          '[data-testid*="user-menu"]',
+          '[class*="user-menu"]',
+          '[class*="profile-menu"]',
+          'button[aria-label*="user"]',
+          'button[aria-label*="profile"]',
+          '[class*="avatar"]'
+        ];
+        
+        for (const selector of profileSelectors) {
+          if ($body.find(selector).length > 0) {
+            cy.log(`🔍 Trying profile menu: ${selector}`);
+            cy.get(selector).first().click({ force: true });
+            humanWait(1000);
+            
+            // Now look for Sign Out in the opened menu
+            cy.get('body').then($body2 => {
+              const $signOut = $body2.find('*:contains("Sign Out"), *:contains("Logout")').filter(':visible').first();
+              if ($signOut.length > 0) {
+                cy.wrap($signOut).click({ force: true });
+                found = true;
+              }
+            });
+            break;
+          }
+        }
+      }
+    });
+    
+    // Verify logout successful
+    cy.url({ timeout: 10000 }).should('satisfy', (url) => {
+      const isLoggedOut = url.includes('/signin') || 
+                         url.includes('/login') || 
+                         url.includes('accounts.google.com');
+      if (isLoggedOut) {
+        cy.log('✅ Successfully logged out - redirected to signin page');
+      }
+      return isLoggedOut;
+    });
+    
+    cy.screenshot('logout-successful');
+    cy.log('✅ PART 4 COMPLETED: Logout successful');
+    
+    // Final summary
     cy.log('🎉 All test parts completed successfully!');
     cy.log('📊 Test Summary:');
     cy.log('   ✅ Part 1: Single file upload and publish - PASSED');
     cy.log('   ✅ Part 2: Bulk upload with CSV import and bulk publish - PASSED');
     cy.log('   ✅ Part 3: Library verification - PASSED');
+    cy.log('   ✅ Part 4: Wait in Library and Logout - PASSED');
   });
 
   after(() => {
