@@ -298,8 +298,20 @@ describe('Content Upload & Publishing', () => {
           }
 
           cy.wrap($menuButton).scrollIntoView().should('be.visible');
-          humanWait(1000);
-          cy.wrap($menuButton).click({ force: true });
+          humanWait(800);
+          cy.wrap($menuButton)
+            .click({ force: true })
+            .then(() => {
+              humanWait(500);
+              cy.get('body').then(($retryBody) => {
+                const menuVisible =
+                  $retryBody.find('[role="menu"]:visible, .ant-dropdown:visible, .ant-menu:visible').length > 0;
+                if (!menuVisible) {
+                  cy.log('↪️ Menu not visible yet. Clicking three-dot button again as fallback.');
+                  cy.wrap($menuButton).click({ force: true });
+                }
+              });
+            });
         });
     });
   };
@@ -1030,14 +1042,37 @@ describe('Content Upload & Publishing', () => {
 
     // Step 12: Click "Import CSV metadata" from the dropdown menu
     cy.log('📥 Step 12: Clicking "Import CSV metadata" option');
+    const csvMenuMatchers = [/import\s+csv\s+metadata/i, /import\s+metadata/i, /import\s+csv/i];
     getVisibleDropdownMenu()
       .should('exist')
-      .within(() => {
-        cy.contains('li, button, a, span, div, [role="menuitem"]', 'Import CSV metadata', {
-          matchCase: false
-        })
-          .should('be.visible')
-          .click({ force: true });
+      .then(($menu) => {
+        let targetOption = Cypress.$();
+        csvMenuMatchers.forEach((matcher) => {
+          if (targetOption.length) {
+            return;
+          }
+          const $match = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) => {
+            const text = Cypress.$(el).text().trim();
+            return matcher.test(text);
+          });
+          if ($match.length > 0) {
+            targetOption = $match.first();
+          }
+        });
+
+        if (!targetOption.length) {
+          cy.log('⚠️ No menu item directly matched CSV import text. Clicking fallback candidate.');
+          targetOption = $menu.find('li, button, a, span, div, [role="menuitem"]').filter((i, el) =>
+            /csv/i.test(Cypress.$(el).text().trim())
+          );
+        }
+
+        if (!targetOption.length) {
+          cy.screenshot('error-no-csv-menu-option');
+          throw new Error('Unable to locate CSV import menu option.');
+        }
+
+        cy.wrap(targetOption).should('be.visible').click({ force: true });
       });
     humanWait(2000);
 
