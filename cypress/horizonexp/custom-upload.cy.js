@@ -1567,8 +1567,9 @@ describe('Content Upload & Publishing', () => {
     
     // Verify logout successful
     cy.log('🔍 Verifying logout status');
-    cy.url({ timeout: 15000 }).should('satisfy', (url) => {
+    cy.url({ timeout: 15000 }).then((url) => {
       cy.log(`📍 Current URL: ${url}`);
+      
       const isLoggedOut = url.includes('/signin') || 
                          url.includes('/login') || 
                          url.includes('accounts.google.com') ||
@@ -1576,16 +1577,10 @@ describe('Content Upload & Publishing', () => {
       
       if (isLoggedOut) {
         cy.log('✅ Successfully logged out - on signin/login page');
-        return true;
       } else {
-        cy.log('ℹ️ Not on signin page yet, checking session...');
-        return true; // Continue to next check
-      }
-    });
-    
-    // Additional verification: try accessing protected page
-    cy.url().then((currentUrl) => {
-      if (!currentUrl.includes('/signin') && !currentUrl.includes('/login')) {
+        cy.log('ℹ️ Not on signin page yet, will verify session');
+        
+        // Additional verification: try accessing protected page
         cy.log('🔍 Verifying session by accessing protected page');
         cy.visit('https://app.horizonexp.com/shorts/library', { failOnStatusCode: false });
         humanWait(2000);
