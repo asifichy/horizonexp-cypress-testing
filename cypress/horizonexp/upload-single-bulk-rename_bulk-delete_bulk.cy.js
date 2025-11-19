@@ -1482,12 +1482,6 @@ describe("Content Upload & Publishing", () => {
             .trim()}"`
         );
         cy.wrap($bestMatch).click({ force: true });
-
-        // If it's a div, also try clicking its parent just in case
-        if ($bestMatch.prop("tagName").toLowerCase() === "div") {
-          cy.log("👉 Also clicking parent of div just in case");
-          cy.wrap($bestMatch).parent().click({ force: true });
-        }
       } else {
         cy.log(
           "⚠️ Could not find specific Rename batch element, trying generic contains"
