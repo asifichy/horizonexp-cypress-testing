@@ -1452,21 +1452,18 @@ describe("Content Upload & Publishing", () => {
     openBatchActionsMenu();
     humanWait(1000);
 
-    cy.contains("li, button, div", "Rename batch", { matchCase: false })
+    // Try clicking the text element directly to avoid container issues
+    cy.contains("Rename batch", { matchCase: false })
       .should("be.visible")
       .click({ force: true });
 
-    cy.log("⏳ Waiting for Rename Batch modal to appear");
-    cy.get('.ant-modal-content, [role="dialog"]', { timeout: 10000 }).should(
-      "be.visible"
-    );
+    cy.log("⏳ Waiting for Rename Batch modal/input to appear");
     humanWait(1000);
 
-    // Handle Rename Input
+    // Handle Rename Input - Wait for input directly as modal container might vary
     cy.get(
       'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input'
     )
-      .filter(":visible")
       .filter(":visible")
       .first()
       .clear()
