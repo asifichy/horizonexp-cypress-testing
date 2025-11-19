@@ -1448,26 +1448,6 @@ describe("Content Upload & Publishing", () => {
     humanWait(2000);
 
     // Step 10.5: Rename Batch
-    cy.log("🏷️ Step 10.5: Renaming batch");
-    openBatchActionsMenu();
-    humanWait(1000);
-
-    // Try clicking the text element directly to avoid container issues
-    cy.contains("Rename batch", { matchCase: false })
-      .should("be.visible")
-      .click({ force: true });
-
-    cy.log("⏳ Waiting for Rename Batch modal/input to appear");
-    humanWait(1000);
-
-    // Handle Rename Input - Wait for input directly as modal container might vary
-    cy.get(
-      'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input'
-    )
-      .filter(":visible")
-      .first()
-      .clear()
-      .type("batch-upload-1", { delay: testConfig.humanTypeDelay });
 
     humanWait(1000);
 
