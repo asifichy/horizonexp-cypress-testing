@@ -1919,6 +1919,33 @@ describe("Content Upload & Publishing", () => {
     cy.log("✅ PART 3 COMPLETED: Library verification successful");
 
     // Navigate to Uploads page before logout
+    // Step: Delete the batch
+    cy.log("🗑️ Deleting batch...");
+    openBatchActionsMenu();
+    humanWait(1000);
+
+    // Click "Delete batch" option
+    getVisibleDropdownMenu()
+      .should("exist")
+      .then(($menu) => {
+        const $deleteOption = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) =>
+            /delete\s*batch/i.test(Cypress.$(el).text().trim())
+          );
+
+        if ($deleteOption.length > 0) {
+          cy.wrap($deleteOption.first()).click({ force: true });
+        } else {
+          cy.log("⚠️ 'Delete batch' option not found in menu");
+          // Fallback: try searching for just "Delete"
+          cy.contains("Delete", { matchCase: false }).click({ force: true });
+        }
+      });
+
+    humanWait(1000);
+
+    // Confirm deletion
     cy.contains("button", /yes,?\s*delete/i, { timeout: 10000 })
       .should("be.visible")
       .click({ force: true });
