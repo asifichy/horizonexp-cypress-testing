@@ -1855,6 +1855,12 @@ describe("Content Upload & Publishing", () => {
     humanWait(3000);
     cy.screenshot("bulk-publish-completed");
 
+    cy.log("📋 Clicking three-dot menu for Bulk publish");
+
+    // Find the batch card menu again
+    openBatchActionsMenu();
+    humanWait(2000);
+
     // ============================================
     // PART 2.5: VERIFY BULK UPLOAD IN LIBRARY
     // ============================================
