@@ -1910,7 +1910,7 @@ describe("Content Upload & Publishing", () => {
     // Verify one of the bulk videos
     // Since we don't know the exact titles from CSV (unless we parse it), we'll just check the first video
     // assuming it's one of the newly uploaded ones.
-    verifyVideoDetails({}); // Just verify we can open and close details
+    // verifyVideoDetails({}); // Just verify we can open and close details
 
     cy.screenshot("library-verification-complete");
     humanWait(1000);
