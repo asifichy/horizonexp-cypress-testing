@@ -1933,26 +1933,73 @@ describe("Content Upload & Publishing", () => {
 
     // Wait for batch card to be visible (including published batches)
     cy.log("⏳ Waiting for batch card to appear");
-    cy.get("body", { timeout: 10000 }).should(($body) => {
+
+    // DEBUG: Log what is actually on the page
+    cy.get("body").then(($body) => {
+      cy.log("📄 Page Content Debug:");
+      const text = $body.text().replace(/\s+/g, " ").substring(0, 500);
+      cy.log(`Body text preview: ${text}...`);
+
+      const $cards = $body.find(uploadCardSelector).filter(":visible");
+      cy.log(`Found ${$cards.length} potential cards via selector`);
+      $cards.each((i, el) => {
+        cy.log(`Card ${i}: ${Cypress.$(el).text().trim().substring(0, 50)}...`);
+      });
+    });
+
+    cy.get("body", { timeout: 20000 }).should(($body) => {
       const totalUploads = testConfig.bulkUploadFiles.length;
-      const $batchCards = $body
-        .find(uploadCardSelector)
-        .filter(":visible")
-        .filter((i, el) => {
-          const text = Cypress.$(el).text().toLowerCase();
-          // Look for batch indicators including published state
-          return (
-            text.includes("batch") ||
-            text.includes(`${totalUploads} content`) ||
-            text.includes(`${totalUploads} published`) ||
-            text.includes("batch-upload-1") || // The renamed batch name
-            (text.includes("content") && text.includes("published"))
-          );
-        });
+      let $batchCards = null;
+
+      // Strategy 1: Find by specific batch name text "batch-upload-1"
+      const $nameMatches = $body.find("*:visible").filter((i, el) => {
+        const text = Cypress.$(el).text().trim();
+        return (
+          text === "batch-upload-1" ||
+          (text.includes("batch-upload-1") && text.length < 50)
+        );
+      });
+
+      if ($nameMatches.length > 0) {
+        cy.log("✅ Found batch by name 'batch-upload-1'");
+        // Traverse up to find the card container
+        $batchCards = $nameMatches.first().closest(uploadCardSelector);
+        if ($batchCards.length === 0) {
+          // If closest fails, try parents until we find something block-like
+          $batchCards = $nameMatches
+            .first()
+            .parents()
+            .filter((i, el) => {
+              return (
+                Cypress.$(el).css("display") === "block" ||
+                Cypress.$(el).hasClass("ant-card")
+              );
+            })
+            .first();
+        }
+      }
+
+      // Strategy 2: Use the broad selector filter (previous approach)
+      if (!$batchCards || $batchCards.length === 0) {
+        $batchCards = $body
+          .find(uploadCardSelector)
+          .filter(":visible")
+          .filter((i, el) => {
+            const text = Cypress.$(el).text().toLowerCase();
+            return (
+              text.includes("batch") ||
+              text.includes(`${totalUploads} content`) ||
+              text.includes(`${totalUploads} published`) ||
+              text.includes("batch-upload-1") ||
+              (text.includes("content") && text.includes("published"))
+            );
+          });
+      }
+
       expect(
-        $batchCards.length,
-        "Batch card should be visible"
-      ).to.be.greaterThan(0);
+        $batchCards && $batchCards.length > 0,
+        "Batch card should be visible (checked name and selector)"
+      ).to.be.true;
     });
 
     humanWait(1000);
@@ -1961,26 +2008,61 @@ describe("Content Upload & Publishing", () => {
     cy.log("🔍 Finding three-dot menu on batch card");
     cy.get("body").then(($body) => {
       const totalUploads = testConfig.bulkUploadFiles.length;
-      // Find the batch card (using same enhanced filter as above)
-      const $batchCard = $body
-        .find(uploadCardSelector)
-        .filter(":visible")
-        .filter((i, el) => {
-          const text = Cypress.$(el).text().toLowerCase();
-          // Look for batch indicators including published state
-          return (
-            text.includes("batch") ||
-            text.includes(`${totalUploads} content`) ||
-            text.includes(`${totalUploads} published`) ||
-            text.includes("batch-upload-1") || // The renamed batch name
-            (text.includes("content") && text.includes("published"))
-          );
-        })
-        .first();
+      let $batchCard = null;
 
-      if ($batchCard.length === 0) {
-        throw new Error("Batch card not found");
+      // Strategy 1: Find by specific batch name text "batch-upload-1"
+      const $nameMatches = $body.find("*:visible").filter((i, el) => {
+        const text = Cypress.$(el).text().trim();
+        return (
+          text === "batch-upload-1" ||
+          (text.includes("batch-upload-1") && text.length < 50)
+        );
+      });
+
+      if ($nameMatches.length > 0) {
+        // Traverse up to find the card container
+        $batchCard = $nameMatches.first().closest(uploadCardSelector);
+        if ($batchCard.length === 0) {
+          $batchCard = $nameMatches
+            .first()
+            .parents()
+            .filter((i, el) => {
+              return (
+                Cypress.$(el).css("display") === "block" ||
+                Cypress.$(el).hasClass("ant-card")
+              );
+            })
+            .first();
+        }
       }
+
+      // Strategy 2: Use the broad selector filter
+      if (!$batchCard || $batchCard.length === 0) {
+        $batchCard = $body
+          .find(uploadCardSelector)
+          .filter(":visible")
+          .filter((i, el) => {
+            const text = Cypress.$(el).text().toLowerCase();
+            return (
+              text.includes("batch") ||
+              text.includes(`${totalUploads} content`) ||
+              text.includes(`${totalUploads} published`) ||
+              text.includes("batch-upload-1") ||
+              (text.includes("content") && text.includes("published"))
+            );
+          })
+          .first();
+      }
+
+      if (!$batchCard || $batchCard.length === 0) {
+        throw new Error("Batch card not found for menu interaction");
+      }
+
+      cy.log(
+        `✅ Found batch card for menu interaction: "${$batchCard
+          .text()
+          .substring(0, 30)}..."`
+      );
 
       // Find the menu button (three dots) within the batch card
       const menuButtonSelectors = [
