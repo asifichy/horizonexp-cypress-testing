@@ -1861,6 +1861,35 @@ describe("Content Upload & Publishing", () => {
     openBatchActionsMenu();
     humanWait(2000);
 
+    // Click "Delete Batch" option
+    cy.log("🗑️ Clicking Delete Batch option");
+    getVisibleDropdownMenu()
+      .should("exist")
+      .then(($menu) => {
+        const $deleteOption = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) =>
+            /delete\s+batch/i.test(Cypress.$(el).text().trim())
+          );
+
+        if ($deleteOption.length > 0) {
+          cy.wrap($deleteOption.first()).click({ force: true });
+        } else {
+          cy.log("⚠️ 'Delete Batch' option not found in menu");
+        }
+      });
+
+    humanWait(2000);
+
+    // Click "Yes, delete" in confirmation modal
+    cy.log("✅ Clicking Yes, delete in confirmation modal");
+    cy.contains("button", /yes,?\s*delete/i, { timeout: 10000 })
+      .should("be.visible")
+      .click({ force: true });
+
+    humanWait(2000);
+    cy.log("✅ Batch deleted successfully");
+
     // ============================================
     // PART 2.5: VERIFY BULK UPLOAD IN LIBRARY
     // ============================================
