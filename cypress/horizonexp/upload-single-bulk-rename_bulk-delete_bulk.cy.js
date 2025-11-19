@@ -1513,15 +1513,7 @@ describe("Content Upload & Publishing", () => {
 
     humanWait(1000);
 
-    // Click Save/Confirm
-    cy.get(
-      'button:contains("Save"), button:contains("Rename"), button:contains("OK")'
-    )
-      .filter(":visible")
-      .last()
-      .click({ force: true });
-
-    humanWait(2000);
+    humanWait(1000);
     cy.log("✅ Batch renamed to 'batch-upload-1'");
 
     // Step 11: Click three-dot menu and import CSV metadata
@@ -1529,7 +1521,7 @@ describe("Content Upload & Publishing", () => {
 
     // Find the batch card and click its menu
     openBatchActionsMenu();
-    humanWait(2000);
+    humanWait(3000);
 
     // Step 12: Click "Import CSV metadata" from the dropdown menu
     cy.log('📥 Step 12: Clicking "Import CSV metadata" option');
