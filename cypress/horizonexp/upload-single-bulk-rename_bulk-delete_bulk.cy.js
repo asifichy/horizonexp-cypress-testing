@@ -1029,24 +1029,46 @@ describe("Content Upload & Publishing", () => {
 
     // Click "Ready to Publish"
     cy.log("📝 Clicking Ready to publish button");
-    cy.get("body").then(($body) => {
-      const selectors = [
-        'button:contains("Ready to publish")',
-        'a:contains("Ready to publish")',
-        '*:contains("Ready to publish")',
-      ];
 
-      let clicked = false;
-
-      for (const selector of selectors) {
-        if (!clicked && $body.find(selector).length > 0) {
-          cy.get(selector).first().scrollIntoView().click({ force: true });
-          clicked = true;
-          break;
+    const clickReadyToPublish = () => {
+      cy.get("body").then(($body) => {
+        // Priority 1: Button or Link with exact text
+        const $interactive = $body
+          .find('button, a, [role="button"]')
+          .filter(':contains("Ready to publish")')
+          .filter(":visible");
+        if ($interactive.length > 0) {
+          cy.log(
+            `Found ${$interactive.length} interactive elements, clicking first`
+          );
+          cy.wrap($interactive.first()).scrollIntoView().click({ force: true });
+          return;
         }
+
+        // Priority 2: Any element with text, but check if it's a status label
+        const $any = $body
+          .find('*:contains("Ready to publish")')
+          .filter(":visible");
+        if ($any.length > 0) {
+          // Filter out elements that are likely just containers or status text if better options exist
+          // For now, just click the last one (often the text node wrapper) or the one that looks most like a button
+          cy.log("Clicking generic element with text");
+          cy.wrap($any.last()).scrollIntoView().click({ force: true });
+        }
+      });
+    };
+
+    clickReadyToPublish();
+    humanWait(3000);
+
+    // Retry logic: Check if URL changed, if not, try clicking again
+    cy.location("pathname").then((pathname) => {
+      if (!pathname.includes("/publish")) {
+        cy.log("⚠️ Navigation failed, retrying click...");
+        clickReadyToPublish();
+        humanWait(3000);
       }
     });
-    humanWait(3000);
 
     // Wait for publish form to load
     cy.log("⏳ Waiting for publish form to load");
