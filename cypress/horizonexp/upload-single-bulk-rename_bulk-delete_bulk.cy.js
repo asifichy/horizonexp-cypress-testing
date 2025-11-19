@@ -1926,15 +1926,28 @@ describe("Content Upload & Publishing", () => {
     // Delete the published batch
     cy.log("📋 Step: Delete the published batch");
 
-    // Wait for batch card to be visible
+    // Reload the page to ensure batch card is visible
+    cy.log("🔄 Reloading Uploads page to ensure batch card is visible");
+    cy.reload();
+    humanWait(3000);
+
+    // Wait for batch card to be visible (including published batches)
     cy.log("⏳ Waiting for batch card to appear");
     cy.get("body", { timeout: 10000 }).should(($body) => {
+      const totalUploads = testConfig.bulkUploadFiles.length;
       const $batchCards = $body
         .find(uploadCardSelector)
         .filter(":visible")
         .filter((i, el) => {
           const text = Cypress.$(el).text().toLowerCase();
-          return text.includes("batch") || text.includes("content");
+          // Look for batch indicators including published state
+          return (
+            text.includes("batch") ||
+            text.includes(`${totalUploads} content`) ||
+            text.includes(`${totalUploads} published`) ||
+            text.includes("batch-upload-1") || // The renamed batch name
+            (text.includes("content") && text.includes("published"))
+          );
         });
       expect(
         $batchCards.length,
@@ -1947,13 +1960,21 @@ describe("Content Upload & Publishing", () => {
     // Find and click the three-dot menu on the batch card
     cy.log("🔍 Finding three-dot menu on batch card");
     cy.get("body").then(($body) => {
-      // Find the batch card
+      const totalUploads = testConfig.bulkUploadFiles.length;
+      // Find the batch card (using same enhanced filter as above)
       const $batchCard = $body
         .find(uploadCardSelector)
         .filter(":visible")
         .filter((i, el) => {
           const text = Cypress.$(el).text().toLowerCase();
-          return text.includes("batch") || text.includes("content");
+          // Look for batch indicators including published state
+          return (
+            text.includes("batch") ||
+            text.includes(`${totalUploads} content`) ||
+            text.includes(`${totalUploads} published`) ||
+            text.includes("batch-upload-1") || // The renamed batch name
+            (text.includes("content") && text.includes("published"))
+          );
         })
         .first();
 
