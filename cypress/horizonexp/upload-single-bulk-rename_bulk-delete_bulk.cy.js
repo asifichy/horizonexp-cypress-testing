@@ -1452,46 +1452,29 @@ describe("Content Upload & Publishing", () => {
     openBatchActionsMenu();
     humanWait(1000);
 
-    // Robust click strategy for "Rename batch"
-    cy.log("🖱️ Attempting robust click on Rename batch option");
+    // Verify menu is open before searching
+    cy.get('[role="menu"], .ant-dropdown-menu', { timeout: 10000 }).should(
+      "be.visible"
+    );
+
+    cy.log("🖱️ Clicking Rename batch option");
+    // Try to find the menu item and click it.
+    // Using .trigger('click') can sometimes be more effective for AntD menus than .click()
+    cy.contains('[role="menuitem"], li, div', "Rename batch", {
+      matchCase: false,
+    })
+      .should("be.visible")
+      .trigger("click");
+
+    // Fallback: if modal doesn't appear, try standard click
     cy.get("body").then(($body) => {
-      // Prioritize li and button elements over generic divs
-      const $menuItems = $body
-        .find('li, [role="menuitem"], button')
-        .filter(":visible")
-        .filter((_, el) => {
-          const text = Cypress.$(el).text().trim().toLowerCase();
-          return text === "rename batch" || text.includes("rename batch");
-        });
-
-      let $target = null;
-      if ($menuItems.length > 0) {
-        $target = $menuItems.first();
-        cy.log(`🎯 Found specific menu item: ${$target.prop("tagName")}`);
-      } else {
-        // Fallback to any element containing the text
-        const $genericItems = $body
-          .find("div, span, p")
+      if ($body.find('.ant-modal-content, [role="dialog"]').length === 0) {
+        cy.log("⚠️ Modal didn't open with trigger, trying standard click");
+        cy.contains('[role="menuitem"], li, div', "Rename batch", {
+          matchCase: false,
+        })
           .filter(":visible")
-          .filter((_, el) => {
-            const text = Cypress.$(el).text().trim().toLowerCase();
-            return text === "rename batch";
-          });
-        if ($genericItems.length > 0) {
-          $target = $genericItems.first();
-          cy.log(`🎯 Found generic element: ${$target.prop("tagName")}`);
-        }
-      }
-
-      if ($target) {
-        cy.wrap($target).click({ force: true });
-      } else {
-        cy.log(
-          "⚠️ Could not find specific Rename batch element, trying generic contains"
-        );
-        cy.contains("Rename batch", { matchCase: false }).click({
-          force: true,
-        });
+          .click({ force: true });
       }
     });
 
@@ -2094,43 +2077,6 @@ describe("Content Upload & Publishing", () => {
 
     cy.screenshot("after-logout");
     cy.log("✅ PART 4 COMPLETED: Logout process finished");
-    // Verify logout successful
-    cy.log("🔍 Verifying logout status");
-
-    cy.url({ timeout: 15000 }).then((url) => {
-      cy.log(`📍 Current URL after logout attempt: ${url}`);
-
-      const isLoggedOut =
-        url.includes("/signin") ||
-        url.includes("/login") ||
-        url.includes("accounts.google.com") ||
-        url.includes("auth");
-
-      if (isLoggedOut) {
-        cy.log("✅ Successfully logged out - redirected to signin page");
-      } else {
-        cy.log("ℹ️ Still on application page - checking if session is cleared");
-
-        // Try to verify by checking if we can access a protected page
-        cy.visit("https://app.horizonexp.com/shorts/library", {
-          failOnStatusCode: false,
-        });
-        humanWait(2000);
-
-        cy.url().then((newUrl) => {
-          if (newUrl.includes("/signin") || newUrl.includes("/login")) {
-            cy.log(
-              "✅ Logout verified - redirected to signin when accessing protected page"
-            );
-          } else {
-            cy.log("ℹ️ Logout status unclear, but Sign Out was clicked");
-          }
-        });
-      }
-    });
-
-    cy.screenshot("logout-successful");
-    cy.log("✅ PART 4 COMPLETED: Logout successful");
 
     // Final summary
     cy.log("🎉 All test parts completed successfully!");
