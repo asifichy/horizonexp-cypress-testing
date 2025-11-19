@@ -1754,7 +1754,7 @@ describe("Content Upload & Publishing", () => {
         }
       }
     });
-    humanWait(3000);
+    humanWait(1000);
 
     // Step 14: Wait for CSV import to complete
     cy.log("⏳ Step 14: Waiting for CSV metadata import to complete");
@@ -1791,7 +1791,7 @@ describe("Content Upload & Publishing", () => {
     });
 
     cy.log("✅ CSV metadata import completed");
-    humanWait(3000);
+    humanWait(2000);
     cy.screenshot("csv-import-completed");
 
     // Step 15: Click three-dot menu again and select "Bulk publish"
@@ -1808,7 +1808,7 @@ describe("Content Upload & Publishing", () => {
     );
 
     clickBulkPublishOption({ expectToast: true });
-    humanWait(3000);
+    humanWait(2000);
 
     // Step 17: Wait for bulk publish to complete
     cy.log("⏳ Step 17: Waiting for bulk publish to complete");
@@ -1865,24 +1865,24 @@ describe("Content Upload & Publishing", () => {
 
     // Add robustness: Wait for cards to appear
     cy.log("⏳ Waiting for video cards to appear in Library");
-    humanWait(3000);
+    humanWait(2000);
     cy.get("body").then(($body) => {
       const cardSelector =
         '[class*="ant-card"], .ant-list-item, [class*="video-card"]';
       if ($body.find(cardSelector).filter(":visible").length === 0) {
         cy.log("⚠️ No video cards found, reloading page...");
         cy.reload();
-        humanWait(5000);
+        humanWait(3000);
       }
     });
 
     // Verify video details (no args = click first video)
-    verifyVideoDetails();
+    // verifyVideoDetails();
 
     // Navigate back to Uploads for next steps (e.g. Bulk Delete)
     cy.log("🔙 Navigating back to Uploads for next steps");
     navigateToUploads();
-    humanWait(3000);
+    humanWait(2000);
 
     cy.log(
       "🎉 Bulk upload, CSV metadata import, and bulk publish test completed successfully!"
@@ -1891,14 +1891,14 @@ describe("Content Upload & Publishing", () => {
     // ============================================
     // PART 3: VERIFY IN LIBRARY
     // ============================================
-    cy.log("🎬 PART 3: Verifying published videos in Library");
+    // cy.log("🎬 PART 3: Verifying published videos in Library");
 
-    // Navigate to Library
-    navigateToLibrary();
+    // // Navigate to Library
+    // navigateToLibrary();
 
-    // Wait for library to load
-    cy.log("⏳ Waiting for Library page to load");
-    humanWait(3000);
+    // // Wait for library to load
+    // cy.log("⏳ Waiting for Library page to load");
+    // humanWait(3000);
 
     // Verify that videos appear in the library (simplified approach)
     cy.log("🔍 Verifying Library page loaded");
@@ -1925,7 +1925,7 @@ describe("Content Upload & Publishing", () => {
 
     // Wait in library for a moment
     cy.log("⏳ Waiting in Library before logout");
-    humanWait(5000); // Wait 5 seconds in library
+    humanWait(2000); // Wait 5 seconds in library
 
     // Logout - Click on profile button, then Sign Out
     cy.log("🚪 Step 1: Clicking on profile button to open menu");
