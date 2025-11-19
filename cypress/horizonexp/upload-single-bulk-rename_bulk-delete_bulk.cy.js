@@ -1452,15 +1452,21 @@ describe("Content Upload & Publishing", () => {
     openBatchActionsMenu();
     humanWait(1000);
 
-    cy.contains("li, button, div", "Rename batch", { matchCase: false }).click({
-      force: true,
-    });
+    cy.contains("li, button, div", "Rename batch", { matchCase: false })
+      .should("be.visible")
+      .click({ force: true });
+
+    cy.log("⏳ Waiting for Rename Batch modal to appear");
+    cy.get('.ant-modal-content, [role="dialog"]', { timeout: 10000 }).should(
+      "be.visible"
+    );
     humanWait(1000);
 
     // Handle Rename Input
     cy.get(
       'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input'
     )
+      .filter(":visible")
       .filter(":visible")
       .first()
       .clear()
@@ -1763,6 +1769,22 @@ describe("Content Upload & Publishing", () => {
     cy.log("✅ Bulk publish completed");
     humanWait(3000);
     cy.screenshot("bulk-publish-completed");
+
+    // ============================================
+    // PART 2.5: VERIFY BULK UPLOAD IN LIBRARY
+    // ============================================
+    cy.log("🔍 PART 2.5: Verifying bulk uploaded videos in Library");
+
+    // Navigate to Library
+    navigateToLibrary();
+
+    // Verify video details (no args = click first video)
+    verifyVideoDetails();
+
+    // Navigate back to Uploads for next steps (e.g. Bulk Delete)
+    cy.log("🔙 Navigating back to Uploads for next steps");
+    navigateToUploads();
+    humanWait(3000);
 
     cy.log(
       "🎉 Bulk upload, CSV metadata import, and bulk publish test completed successfully!"
