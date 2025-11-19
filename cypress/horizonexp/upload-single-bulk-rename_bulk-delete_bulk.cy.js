@@ -1453,44 +1453,6 @@ describe("Content Upload & Publishing", () => {
     humanWait(1000);
 
     // Verify menu is open before searching
-    cy.get('[role="menu"], .ant-dropdown-menu', { timeout: 10000 }).should(
-      "be.visible"
-    );
-
-    cy.log("🖱️ Clicking Rename batch option");
-    // Try to find the menu item and click it.
-    cy.contains('[role="menuitem"], li, div', "Rename batch", {
-      matchCase: false,
-    })
-      .should("be.visible")
-      .click({ force: true });
-
-    cy.log("⏳ Waiting for Rename input to appear");
-
-    // Wait for either a modal input or an inline input
-    cy.get(
-      'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input, input[name="name"]',
-      { timeout: 10000 }
-    )
-      .filter(":visible")
-      .first()
-      .should("be.visible")
-      .clear()
-      .type("batch-upload-1{enter}", { delay: testConfig.humanTypeDelay });
-
-    humanWait(2000);
-    cy.log("✅ Batch renamed to 'batch-upload-1'");
-
-    // Step 11: Click three-dot menu and import CSV metadata
-    cy.log("📋 Step 11: Importing CSV metadata for bulk publish");
-
-    // Find the batch card and click its menu AGAIN because rename might have closed it
-    // or we need to re-open it for the next action
-    openBatchActionsMenu();
-    humanWait(3000);
-
-    // Step 12: Click "Import CSV metadata" from the dropdown menu
-    cy.log('📥 Step 12: Clicking "Import CSV metadata" option');
     const csvMenuMatchers = [
       /import\s+csv\s+metadata/i,
       /import\s+metadata/i,
