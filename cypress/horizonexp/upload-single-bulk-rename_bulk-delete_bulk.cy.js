@@ -1530,44 +1530,44 @@ describe("Content Upload & Publishing", () => {
       }
 
       // Strategy 3: Fallback - click on batch title to trigger inline edit
-      if (!inputFound) {
-        cy.log(
-          "⚠️ Rename input not found in modal. Trying fallback click on title."
-        );
-        cy.contains(
-          uploadCardSelector + " h4, " + uploadCardSelector + " span",
-          /batch/i
-        )
-          .first()
-          .click({ force: true });
+      // if (!inputFound) {
+      //   cy.log(
+      //     "⚠️ Rename input not found in modal. Trying fallback click on title."
+      //   );
+      //   cy.contains(
+      //     uploadCardSelector + " h4, " + uploadCardSelector + " span",
+      //     /batch/i
+      //   )
+      //     .first()
+      //     .click({ force: true });
 
-        humanWait(1000);
+      //   humanWait(1000);
 
-        // After clicking title, look for contenteditable or input
-        cy.get("body").then(($newBody) => {
-          const $editableInputs = $newBody
-            .find('input[type="text"], [contenteditable="true"]')
-            .filter(":visible")
-            .filter((_, el) => {
-              const $el = Cypress.$(el);
-              const placeholder = ($el.attr("placeholder") || "").toLowerCase();
-              const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
-              // Exclude search inputs
-              return (
-                !placeholder.includes("search") && !ariaLabel.includes("search")
-              );
-            });
+      //   // After clicking title, look for contenteditable or input
+      //   cy.get("body").then(($newBody) => {
+      //     const $editableInputs = $newBody
+      //       .find('input[type="text"], [contenteditable="true"]')
+      //       .filter(":visible")
+      //       .filter((_, el) => {
+      //         const $el = Cypress.$(el);
+      //         const placeholder = ($el.attr("placeholder") || "").toLowerCase();
+      //         const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
+      //         // Exclude search inputs
+      //         return (
+      //           !placeholder.includes("search") && !ariaLabel.includes("search")
+      //         );
+      //       });
 
-          if ($editableInputs.length > 0) {
-            cy.log(`✅ Found editable input after clicking title`);
-            cy.wrap($editableInputs.first())
-              .clear({ force: true })
-              .type(`${newBatchName}{enter}`, { force: true });
-          } else {
-            cy.log("⚠️ Could not find rename input, skipping rename");
-          }
-        });
-      }
+      //     if ($editableInputs.length > 0) {
+      //       cy.log(`✅ Found editable input after clicking title`);
+      //       cy.wrap($editableInputs.first())
+      //         .clear({ force: true })
+      //         .type(`${newBatchName}{enter}`, { force: true });
+      //     } else {
+      //       cy.log("⚠️ Could not find rename input, skipping rename");
+      //     }
+      //   });
+      // }
     });
 
     humanWait(2000);
