@@ -1459,52 +1459,33 @@ describe("Content Upload & Publishing", () => {
 
     cy.log("🖱️ Clicking Rename batch option");
     // Try to find the menu item and click it.
-    // Using .trigger('click') can sometimes be more effective for AntD menus than .click()
     cy.contains('[role="menuitem"], li, div', "Rename batch", {
       matchCase: false,
     })
       .should("be.visible")
-      .trigger("click");
+      .click({ force: true });
 
-    // Fallback: if modal doesn't appear, try standard click
-    cy.get("body").then(($body) => {
-      if ($body.find('.ant-modal-content, [role="dialog"]').length === 0) {
-        cy.log("⚠️ Modal didn't open with trigger, trying standard click");
-        cy.contains('[role="menuitem"], li, div', "Rename batch", {
-          matchCase: false,
-        })
-          .filter(":visible")
-          .click({ force: true });
-      }
-    });
+    cy.log("⏳ Waiting for Rename input to appear");
 
-    cy.log("⏳ Waiting for Rename Batch modal to appear");
-    // Wait for modal container first
-    cy.get('.ant-modal-content, [role="dialog"], .ant-modal-body', {
-      timeout: 10000,
-    }).should("be.visible");
-
-    humanWait(1000);
-
-    // Handle Rename Input
+    // Wait for either a modal input or an inline input
     cy.get(
-      'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input',
+      'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input, input[name="name"]',
       { timeout: 10000 }
     )
       .filter(":visible")
       .first()
+      .should("be.visible")
       .clear()
-      .type("batch-upload-1", { delay: testConfig.humanTypeDelay });
+      .type("batch-upload-1{enter}", { delay: testConfig.humanTypeDelay });
 
-    humanWait(1000);
-
-    humanWait(1000);
+    humanWait(2000);
     cy.log("✅ Batch renamed to 'batch-upload-1'");
 
     // Step 11: Click three-dot menu and import CSV metadata
     cy.log("📋 Step 11: Importing CSV metadata for bulk publish");
 
-    // Find the batch card and click its menu
+    // Find the batch card and click its menu AGAIN because rename might have closed it
+    // or we need to re-open it for the next action
     openBatchActionsMenu();
     humanWait(3000);
 
