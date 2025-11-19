@@ -1477,32 +1477,63 @@ describe("Content Upload & Publishing", () => {
 
     // 2. Handle Rename Input
     const newBatchName = "batch-upload-1";
-    const renameInputSelectors = [
-      'input[placeholder*="batch"]',
-      'input[value*="Batch"]',
-      'input[type="text"]',
-      '[contenteditable="true"]',
-    ];
+
+    // Wait for modal or input to appear after clicking "Rename batch"
+    humanWait(1500);
 
     cy.get("body").then(($body) => {
       let inputFound = false;
-      for (const selector of renameInputSelectors) {
-        const $input = $body.find(selector).filter(":visible");
-        if ($input.length > 0) {
-          cy.log(`✅ Found rename input using selector: ${selector}`);
-          cy.wrap($input.first())
-            .clear({ force: true })
-            .type(`${newBatchName}{enter}`, { force: true });
-          inputFound = true;
-          break;
+
+      // Strategy 1: Look for input in modal/dialog first (most specific)
+      const $modalInputs = $body
+        .find(
+          '.ant-modal input[type="text"], .ant-drawer input[type="text"], [role="dialog"] input[type="text"]'
+        )
+        .filter(":visible")
+        .filter((_, el) => {
+          const $el = Cypress.$(el);
+          // Exclude search inputs
+          const placeholder = ($el.attr("placeholder") || "").toLowerCase();
+          const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
+          return (
+            !placeholder.includes("search") && !ariaLabel.includes("search")
+          );
+        });
+
+      if ($modalInputs.length > 0) {
+        cy.log(`✅ Found rename input in modal/dialog`);
+        cy.wrap($modalInputs.first())
+          .clear({ force: true })
+          .type(`${newBatchName}{enter}`, { force: true });
+        inputFound = true;
+      }
+
+      // Strategy 2: Look for inputs with batch-related attributes (excluding search)
+      if (!inputFound) {
+        const renameInputSelectors = [
+          'input[placeholder*="batch"]:not([placeholder*="search"])',
+          'input[value*="Batch"]:not([placeholder*="search"])',
+          '[contenteditable="true"]',
+        ];
+
+        for (const selector of renameInputSelectors) {
+          const $input = $body.find(selector).filter(":visible");
+          if ($input.length > 0) {
+            cy.log(`✅ Found rename input using selector: ${selector}`);
+            cy.wrap($input.first())
+              .clear({ force: true })
+              .type(`${newBatchName}{enter}`, { force: true });
+            inputFound = true;
+            break;
+          }
         }
       }
 
+      // Strategy 3: Fallback - click on batch title to trigger inline edit
       if (!inputFound) {
         cy.log(
-          "⚠️ Rename input not found immediately. Trying fallback click on title."
+          "⚠️ Rename input not found in modal. Trying fallback click on title."
         );
-        // Fallback: Click on the batch title to trigger edit mode
         cy.contains(
           uploadCardSelector + " h4, " + uploadCardSelector + " span",
           /batch/i
@@ -1512,19 +1543,30 @@ describe("Content Upload & Publishing", () => {
 
         humanWait(1000);
 
-        // Retry finding input
-        for (const selector of renameInputSelectors) {
-          cy.get("body").then(($newBody) => {
-            const $retryInput = $newBody.find(selector).filter(":visible");
-            if ($retryInput.length > 0) {
-              cy.log(`✅ Found rename input on retry: ${selector}`);
-              cy.wrap($retryInput.first())
-                .clear({ force: true })
-                .type(`${newBatchName}{enter}`, { force: true });
-            }
-          });
-          break; // Only try one valid selector on retry to avoid async mess
-        }
+        // After clicking title, look for contenteditable or input
+        cy.get("body").then(($newBody) => {
+          const $editableInputs = $newBody
+            .find('input[type="text"], [contenteditable="true"]')
+            .filter(":visible")
+            .filter((_, el) => {
+              const $el = Cypress.$(el);
+              const placeholder = ($el.attr("placeholder") || "").toLowerCase();
+              const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
+              // Exclude search inputs
+              return (
+                !placeholder.includes("search") && !ariaLabel.includes("search")
+              );
+            });
+
+          if ($editableInputs.length > 0) {
+            cy.log(`✅ Found editable input after clicking title`);
+            cy.wrap($editableInputs.first())
+              .clear({ force: true })
+              .type(`${newBatchName}{enter}`, { force: true });
+          } else {
+            cy.log("⚠️ Could not find rename input, skipping rename");
+          }
+        });
       }
     });
 
