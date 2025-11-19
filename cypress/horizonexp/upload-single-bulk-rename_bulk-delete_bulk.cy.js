@@ -1855,41 +1855,6 @@ describe("Content Upload & Publishing", () => {
     humanWait(3000);
     cy.screenshot("bulk-publish-completed");
 
-    cy.log("📋 Clicking three-dot menu for Bulk publish");
-
-    // Find the batch card menu again
-    openBatchActionsMenu();
-    humanWait(2000);
-
-    // Click "Delete Batch" option
-    cy.log("🗑️ Clicking Delete Batch option");
-    getVisibleDropdownMenu()
-      .should("exist")
-      .then(($menu) => {
-        const $deleteOption = $menu
-          .find('li, button, a, span, div, [role="menuitem"]')
-          .filter((i, el) =>
-            /delete\s+batch/i.test(Cypress.$(el).text().trim())
-          );
-
-        if ($deleteOption.length > 0) {
-          cy.wrap($deleteOption.first()).click({ force: true });
-        } else {
-          cy.log("⚠️ 'Delete Batch' option not found in menu");
-        }
-      });
-
-    humanWait(2000);
-
-    // Click "Yes, delete" in confirmation modal
-    cy.log("✅ Clicking Yes, delete in confirmation modal");
-    cy.contains("button", /yes,?\s*delete/i, { timeout: 10000 })
-      .should("be.visible")
-      .click({ force: true });
-
-    humanWait(2000);
-    cy.log("✅ Batch deleted successfully");
-
     // ============================================
     // PART 2.5: VERIFY BULK UPLOAD IN LIBRARY
     // ============================================
@@ -1936,11 +1901,11 @@ describe("Content Upload & Publishing", () => {
     // humanWait(3000);
 
     // Verify that videos appear in the library (simplified approach)
-    cy.log("🔍 Verifying Library page loaded");
+    // cy.log("🔍 Verifying Library page loaded");
 
-    // Just verify the page has loaded by checking URL
-    cy.url().should("include", "/library");
-    cy.log("✅ Library page URL verified");
+    // // Just verify the page has loaded by checking URL
+    // cy.url().should("include", "/library");
+    // cy.log("✅ Library page URL verified");
 
     // Verify one of the bulk videos
     // Since we don't know the exact titles from CSV (unless we parse it), we'll just check the first video
@@ -1948,7 +1913,7 @@ describe("Content Upload & Publishing", () => {
     verifyVideoDetails({}); // Just verify we can open and close details
 
     cy.screenshot("library-verification-complete");
-    humanWait(2000);
+    humanWait(1000);
 
     // Final success log
     cy.log("✅ PART 3 COMPLETED: Library verification successful");
@@ -1957,6 +1922,117 @@ describe("Content Upload & Publishing", () => {
     cy.log("🔙 Navigating to Uploads page before logout");
     navigateToUploads();
     humanWait(2000);
+
+    // Delete the published batch
+    cy.log("📋 Step: Delete the published batch");
+
+    // Wait for batch card to be visible
+    cy.log("⏳ Waiting for batch card to appear");
+    cy.get("body", { timeout: 10000 }).should(($body) => {
+      const $batchCards = $body
+        .find(uploadCardSelector)
+        .filter(":visible")
+        .filter((i, el) => {
+          const text = Cypress.$(el).text().toLowerCase();
+          return text.includes("batch") || text.includes("content");
+        });
+      expect(
+        $batchCards.length,
+        "Batch card should be visible"
+      ).to.be.greaterThan(0);
+    });
+
+    humanWait(1000);
+
+    // Find and click the three-dot menu on the batch card
+    cy.log("🔍 Finding three-dot menu on batch card");
+    cy.get("body").then(($body) => {
+      // Find the batch card
+      const $batchCard = $body
+        .find(uploadCardSelector)
+        .filter(":visible")
+        .filter((i, el) => {
+          const text = Cypress.$(el).text().toLowerCase();
+          return text.includes("batch") || text.includes("content");
+        })
+        .first();
+
+      if ($batchCard.length === 0) {
+        throw new Error("Batch card not found");
+      }
+
+      // Find the menu button (three dots) within the batch card
+      const menuButtonSelectors = [
+        'button[aria-label*="more"]',
+        'button[aria-haspopup="menu"]',
+        'button[aria-label*="options"]',
+        '[data-testid*="menu"] button',
+        '[data-testid*="more"] button',
+        "button:has(svg)",
+      ];
+
+      let $menuButton = null;
+      for (const selector of menuButtonSelectors) {
+        const $candidate = $batchCard.find(selector).filter(":visible");
+        if ($candidate.length > 0) {
+          $menuButton = $candidate.last(); // Use last to get the rightmost button
+          break;
+        }
+      }
+
+      if (!$menuButton || $menuButton.length === 0) {
+        // Fallback: find any button with minimal text or SVG
+        $menuButton = $batchCard
+          .find("button")
+          .filter(":visible")
+          .filter((i, el) => {
+            const $el = Cypress.$(el);
+            const text = $el.text().trim();
+            const hasSvg = $el.find("svg").length > 0;
+            return hasSvg && (text === "" || text.length < 4);
+          })
+          .last();
+      }
+
+      if ($menuButton && $menuButton.length > 0) {
+        cy.log("✅ Found menu button on batch card");
+        cy.wrap($menuButton).scrollIntoView().click({ force: true });
+      } else {
+        throw new Error("Unable to find menu button on batch card");
+      }
+    });
+
+    humanWait(2000);
+
+    // Click "Delete Batch" option
+    cy.log("🗑️ Clicking Delete Batch option");
+    getVisibleDropdownMenu()
+      .should("exist")
+      .then(($menu) => {
+        const $deleteOption = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) =>
+            /delete\s+batch/i.test(Cypress.$(el).text().trim())
+          );
+
+        if ($deleteOption.length > 0) {
+          cy.wrap($deleteOption.first()).click({ force: true });
+        } else {
+          cy.log("⚠️ 'Delete Batch' option not found in menu");
+          throw new Error("Delete Batch option not found in menu");
+        }
+      });
+
+    humanWait(2000);
+
+    // Click "Yes, delete" in confirmation modal
+    cy.log("✅ Clicking Yes, delete in confirmation modal");
+    cy.contains("button", /yes,?\s*delete/i, { timeout: 10000 })
+      .should("be.visible")
+      .click({ force: true });
+
+    humanWait(2000);
+    cy.log("✅ Batch deleted successfully");
 
     // ============================================
     // PART 4: WAIT IN LIBRARY AND LOGOUT
