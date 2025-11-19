@@ -1918,6 +1918,11 @@ describe("Content Upload & Publishing", () => {
     // Final success log
     cy.log("✅ PART 3 COMPLETED: Library verification successful");
 
+    // Navigate to Uploads page before logout
+    cy.log("🔙 Navigating to Uploads page before logout");
+    navigateToUploads();
+    humanWait(2000);
+
     // ============================================
     // PART 4: WAIT IN LIBRARY AND LOGOUT
     // ============================================
