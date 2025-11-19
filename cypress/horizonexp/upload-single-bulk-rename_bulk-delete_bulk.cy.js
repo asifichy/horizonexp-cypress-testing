@@ -1452,6 +1452,90 @@ describe("Content Upload & Publishing", () => {
     openBatchActionsMenu();
     humanWait(1000);
 
+    // --- RENAME BATCH LOGIC START ---
+    cy.log("🏷️ Step 10.5: Renaming batch to 'batch-upload-1'");
+
+    // 1. Click "Rename batch" option
+    getVisibleDropdownMenu()
+      .should("exist")
+      .then(($menu) => {
+        const $renameOption = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) =>
+            /rename\s+batch/i.test(Cypress.$(el).text().trim())
+          );
+
+        if ($renameOption.length > 0) {
+          cy.wrap($renameOption.first()).click({ force: true });
+        } else {
+          cy.log("⚠️ 'Rename batch' option not found in menu");
+          // Optional: fail or try to recover
+        }
+      });
+
+    humanWait(2000);
+
+    // 2. Handle Rename Input
+    const newBatchName = "batch-upload-1";
+    const renameInputSelectors = [
+      'input[placeholder*="batch"]',
+      'input[value*="Batch"]',
+      'input[type="text"]',
+      '[contenteditable="true"]',
+    ];
+
+    cy.get("body").then(($body) => {
+      let inputFound = false;
+      for (const selector of renameInputSelectors) {
+        const $input = $body.find(selector).filter(":visible");
+        if ($input.length > 0) {
+          cy.log(`✅ Found rename input using selector: ${selector}`);
+          cy.wrap($input.first())
+            .clear({ force: true })
+            .type(`${newBatchName}{enter}`, { force: true });
+          inputFound = true;
+          break;
+        }
+      }
+
+      if (!inputFound) {
+        cy.log(
+          "⚠️ Rename input not found immediately. Trying fallback click on title."
+        );
+        // Fallback: Click on the batch title to trigger edit mode
+        cy.contains(
+          uploadCardSelector + " h4, " + uploadCardSelector + " span",
+          /batch/i
+        )
+          .first()
+          .click({ force: true });
+
+        humanWait(1000);
+
+        // Retry finding input
+        for (const selector of renameInputSelectors) {
+          cy.get("body").then(($newBody) => {
+            const $retryInput = $newBody.find(selector).filter(":visible");
+            if ($retryInput.length > 0) {
+              cy.log(`✅ Found rename input on retry: ${selector}`);
+              cy.wrap($retryInput.first())
+                .clear({ force: true })
+                .type(`${newBatchName}{enter}`, { force: true });
+            }
+          });
+          break; // Only try one valid selector on retry to avoid async mess
+        }
+      }
+    });
+
+    humanWait(2000);
+
+    // 3. Re-open menu for next step (CSV Import)
+    cy.log("🔄 Re-opening batch actions menu for CSV import");
+    openBatchActionsMenu();
+    humanWait(1000);
+    // --- RENAME BATCH LOGIC END ---
+
     // Verify menu is open before searching
     const csvMenuMatchers = [
       /import\s+csv\s+metadata/i,
