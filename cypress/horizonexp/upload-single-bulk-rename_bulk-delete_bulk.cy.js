@@ -1821,6 +1821,19 @@ describe("Content Upload & Publishing", () => {
     // Navigate to Library
     navigateToLibrary();
 
+    // Add robustness: Wait for cards to appear
+    cy.log("⏳ Waiting for video cards to appear in Library");
+    humanWait(3000);
+    cy.get("body").then(($body) => {
+      const cardSelector =
+        '[class*="ant-card"], .ant-list-item, [class*="video-card"]';
+      if ($body.find(cardSelector).filter(":visible").length === 0) {
+        cy.log("⚠️ No video cards found, reloading page...");
+        cy.reload();
+        humanWait(5000);
+      }
+    });
+
     // Verify video details (no args = click first video)
     verifyVideoDetails();
 
