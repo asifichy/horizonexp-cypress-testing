@@ -1448,6 +1448,68 @@ describe("Content Upload & Publishing", () => {
     humanWait(2000);
 
     // Step 10.5: Rename Batch
+    cy.log("🏷️ Step 10.5: Renaming batch");
+    openBatchActionsMenu();
+    humanWait(1000);
+
+    // Robust click strategy for "Rename batch"
+    cy.log("🖱️ Attempting robust click on Rename batch option");
+    cy.get("body").then(($body) => {
+      const $menuItems = $body
+        .find('li, [role="menuitem"], button, div')
+        .filter(":visible")
+        .filter((_, el) => {
+          const text = Cypress.$(el).text().trim().toLowerCase();
+          return text === "rename batch" || text.includes("rename batch");
+        });
+
+      if ($menuItems.length > 0) {
+        // Try clicking the most specific element (shortest text match)
+        let $bestMatch = $menuItems.first();
+        let minLength = $bestMatch.text().length;
+
+        $menuItems.each((_, el) => {
+          const len = Cypress.$(el).text().length;
+          if (len < minLength) {
+            minLength = len;
+            $bestMatch = Cypress.$(el);
+          }
+        });
+
+        cy.log(
+          `🎯 Clicking element: ${$bestMatch.prop("tagName")} - "${$bestMatch
+            .text()
+            .trim()}"`
+        );
+        cy.wrap($bestMatch).click({ force: true });
+
+        // If it's a div, also try clicking its parent just in case
+        if ($bestMatch.prop("tagName").toLowerCase() === "div") {
+          cy.log("👉 Also clicking parent of div just in case");
+          cy.wrap($bestMatch).parent().click({ force: true });
+        }
+      } else {
+        cy.log(
+          "⚠️ Could not find specific Rename batch element, trying generic contains"
+        );
+        cy.contains("Rename batch", { matchCase: false }).click({
+          force: true,
+        });
+      }
+    });
+
+    cy.log("⏳ Waiting for Rename Batch modal/input to appear");
+    humanWait(1000);
+
+    // Handle Rename Input - Wait for input directly as modal container might vary
+    cy.get(
+      'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input',
+      { timeout: 10000 }
+    )
+      .filter(":visible")
+      .first()
+      .clear()
+      .type("batch-upload-1", { delay: testConfig.humanTypeDelay });
 
     humanWait(1000);
 
