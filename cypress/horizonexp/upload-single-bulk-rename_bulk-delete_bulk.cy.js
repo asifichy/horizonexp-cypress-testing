@@ -445,16 +445,30 @@ describe("Content Upload & Publishing", () => {
   const verifyVideoDetails = (title, caption) => {
     cy.log(`🔍 Verifying video details: "${title}"`);
 
-    // Click on the first video card
-    cy.get('[class*="ant-card"], .ant-list-item, [class*="video-card"]')
-      .filter(":visible")
-      .first()
-      .scrollIntoView()
-      .click({ force: true });
+    if (title) {
+      // Find by title and click
+      cy.contains(title, { timeout: 10000 })
+        .should("be.visible")
+        .parents(
+          '[class*="ant-card"], .ant-list-item, [class*="video-card"], .ant-col'
+        )
+        .first()
+        .scrollIntoView()
+        .click({ force: true });
+    } else {
+      // Fallback: Click on the first video card
+      cy.get('[class*="ant-card"], .ant-list-item, [class*="video-card"]')
+        .filter(":visible")
+        .first()
+        .scrollIntoView()
+        .click({ force: true });
+    }
 
-    humanWait(2000);
+    // Wait for 2-3 seconds as requested
+    cy.log("⏳ Waiting 3 seconds in details view");
+    humanWait(3000);
 
-    // Verify Title
+    // Verify Title if provided
     if (title) {
       cy.contains(title).should("be.visible");
     }
@@ -466,8 +480,44 @@ describe("Content Upload & Publishing", () => {
 
     cy.log("✅ Video details verified");
 
-    // Close the drawer/modal (Press ESC)
-    cy.get("body").type("{esc}");
+    // Click on the cross (close button) on top left
+    cy.log("❌ Closing details view via cross icon");
+
+    // Strategy: Look for "Edit Details" and find the close button near it, or look for generic close button
+    cy.get("body").then(($body) => {
+      // 1. Try finding close button near "Edit Details"
+      const $editDetails = $body.find(':contains("Edit Details")').last();
+      if ($editDetails.length > 0) {
+        const $closeBtn = $editDetails
+          .parent()
+          .find('button, [role="button"]')
+          .filter((i, el) => {
+            return (
+              Cypress.$(el).find("svg").length > 0 ||
+              Cypress.$(el).text().includes("x")
+            );
+          });
+
+        if ($closeBtn.length > 0) {
+          cy.wrap($closeBtn.first()).click({ force: true });
+          return;
+        }
+      }
+
+      // 2. Try generic close button (Ant Design drawer close, or aria-label)
+      const $genericClose = $body.find(
+        'button[aria-label="Close"], .ant-drawer-close, .ant-modal-close'
+      );
+      if ($genericClose.length > 0 && $genericClose.is(":visible")) {
+        cy.wrap($genericClose.first()).click({ force: true });
+        return;
+      }
+
+      // 3. Fallback to ESC
+      cy.log("⚠️ Close button not found, using ESC fallback");
+      cy.get("body").type("{esc}");
+    });
+
     humanWait(1000);
   };
 
