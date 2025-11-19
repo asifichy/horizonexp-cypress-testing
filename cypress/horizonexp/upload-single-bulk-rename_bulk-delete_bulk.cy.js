@@ -1919,35 +1919,6 @@ describe("Content Upload & Publishing", () => {
     cy.log("✅ PART 3 COMPLETED: Library verification successful");
 
     // Navigate to Uploads page before logout
-    cy.log("🔙 Navigating to Uploads page before logout");
-    navigateToUploads();
-    humanWait(2000);
-
-    // Delete the published batch
-    cy.log("📋 Step: Delete the published batch");
-
-    cy.log("🗑️ Clicking Delete Batch option");
-    getVisibleDropdownMenu()
-      .should("exist")
-      .then(($menu) => {
-        const $deleteOption = $menu
-          .find('li, button, a, span, div, [role="menuitem"]')
-          .filter((i, el) =>
-            /delete\s+batch/i.test(Cypress.$(el).text().trim())
-          );
-
-        if ($deleteOption.length > 0) {
-          cy.wrap($deleteOption.first()).click({ force: true });
-        } else {
-          cy.log("⚠️ 'Delete Batch' option not found in menu");
-          throw new Error("Delete Batch option not found in menu");
-        }
-      });
-
-    humanWait(2000);
-
-    // Click "Yes, delete" in confirmation modal
-    cy.log("✅ Clicking Yes, delete in confirmation modal");
     cy.contains("button", /yes,?\s*delete/i, { timeout: 10000 })
       .should("be.visible")
       .click({ force: true });
