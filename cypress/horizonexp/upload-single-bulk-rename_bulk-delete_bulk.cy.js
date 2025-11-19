@@ -446,13 +446,9 @@ describe("Content Upload & Publishing", () => {
     cy.log(`🔍 Verifying video details: "${title}"`);
 
     if (title) {
-      // Find by title and click
+      // Find by title and click the element itself (it's an anchor tag <a.flex...>)
       cy.contains(title, { timeout: 10000 })
         .should("be.visible")
-        .parents(
-          '[class*="ant-card"], .ant-list-item, [class*="video-card"], .ant-col'
-        )
-        .first()
         .scrollIntoView()
         .click({ force: true });
     } else {
