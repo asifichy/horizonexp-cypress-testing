@@ -1455,33 +1455,36 @@ describe("Content Upload & Publishing", () => {
     // Robust click strategy for "Rename batch"
     cy.log("🖱️ Attempting robust click on Rename batch option");
     cy.get("body").then(($body) => {
+      // Prioritize li and button elements over generic divs
       const $menuItems = $body
-        .find('li, [role="menuitem"], button, div')
+        .find('li, [role="menuitem"], button')
         .filter(":visible")
         .filter((_, el) => {
           const text = Cypress.$(el).text().trim().toLowerCase();
           return text === "rename batch" || text.includes("rename batch");
         });
 
+      let $target = null;
       if ($menuItems.length > 0) {
-        // Try clicking the most specific element (shortest text match)
-        let $bestMatch = $menuItems.first();
-        let minLength = $bestMatch.text().length;
+        $target = $menuItems.first();
+        cy.log(`🎯 Found specific menu item: ${$target.prop("tagName")}`);
+      } else {
+        // Fallback to any element containing the text
+        const $genericItems = $body
+          .find("div, span, p")
+          .filter(":visible")
+          .filter((_, el) => {
+            const text = Cypress.$(el).text().trim().toLowerCase();
+            return text === "rename batch";
+          });
+        if ($genericItems.length > 0) {
+          $target = $genericItems.first();
+          cy.log(`🎯 Found generic element: ${$target.prop("tagName")}`);
+        }
+      }
 
-        $menuItems.each((_, el) => {
-          const len = Cypress.$(el).text().length;
-          if (len < minLength) {
-            minLength = len;
-            $bestMatch = Cypress.$(el);
-          }
-        });
-
-        cy.log(
-          `🎯 Clicking element: ${$bestMatch.prop("tagName")} - "${$bestMatch
-            .text()
-            .trim()}"`
-        );
-        cy.wrap($bestMatch).click({ force: true });
+      if ($target) {
+        cy.wrap($target).click({ force: true });
       } else {
         cy.log(
           "⚠️ Could not find specific Rename batch element, trying generic contains"
@@ -1492,10 +1495,15 @@ describe("Content Upload & Publishing", () => {
       }
     });
 
-    cy.log("⏳ Waiting for Rename Batch modal/input to appear");
+    cy.log("⏳ Waiting for Rename Batch modal to appear");
+    // Wait for modal container first
+    cy.get('.ant-modal-content, [role="dialog"], .ant-modal-body', {
+      timeout: 10000,
+    }).should("be.visible");
+
     humanWait(1000);
 
-    // Handle Rename Input - Wait for input directly as modal container might vary
+    // Handle Rename Input
     cy.get(
       'input[placeholder*="batch"], input[value*="Batch"], .ant-modal-body input',
       { timeout: 10000 }
