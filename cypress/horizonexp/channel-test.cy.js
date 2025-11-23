@@ -167,6 +167,9 @@ describe("HorizonExp Channel Test", () => {
 
     humanWait(3000);
     cy.log("✅ Channel creation step completed");
+    // Refresh to ensure the newly created channel appears
+    cy.reload();
+    humanWait(2000);
 
     // --- Edit Channel Section ---
     cy.log("✏️ Starting Edit Channel");
@@ -211,8 +214,8 @@ describe("HorizonExp Channel Test", () => {
     cy.log("📝 Updating Title");
     cy.get('input[placeholder*="channel name"]') // Assuming same placeholder or name
       .clear()
-      .type("Updated Title", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Updated Title");
+      .type("Channel Auto", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Channel Auto");
     humanWait(1000);
 
     // Update Description
