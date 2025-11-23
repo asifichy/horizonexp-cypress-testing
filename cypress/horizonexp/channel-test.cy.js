@@ -91,8 +91,8 @@ describe("HorizonExp Channel Test", () => {
     // Name: Test-channel
     cy.log("📝 Filling Name");
     cy.get('input[placeholder*="channel name"]')
-      .type("Automation-Channel1", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Automation-Channel1");
+      .type("Automation-Channels", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Automation-Channels");
     humanWait(1000);
 
     // Description: Test Channel for automation testing
