@@ -258,7 +258,9 @@ describe("HorizonExp Channel Test", () => {
     // Click Disable button (assuming button text 'Disable')
     cy.contains("Disable channel").should("be.visible").click();
     humanWait(2000);
-
+    // Confirm disable in popup
+    cy.contains("Yes, disable").should("be.visible").click();
+    humanWait(1000);
     // Refresh after disabling
     cy.reload();
     humanWait(2000);
