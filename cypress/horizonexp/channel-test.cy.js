@@ -112,12 +112,15 @@ describe("HorizonExp Channel Test", () => {
     // Select "Auto & Vehicles"
     cy.contains("Auto & Vehicles").should("be.visible").click({ force: true });
     humanWait(1000);
-    // Verify selection (this might depend on how the dropdown renders the selected value, skipping specific value check for now as it's complex with custom dropdowns)
+
+    // Close dropdown by clicking on the Title label or body
+    cy.contains("label", "Title").click({ force: true });
+    humanWait(500);
 
     // Title: Testing
     cy.log("📝 Filling Title");
     cy.get('input[placeholder*="channel title"]')
-      .type("Testing", { delay: testConfig.humanTypeDelay })
+      .type("Testing", { delay: testConfig.humanTypeDelay, force: true })
       .should("have.value", "Testing");
     humanWait(1000);
 
