@@ -236,5 +236,28 @@ describe("HorizonExp Channel Test", () => {
     // Verify redirection to Channels page
     cy.contains("Shorts Channels").should("be.visible");
     cy.log("✅ Channel edit step completed");
+    // Refresh to ensure latest state
+    cy.reload();
+    humanWait(2000);
+
+    // Locate the channel again and open menu to disable
+    cy.log("🔍 Locating 'Automation-Channels11' and opening menu to disable");
+    cy.contains("Automation-Channels11")
+      .parentsUntil("body")
+      .filter((i, el) => Cypress.$(el).find("button").length > 0)
+      .first()
+      .find("button")
+      .last()
+      .click({ force: true });
+    humanWait(1000);
+
+    // Click Disable button (assuming button text 'Disable')
+    cy.contains("Disable").should("be.visible").click();
+    humanWait(2000);
+
+    // Refresh after disabling
+    cy.reload();
+    humanWait(2000);
+    cy.log("✅ Channel disabled and page refreshed");
   });
 });
