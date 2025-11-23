@@ -18,6 +18,10 @@ describe("HorizonExp Channel Test", () => {
   });
 
   it("Should create a new channel successfully", () => {
+    // Generate a unique channel name for this test run
+    const channelName = `Automation-Channel-${Date.now()}`;
+    const updatedTitle = "Channel Automation Test";
+    const updatedDescription = "Updated Description";
     // --- Login Section ---
     cy.log("🔐 Starting Login");
     cy.visit(testConfig.baseUrl);
@@ -91,8 +95,8 @@ describe("HorizonExp Channel Test", () => {
     // Name: Test-channel
     cy.log("📝 Filling Name");
     cy.get('input[placeholder*="channel name"]')
-      .type("Automation-Channels1111", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Automation-Channels1111");
+      .type(channelName, { delay: testConfig.humanTypeDelay })
+      .should("have.value", channelName);
     humanWait(1000);
 
     // Description: Test Channel for automation testing
@@ -179,11 +183,11 @@ describe("HorizonExp Channel Test", () => {
     humanWait(2000);
 
     // Locate the created channel and click the three-dot menu
-    cy.log("🔍 Locating 'Automation-Channels' and opening menu");
+    cy.log(`🔍 Locating '${channelName}' and opening menu`);
     humanWait(3000); // Wait for list to refresh as per user instruction
 
     // Find the channel name, then traverse up to the row (closest container with a button), then find the menu button
-    cy.contains("Automation-Channels")
+    cy.contains(channelName)
       .parentsUntil("body")
       .filter((i, el) => Cypress.$(el).find("button").length > 0)
       .first()
@@ -214,16 +218,16 @@ describe("HorizonExp Channel Test", () => {
     cy.log("📝 Updating Title");
     cy.get('input[placeholder*="channel name"]') // Assuming same placeholder or name
       .clear()
-      .type("Channel Automation", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Channel Auto");
+      .type(updatedTitle, { delay: testConfig.humanTypeDelay })
+      .should("have.value", updatedTitle);
     humanWait(1000);
 
     // Update Description
     cy.log("📝 Updating Description");
     cy.get('textarea[placeholder*="channel description"]')
       .clear()
-      .type("Updated Description", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Updated Description");
+      .type(updatedDescription, { delay: testConfig.humanTypeDelay })
+      .should("have.value", updatedDescription);
     humanWait(1000);
 
     // Update Channel
@@ -241,8 +245,8 @@ describe("HorizonExp Channel Test", () => {
     humanWait(2000);
 
     // Locate the channel again and open menu to disable
-    cy.log("🔍 Locating 'Channel Automation' and opening menu to disable");
-    cy.contains("Channel Automation")
+    cy.log(`🔍 Locating '${channelName}' and opening menu to disable`);
+    cy.contains(channelName)
       .parentsUntil("body")
       .filter((i, el) => Cypress.$(el).find("button").length > 0)
       .first()
