@@ -53,8 +53,12 @@ describe("HorizonExp Channel Test", () => {
     cy.log("📱 Navigating to Short-form -> Channels");
 
     // Click Short-form
-    cy.contains("Short-form").should("be.visible").click();
-    humanWait(2000);
+    cy.get("body").then(($body) => {
+      if ($body.find(':contains("Channels")').length === 0 || !$body.find(':contains("Channels")').is(':visible')) {
+        cy.contains("Short-form").should("be.visible").click();
+        humanWait(2000);
+      }
+    });
 
     // Click Channels
     cy.contains("Channels").should("be.visible").click();
