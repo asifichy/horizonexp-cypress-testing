@@ -245,8 +245,8 @@ describe("HorizonExp Channel Test", () => {
     humanWait(2000);
 
     // Locate the channel again and open menu to disable
-    cy.log(`🔍 Locating '${channelName}' and opening menu to disable`);
-    cy.contains(channelName)
+    cy.log(`🔍 Locating '${updatedTitle}' and opening menu to disable`);
+    cy.contains(updatedTitle)
       .parentsUntil("body")
       .filter((i, el) => Cypress.$(el).find("button").length > 0)
       .first()
@@ -256,7 +256,7 @@ describe("HorizonExp Channel Test", () => {
     humanWait(1000);
 
     // Click Disable button (assuming button text 'Disable')
-    cy.contains("Disable Channel").should("be.visible").click();
+    cy.contains("Disable channel").should("be.visible").click();
     humanWait(2000);
 
     // Refresh after disabling
