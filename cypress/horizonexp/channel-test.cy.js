@@ -91,8 +91,8 @@ describe("HorizonExp Channel Test", () => {
     // Name: Test-channel
     cy.log("📝 Filling Name");
     cy.get('input[placeholder*="channel name"]')
-      .type("Automation-Channel", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Automation-Channel");
+      .type("Automation-Channel1", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Automation-Channel1");
     humanWait(1000);
 
     // Description: Test Channel for automation testing
@@ -176,13 +176,14 @@ describe("HorizonExp Channel Test", () => {
     humanWait(2000);
 
     // Locate the created channel and click the three-dot menu
-    cy.log("🔍 Locating 'Automation-Channel' and opening menu");
-    // Assuming the row contains the channel name, we find the row and then the menu button within it
-    // We might need to be more specific if there are multiple buttons, but usually the three-dot menu is a button
-    cy.contains("div", "Automation-Channel")
-      .parents("tr") // Assuming table structure based on "row" description, or use a common container selector if div-based
+    cy.log("🔍 Locating 'Automation-Channel1' and opening menu");
+    // Find the channel name, then traverse up to the row (closest container with a button), then find the menu button
+    cy.contains("Automation-Channel1")
+      .parentsUntil("body")
+      .filter((i, el) => Cypress.$(el).find("button").length > 0)
+      .first()
       .find("button")
-      .last() // Often the menu is the last button in the row
+      .last()
       .click({ force: true });
 
     // If it's not a table (tr), we might need a different strategy. Let's try a more generic approach if the above is too specific to tables.
