@@ -176,9 +176,11 @@ describe("HorizonExp Channel Test", () => {
     humanWait(2000);
 
     // Locate the created channel and click the three-dot menu
-    cy.log("🔍 Locating 'Automation-Channel1' and opening menu");
+    cy.log("🔍 Locating 'Automation-Channels' and opening menu");
+    humanWait(3000); // Wait for list to refresh as per user instruction
+
     // Find the channel name, then traverse up to the row (closest container with a button), then find the menu button
-    cy.contains("Automation-Channel1")
+    cy.contains("Automation-Channels")
       .parentsUntil("body")
       .filter((i, el) => Cypress.$(el).find("button").length > 0)
       .first()
