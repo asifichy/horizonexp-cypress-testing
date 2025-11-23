@@ -91,8 +91,8 @@ describe("HorizonExp Channel Test", () => {
     // Name: Test-channel
     cy.log("📝 Filling Name");
     cy.get('input[placeholder*="channel name"]')
-      .type("Automation-Channels111", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Automation-Channels111");
+      .type("Automation-Channels1111", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Automation-Channels1111");
     humanWait(1000);
 
     // Description: Test Channel for automation testing
@@ -214,7 +214,7 @@ describe("HorizonExp Channel Test", () => {
     cy.log("📝 Updating Title");
     cy.get('input[placeholder*="channel name"]') // Assuming same placeholder or name
       .clear()
-      .type("Channel Auto", { delay: testConfig.humanTypeDelay })
+      .type("Channel Automation", { delay: testConfig.humanTypeDelay })
       .should("have.value", "Channel Auto");
     humanWait(1000);
 
@@ -241,8 +241,8 @@ describe("HorizonExp Channel Test", () => {
     humanWait(2000);
 
     // Locate the channel again and open menu to disable
-    cy.log("🔍 Locating 'Automation-Channels111' and opening menu to disable");
-    cy.contains("Automation-Channels111")
+    cy.log("🔍 Locating 'Channel Automation' and opening menu to disable");
+    cy.contains("Channel Automation")
       .parentsUntil("body")
       .filter((i, el) => Cypress.$(el).find("button").length > 0)
       .first()
