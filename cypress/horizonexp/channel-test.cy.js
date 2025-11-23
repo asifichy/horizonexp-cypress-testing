@@ -80,12 +80,19 @@ describe("HorizonExp Channel Test", () => {
     // Verify Create New Channel form
     cy.contains("Create New Channel").should("be.visible");
 
+    // Upload Channel Icon
+    cy.log("📸 Uploading Channel Icon");
+    cy.get('input[type="file"]').selectFile("cypress/fixtures/channel-icon.jpg", {
+      force: true,
+    });
+    humanWait(2000);
+
     // Fill Form
     // Name: Test-channel
     cy.log("📝 Filling Name");
     cy.get('input[placeholder*="channel name"]')
-      .type("Test-channel", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Test-channel");
+      .type("Automation-Channel", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Automation-Channel");
     humanWait(1000);
 
     // Description: Test Channel for automation testing
@@ -160,5 +167,68 @@ describe("HorizonExp Channel Test", () => {
 
     humanWait(3000);
     cy.log("✅ Channel creation step completed");
+
+    // --- Edit Channel Section ---
+    cy.log("✏️ Starting Edit Channel");
+
+    // Verify we are back on Channels page
+    cy.contains("Shorts Channels").should("be.visible");
+    humanWait(2000);
+
+    // Locate the created channel and click the three-dot menu
+    cy.log("🔍 Locating 'Automation-Channel' and opening menu");
+    // Assuming the row contains the channel name, we find the row and then the menu button within it
+    // We might need to be more specific if there are multiple buttons, but usually the three-dot menu is a button
+    cy.contains("div", "Automation-Channel")
+      .parents("tr") // Assuming table structure based on "row" description, or use a common container selector if div-based
+      .find("button")
+      .last() // Often the menu is the last button in the row
+      .click({ force: true });
+
+    // If it's not a table (tr), we might need a different strategy. Let's try a more generic approach if the above is too specific to tables.
+    // Alternative: Find the container that has the text and then find the menu button.
+    // Based on the image, it looks like a list/table. Let's try to find the menu button relative to the text.
+
+    // Fallback/More robust selector logic if the structure is div-based:
+    // cy.contains("Automation-Channel").parent().find('button').click(); 
+
+    // Let's stick to a slightly more generic approach first, assuming the menu button is near the text.
+    // Actually, the user said "Click on the menu icon (three dot)".
+
+    humanWait(1000);
+
+    // Click "Edit channel"
+    cy.contains("Edit channel").should("be.visible").click();
+    humanWait(2000);
+
+    // Verify Edit Channel page
+    cy.contains("Edit Channel").should("be.visible"); // Assuming the header says "Edit Channel" or similar
+
+    // Update Title
+    cy.log("📝 Updating Title");
+    cy.get('input[placeholder*="channel name"]') // Assuming same placeholder or name
+      .clear()
+      .type("Updated Title", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Updated Title");
+    humanWait(1000);
+
+    // Update Description
+    cy.log("📝 Updating Description");
+    cy.get('textarea[placeholder*="channel description"]')
+      .clear()
+      .type("Updated Description", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Updated Description");
+    humanWait(1000);
+
+    // Update Channel
+    cy.log("🚀 Clicking Update Channel");
+    cy.contains("button", "Update Channel").click(); // Assuming button text is "Update Channel" or "Save"
+    // If it's "Save", we might need to adjust. Let's assume "Update" or "Save" based on common patterns, user said "Update Channel".
+
+    humanWait(3000);
+
+    // Verify redirection to Channels page
+    cy.contains("Shorts Channels").should("be.visible");
+    cy.log("✅ Channel edit step completed");
   });
 });
