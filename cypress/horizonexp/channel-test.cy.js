@@ -52,11 +52,14 @@ describe("HorizonExp Channel Test", () => {
     // --- Navigation Section ---
     cy.log("📱 Navigating to Short-form -> Channels");
 
-    // Click Short-form
+    // Click Short-form (only if Channels is not visible)
     cy.get("body").then(($body) => {
-      if ($body.find(':contains("Channels")').length === 0 || !$body.find(':contains("Channels")').is(':visible')) {
+      if ($body.find(':contains("Channels")').filter(':visible').length === 0) {
+        cy.log("📂 Expanding Short-form menu");
         cy.contains("Short-form").should("be.visible").click();
         humanWait(2000);
+      } else {
+        cy.log("📂 Short-form menu already expanded");
       }
     });
 
@@ -80,17 +83,16 @@ describe("HorizonExp Channel Test", () => {
     // Fill Form
     // Name: Test-channel
     cy.log("📝 Filling Name");
-    cy.get('input[placeholder*="channel name"]').type("Test-channel", {
-      delay: testConfig.humanTypeDelay,
-    });
+    cy.get('input[placeholder*="channel name"]')
+      .type("Test-channel", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Test-channel");
     humanWait(1000);
 
     // Description: Test Channel for automation testing
     cy.log("📝 Filling Description");
-    cy.get('textarea[placeholder*="channel description"]').type(
-      "Test Channel for automation testing",
-      { delay: testConfig.humanTypeDelay }
-    );
+    cy.get('textarea[placeholder*="channel description"]')
+      .type("Test Channel for automation testing", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Test Channel for automation testing");
     humanWait(1000);
 
     // Category: Auto & Vehicles
@@ -110,42 +112,43 @@ describe("HorizonExp Channel Test", () => {
     // Select "Auto & Vehicles"
     cy.contains("Auto & Vehicles").should("be.visible").click({ force: true });
     humanWait(1000);
+    // Verify selection (this might depend on how the dropdown renders the selected value, skipping specific value check for now as it's complex with custom dropdowns)
 
     // Title: Testing
     cy.log("📝 Filling Title");
-    cy.get('input[placeholder*="channel title"]').type("Testing", {
-      delay: testConfig.humanTypeDelay,
-    });
+    cy.get('input[placeholder*="channel title"]')
+      .type("Testing", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Testing");
     humanWait(1000);
 
     // Caption: Automation testing
     cy.log("📝 Filling Caption");
-    cy.get('textarea[placeholder*="channel caption"]').type(
-      "Automation testing",
-      { delay: testConfig.humanTypeDelay }
-    );
+    cy.get('textarea[placeholder*="channel caption"]')
+      .type("Automation testing", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Automation testing");
     humanWait(1000);
 
     // Tags: Test, Automation
     cy.log("📝 Filling Tags");
-    cy.get('input[placeholder*="add tags"]').type(
-      "Test{enter}Automation{enter}",
-      { delay: testConfig.humanTypeDelay }
-    );
+    cy.get('input[placeholder*="add tags"]')
+      .type("Test{enter}Automation{enter}", { delay: testConfig.humanTypeDelay });
+    // Verifying tags usually involves checking for the tag elements, not the input value
+    cy.contains("Test").should("be.visible");
+    cy.contains("Automation").should("be.visible");
     humanWait(1000);
 
     // CTA Button: Test Ongoing (Label)
     cy.log("📝 Filling CTA Button Label");
-    cy.get('input[placeholder*="button label"]').type("Test Ongoing", {
-      delay: testConfig.humanTypeDelay,
-    });
+    cy.get('input[placeholder*="button label"]')
+      .type("Test Ongoing", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "Test Ongoing");
     humanWait(1000);
 
     // CTA Label: www.horizonexp.com (Link)
     cy.log("📝 Filling CTA Button Link");
-    cy.get('input[placeholder*="button link"]').type("www.horizonexp.com", {
-      delay: testConfig.humanTypeDelay,
-    });
+    cy.get('input[placeholder*="button link"]')
+      .type("www.horizonexp.com", { delay: testConfig.humanTypeDelay })
+      .should("have.value", "www.horizonexp.com");
     humanWait(1000);
 
     // Create Channel
