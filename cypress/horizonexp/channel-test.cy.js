@@ -96,21 +96,19 @@ describe("HorizonExp Channel Test", () => {
     // Category: Auto & Vehicles
     cy.log("📝 Selecting Category");
     // Open Category dropdown
-    cy.contains("label", "Category").parent().click({ force: true });
-    humanWait(1000);
+    cy.log("🔽 Opening Category Dropdown");
+    // Try clicking the element next to the label (likely the container)
+    cy.contains("label", "Category").next().click({ force: true });
+    humanWait(500);
+    // Also try clicking the placeholder text just in case
+    cy.contains("Select categories").click({ force: true });
+    humanWait(2000);
 
-    // Select "Auto & Vehicles" - Handling the specific UI with "Select" button
-    cy.get("body").then(($body) => {
-      if ($body.find('button:contains("Select")').length > 0) {
-        // If the UI has "Select" buttons next to categories (as seen in screenshot)
-        cy.contains("div, li", "Auto & Vehicles")
-          .find('button:contains("Select")')
-          .click({ force: true });
-      } else {
-        // Standard dropdown fallback
-        cy.contains("Auto & Vehicles").click({ force: true });
-      }
-    });
+    // Verify dropdown is open (check for an option)
+    cy.contains("Auto & Vehicles").should("exist");
+
+    // Select "Auto & Vehicles"
+    cy.contains("Auto & Vehicles").should("be.visible").click({ force: true });
     humanWait(1000);
 
     // Title: Testing
