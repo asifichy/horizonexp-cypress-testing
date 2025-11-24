@@ -112,19 +112,35 @@ describe('HorizonExp User Flow Test', () => {
         let attemptsLeft = maxAttempts;
         const checkInvitation = () => {
             cy.reload();
+            cy.wait(3000); // Wait for page load
             cy.get('body').then(($body) => {
                 const hasAccepted = $body.find('div:contains("Invitation accepted")').length > 0;
                 const pendingExists = $body.find('div:contains("Pending invite")').length > 0;
+                const userVisible = $body.find(`:contains("${inviteEmail}")`).length > 0;
+
+                cy.log(`🔍 Check attempt ${maxAttempts - attemptsLeft + 1}: Accepted=${hasAccepted}, Pending=${pendingExists}, UserVisible=${userVisible}`);
+
                 if (hasAccepted) {
                     cy.log('✅ Invitation has been accepted');
-                } else if (!pendingExists) {
-                    cy.log('⚠️ Invitation pending element removed, assuming invitation resolved');
-                } else if (attemptsLeft > 0) {
+                } else if (userVisible) {
+                    cy.log('✅ Invited user is visible in the list');
+                    // If user is visible, we might want to check their status (e.g. Pending)
+                    if ($body.find(`:contains("${inviteEmail}")`).parents('tr').find(':contains("Pending")').length > 0) {
+                        cy.log('ℹ️ User is visible but status is Pending');
+                    }
+                } else if (!pendingExists && attemptsLeft < maxAttempts) {
+                    // Only assume resolved if pending GONE after having been there? 
+                    // Actually, if we just sent it, it SHOULD be there. If it's not there, maybe it wasn't sent properly?
+                    // Or maybe "Pending invite" is not the right text.
+                    cy.log('⚠️ "Pending invite" element not found. Checking if user is in the list...');
+                }
+
+                if (attemptsLeft > 0) {
                     attemptsLeft--;
                     cy.wait(60000); // wait 1 minute
                     checkInvitation();
                 } else {
-                    cy.log('⚠️ Invitation was not accepted after 5 minutes');
+                    cy.log('⚠️ Invitation verification timed out after 5 minutes');
                 }
             });
         };
