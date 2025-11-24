@@ -66,7 +66,7 @@ describe('HorizonExp User Flow Test', () => {
 
         // --- Invite New Channel User Section ---
         const targetChannel = 'DevOps';
-        const inviteEmail = `app-automation@yopmail.com`; // Dynamic email
+        const inviteEmail = 'automation@yopmail.com'; // Dynamic email
 
         cy.get('body').then(($body) => {
             if ($body.find(`:contains("${inviteEmail}")`).length === 0) {
@@ -110,8 +110,12 @@ describe('HorizonExp User Flow Test', () => {
                 cy.log('🚀 Sending Invite');
                 cy.contains('button', 'Send Invite').click();
 
+                // Verify the modal closes to ensure the invite was sent
+                cy.get('[role="dialog"]').should('not.exist');
+
                 // Wait for the invite request to complete before reloading
-                humanWait(5000);
+                cy.log('⏳ Waiting 1 minute before first reload...');
+                cy.wait(60000); // Wait 1 minute
             } else {
                 cy.log('ℹ️ User already exists. Skipping invitation and proceeding to role check.');
             }
@@ -145,10 +149,10 @@ describe('HorizonExp User Flow Test', () => {
                         .find('button')
                         .last()
                         .click({ force: true });
-                    humanWait(1000);
+                    humanWait(2000); // Wait for menu to open
 
                     // Click "Manage access"
-                    cy.contains('Manage access').should('be.visible').click();
+                    cy.contains('Manage access', { timeout: 10000 }).should('be.visible').click();
                     humanWait(2000);
 
                     // Click the role dropdown (could be Publisher, Editor, etc.)
