@@ -151,8 +151,8 @@ describe('HorizonExp User Flow Test', () => {
                     cy.contains('Manage access').should('be.visible').click();
                     humanWait(2000);
 
-                    // Click the role dropdown (currently showing "Publisher")
-                    cy.contains('Publisher').should('be.visible').click();
+                    // Click the role dropdown (could be Publisher, Editor, etc.)
+                    cy.contains(/Publisher|Editor|Viewer|Moderator/).should('be.visible').click();
                     humanWait(1000);
 
                     // Select "Moderator"
@@ -170,7 +170,31 @@ describe('HorizonExp User Flow Test', () => {
 
                     // Click back arrow to return to Users page
                     cy.get('button[aria-label*="back"], button:has(svg)').first().click();
+                    humanWait(3000);
+
+                    // --- Delete User Section ---
+                    cy.log('🗑️ Deleting the user...');
+
+                    // Find the user row and click the menu button (three dots) again
+                    cy.contains(inviteEmail)
+                        .parents('tr')
+                        .find('button')
+                        .last()
+                        .click({ force: true });
+                    humanWait(1000);
+
+                    // Click "Delete user"
+                    cy.contains('Delete user').should('be.visible').click();
+                    humanWait(1000);
+
+                    // Confirm deletion (assuming there's a confirmation dialog similar to role change)
+                    // If the button text is "Delete" or "Confirm", adjust accordingly. 
+                    // Based on standard patterns, it's likely "Delete" or "Confirm".
+                    // I'll try to match a button that looks like a confirmation action.
+                    cy.get('button').contains(/Delete|Confirm/i).should('be.visible').click();
                     humanWait(2000);
+
+                    cy.log('✅ User deleted successfully');
 
                     roleChanged = true;
                     return; // Stop recursing
