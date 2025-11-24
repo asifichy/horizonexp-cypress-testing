@@ -107,12 +107,15 @@ describe('HorizonExp User Flow Test', () => {
         cy.log('🚀 Sending Invite');
         cy.contains('button', 'Send Invite').click();
 
+        // Wait for the invite request to complete before reloading
+        humanWait(5000);
+
         // Wait up to 5 minutes, reloading each minute to see if the invitation is accepted
         const maxAttempts = 5; // 5 minutes
         let attemptsLeft = maxAttempts;
         const checkInvitation = () => {
             cy.reload();
-            cy.wait(3000); // Wait for page load
+            cy.wait(5000); // Wait for page load and list population
             cy.get('body').then(($body) => {
                 const hasAccepted = $body.find('div:contains("Invitation accepted")').length > 0;
                 const pendingExists = $body.find('div:contains("Pending invite")').length > 0;
@@ -122,17 +125,18 @@ describe('HorizonExp User Flow Test', () => {
 
                 if (hasAccepted) {
                     cy.log('✅ Invitation has been accepted');
+                    return; // Stop recursing
                 } else if (userVisible) {
                     cy.log('✅ Invited user is visible in the list');
                     // If user is visible, we might want to check their status (e.g. Pending)
                     if ($body.find(`:contains("${inviteEmail}")`).parents('tr').find(':contains("Pending")').length > 0) {
                         cy.log('ℹ️ User is visible but status is Pending');
                     }
+                    return; // Stop recursing
                 } else if (!pendingExists && attemptsLeft < maxAttempts) {
-                    // Only assume resolved if pending GONE after having been there? 
-                    // Actually, if we just sent it, it SHOULD be there. If it's not there, maybe it wasn't sent properly?
-                    // Or maybe "Pending invite" is not the right text.
-                    cy.log('⚠️ "Pending invite" element not found. Checking if user is in the list...');
+                    // If pending is gone and we've waited at least once, maybe it's done?
+                    // But if user is not visible, that's suspicious.
+                    cy.log('⚠️ "Pending invite" element not found, but user not visible yet. Continuing to wait...');
                 }
 
                 if (attemptsLeft > 0) {
@@ -140,7 +144,8 @@ describe('HorizonExp User Flow Test', () => {
                     cy.wait(60000); // wait 1 minute
                     checkInvitation();
                 } else {
-                    cy.log('⚠️ Invitation verification timed out after 5 minutes');
+                    // Fail the test if we timed out and didn't find the user
+                    throw new Error(`❌ Invitation verification failed: User ${inviteEmail} not visible after 5 minutes.`);
                 }
             });
         };
