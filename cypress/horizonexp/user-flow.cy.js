@@ -68,48 +68,54 @@ describe('HorizonExp User Flow Test', () => {
         const targetChannel = 'DevOps';
         const inviteEmail = `app-automation@yopmail.com`; // Dynamic email
 
-        cy.log('➕ Starting New User Invitation');
+        cy.get('body').then(($body) => {
+            if ($body.find(`:contains("${inviteEmail}")`).length === 0) {
+                cy.log('➕ Starting New User Invitation');
 
-        // 1. Click "New User"
-        cy.contains('button', 'New User').should('be.visible').click();
-        humanWait(2000);
+                // 1. Click "New User"
+                cy.contains('button', 'New User').should('be.visible').click();
+                humanWait(2000);
 
-        // 2. Select "New Channel User" radio button
-        cy.contains('label', 'New Channel User').click();
-        // Or if the label click doesn't trigger the radio, try finding the radio input directly
-        // cy.get('input[type="radio"][value="channel_user"]').check({force: true}); 
-        humanWait(2000);
+                // 2. Select "New Channel User" radio button
+                cy.contains('label', 'New Channel User').click();
+                // Or if the label click doesn't trigger the radio, try finding the radio input directly
+                // cy.get('input[type="radio"][value="channel_user"]').check({force: true}); 
+                humanWait(2000);
 
-        // 3. Select Channel (Dynamic)
-        cy.log(`📢 Selecting Channel: ${targetChannel}`);
-        // Scope to the modal/dialog to ensure we pick the one in the popup, not in the background
-        cy.get('[role="dialog"]').contains(targetChannel).should('be.visible').click();
-        humanWait(1000);
+                // 3. Select Channel (Dynamic)
+                cy.log(`📢 Selecting Channel: ${targetChannel}`);
+                // Scope to the modal/dialog to ensure we pick the one in the popup, not in the background
+                cy.get('[role="dialog"]').contains(targetChannel).should('be.visible').click();
+                humanWait(1000);
 
-        // 4. Enter Email
-        cy.log(`📧 Entering Email: ${inviteEmail}`);
-        // The image shows "User 1 Email" placeholder
-        cy.get('input[placeholder*="User 1 Email"]')
-            .type(inviteEmail, { delay: testConfig.humanTypeDelay })
-            .should('have.value', inviteEmail);
-        humanWait(1000);
+                // 4. Enter Email
+                cy.log(`📧 Entering Email: ${inviteEmail}`);
+                // The image shows "User 1 Email" placeholder
+                cy.get('input[placeholder*="User 1 Email"]')
+                    .type(inviteEmail, { delay: testConfig.humanTypeDelay })
+                    .should('have.value', inviteEmail);
+                humanWait(1000);
 
-        // 5. Select Role "Publisher"
-        cy.log('👤 Selecting Role: Publisher');
-        // Click the dropdown trigger. Image shows "Pick a role"
-        cy.contains('Pick a role').click();
-        humanWait(500);
-        // Select "Publisher" from the dropdown options
-        const targetRole = 'Publisher';
-        cy.contains(targetRole).should('be.visible').click();
-        humanWait(1000);
+                // 5. Select Role "Publisher"
+                cy.log('👤 Selecting Role: Publisher');
+                // Click the dropdown trigger. Image shows "Pick a role"
+                cy.contains('Pick a role').click();
+                humanWait(500);
+                // Select "Publisher" from the dropdown options
+                const targetRole = 'Publisher';
+                cy.contains(targetRole).should('be.visible').click();
+                humanWait(1000);
 
-        // 6. Click "Send Invite"
-        cy.log('🚀 Sending Invite');
-        cy.contains('button', 'Send Invite').click();
+                // 6. Click "Send Invite"
+                cy.log('🚀 Sending Invite');
+                cy.contains('button', 'Send Invite').click();
 
-        // Wait for the invite request to complete before reloading
-        humanWait(5000);
+                // Wait for the invite request to complete before reloading
+                humanWait(5000);
+            } else {
+                cy.log('ℹ️ User already exists. Skipping invitation and proceeding to role check.');
+            }
+        });
 
         // Wait up to 5 minutes, reloading each minute to see if the invitation is accepted
         const maxAttempts = 5; // 5 minutes
