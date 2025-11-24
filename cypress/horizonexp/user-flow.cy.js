@@ -66,7 +66,7 @@ describe('HorizonExp User Flow Test', () => {
 
         // --- Invite New Channel User Section ---
         const targetChannel = 'DevOps';
-        const inviteEmail = `webapp-automation@yopmail.com`; // Dynamic email
+        const inviteEmail = `app-automation@yopmail.com`; // Dynamic email
 
         cy.log('➕ Starting New User Invitation');
 
