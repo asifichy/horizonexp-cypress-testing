@@ -114,6 +114,8 @@ describe('HorizonExp User Flow Test', () => {
         // Wait up to 5 minutes, reloading each minute to see if the invitation is accepted
         const maxAttempts = 5; // 5 minutes
         let attemptsLeft = maxAttempts;
+        let roleChanged = false; // Track if we've already changed the role
+
         const checkInvitation = () => {
             cy.reload();
             cy.wait(5000); // Wait for page load and list population
@@ -126,6 +128,45 @@ describe('HorizonExp User Flow Test', () => {
 
                 if (hasAccepted) {
                     cy.log('✅ Invitation has been accepted');
+                    return; // Stop recursing
+                } else if (userVisible && !pendingExists && !roleChanged) {
+                    // User is visible and no longer pending - change their role
+                    cy.log('✅ Invited user is visible and accepted. Changing role from Publisher to Moderator...');
+
+                    // Find the user row and click the menu button (three dots)
+                    cy.contains(inviteEmail)
+                        .parents('tr')
+                        .find('button')
+                        .last()
+                        .click({ force: true });
+                    humanWait(1000);
+
+                    // Click "Manage access"
+                    cy.contains('Manage access').should('be.visible').click();
+                    humanWait(2000);
+
+                    // Click the role dropdown (currently showing "Publisher")
+                    cy.contains('Publisher').should('be.visible').click();
+                    humanWait(1000);
+
+                    // Select "Moderator"
+                    cy.contains('Moderator').should('be.visible').click();
+                    humanWait(1000);
+
+                    // Click "Confirm" in the confirmation dialog
+                    cy.contains('button', 'Confirm').should('be.visible').click();
+                    humanWait(2000);
+
+                    // Verify success toast
+                    cy.contains('Role has been changed successfully').should('be.visible');
+                    cy.log('✅ Role changed successfully');
+                    humanWait(2000);
+
+                    // Click back arrow to return to Users page
+                    cy.get('button[aria-label*="back"], button:has(svg)').first().click();
+                    humanWait(2000);
+
+                    roleChanged = true;
                     return; // Stop recursing
                 } else if (userVisible) {
                     cy.log('✅ Invited user is visible in the list');
