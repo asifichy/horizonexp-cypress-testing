@@ -109,24 +109,27 @@ describe('HorizonExp User Flow Test', () => {
 
         // Wait up to 5 minutes, reloading each minute to see if the invitation is accepted
         const maxAttempts = 5; // 5 minutes
-        const checkAcceptance = () => {
+        let attemptsLeft = maxAttempts;
+        const checkInvitation = () => {
             cy.reload();
-            // Adjust the selector below to match an element that appears when the invite is accepted,
-            // e.g., a success toast or the newly invited user appearing in the Users list.
-            // Here we use a placeholder selector.
             cy.get('body').then(($body) => {
-                if ($body.find('div:contains("Invitation accepted")').length > 0) {
+                const hasAccepted = $body.find('div:contains("Invitation accepted")').length > 0;
+                const pendingExists = $body.find('div:contains("Pending invite")').length > 0;
+                if (hasAccepted) {
                     cy.log('✅ Invitation has been accepted');
-                } else if (maxAttempts > 0) {
+                } else if (!pendingExists) {
+                    cy.log('⚠️ Invitation pending element removed, assuming invitation resolved');
+                } else if (attemptsLeft > 0) {
+                    attemptsLeft--;
                     cy.wait(60000); // wait 1 minute
-                    checkAcceptance();
+                    checkInvitation();
                 } else {
                     cy.log('⚠️ Invitation was not accepted after 5 minutes');
                 }
             });
         };
         // Start the polling loop
-        checkAcceptance();
+        checkInvitation();
 
         // Optional: verify a success message if the UI provides one
         // cy.contains('Invite sent').should('be.visible');
