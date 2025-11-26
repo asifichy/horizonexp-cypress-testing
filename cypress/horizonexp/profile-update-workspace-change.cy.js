@@ -293,6 +293,21 @@ describe('HorizonExp Profile Update Test', () => {
         cy.contains('button', 'Create Workspace').should('be.visible').click();
         humanWait(2000);
 
+        // 8. After creating, the UI should show the new workspace
+        // Verify the new workspace was created and we're now in it
+        cy.log('🔄 Switching workspaces');
+
+        // Wait to ensure we're in the new workspace
+        humanWait(2000);
+
+        // 9. Click on profile icon again to switch back to old workspace
+        cy.get('button').filter(':has(img)').last().should('be.visible').click();
+        humanWait(1000);
+
+        // 10. Click on the old workspace (workspaceName)
+        cy.contains(workspaceName).should('be.visible').click();
+        humanWait(2000);
+
         cy.log('✅ Workspace management completed successfully');
     });
 });
