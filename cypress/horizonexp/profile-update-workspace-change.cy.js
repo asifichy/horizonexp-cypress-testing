@@ -239,8 +239,8 @@ describe('HorizonExp Profile Update Test', () => {
 
         // Variables
         const workspaceIconPath = 'cypress/fixtures/workspace_icon.jpg';
-        const workspaceName = 'SQA & DevOps Testing';
-        const newWorkspaceName = 'Automation Space';
+        const workspaceName = 'DevOps Testing';
+        const newWorkspaceName = 'Automation WorkSpace 2';
 
         // 1. Click on 'Workspace & Billing' tab
         cy.contains('Workspace & Billing').should('be.visible').click();
@@ -305,7 +305,20 @@ describe('HorizonExp Profile Update Test', () => {
         humanWait(1000);
 
         // 10. Click on the old workspace (workspaceName)
-        cy.contains(workspaceName).should('be.visible').click();
+        // First, check if the workspace is visible
+        // If not, click 'Show more' to reveal it
+        cy.get('body').then(($body) => {
+            if ($body.text().includes(workspaceName)) {
+                // Workspace is visible, click it directly
+                cy.contains(workspaceName).should('be.visible').click();
+            } else {
+                // Workspace is not visible, need to click 'Show more'
+                cy.contains('Show more').should('be.visible').click();
+                humanWait(500);
+                // Now click on the workspace
+                cy.contains(workspaceName).should('be.visible').click();
+            }
+        });
         humanWait(2000);
 
         cy.log('✅ Workspace management completed successfully');
