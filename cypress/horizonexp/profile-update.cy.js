@@ -197,11 +197,32 @@ describe('HorizonExp Profile Update Test', () => {
         // Click 'Delete' from the dropdown/menu
         cy.contains('Delete').should('be.visible').click();
 
-        // Handle potential confirmation dialog if any (though not explicitly mentioned, it's good practice)
-        // If a modal appears with "Delete" or "Confirm", click it.
-        // We use a conditional check or just wait to see if it's gone.
-        // For now, assuming direct delete or simple confirmation.
-        // If the "Delete" we clicked was the final action, the item should disappear.
+        // Handle confirmation dialog
+        cy.log('⚠️ Handling Deletion Confirmation');
+
+        // Wait for the modal to appear
+        // The modal text says "Are you sure you want to delete?"
+        cy.contains('Are you sure you want to delete?').should('be.visible');
+
+        // Type the asset name into the input field
+        // The placeholder or instruction says "To confirm, type 'SQA Testing'"
+        // We can find the input inside the modal (role="dialog" or similar container)
+        // Or just find the visible input since the modal is likely the top layer
+        cy.get('input[placeholder*="SQA Testing"], input[type="text"]')
+            .filter(':visible')
+            .last() // In case there are other inputs, usually the modal one is last or focused
+            .type(assetName, { delay: testConfig.humanTypeDelay });
+
+        humanWait(1000);
+
+        // Click the final 'Delete' button in the modal
+        // It's likely a red button or similar. 
+        // We can look for the button inside the modal.
+        // Using the text "Delete" again might find the previous menu item if not careful, 
+        // but the menu should be gone or the modal button is distinct.
+        // Let's scope to the modal if possible, or use a more specific selector if needed.
+        // Based on the image, it's a button with text "Delete".
+        cy.get('button').contains('Delete').should('be.visible').click();
 
         humanWait(2000);
 
