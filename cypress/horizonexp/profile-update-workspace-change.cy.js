@@ -51,7 +51,7 @@ describe('HorizonExp Profile Update Test', () => {
             .click();
 
         // Verify login success
-        cy.url({ timeout: 30000 }).should('include', 'app.horizonexp.com');
+        cy.url({ timeout: 30000 }).should('include', testConfig.baseUrl);
         humanWait(3000);
 
         // 1. Click on the profile icon/button on bottom left corner 'DevOps'
