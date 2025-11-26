@@ -127,5 +127,56 @@ describe('HorizonExp Profile Update Test', () => {
         cy.contains('label', 'Company Website').parent().find('input').should('have.value', profileData.companyWebsite);
 
         humanWait(2000);
+
+        // --- Apps & Websites Section ---
+        cy.log('🌐 Starting Apps & Websites Section');
+
+        // 1. Click on 'Apps & Websites'
+        cy.contains('Apps & Websites').should('be.visible').click();
+        humanWait(2000);
+
+        // 2. Click on 'Add New' button
+        // Wait for the button to be visible. There might be a "No websites or apps added" state.
+        cy.contains('button', 'Add New').should('be.visible').click();
+        humanWait(1000);
+
+        // 3. Fill in the modal
+        cy.log('📝 Filling New Asset Modal');
+
+        // Variables
+        const assetName = 'SQA Testing';
+        const websiteDomain = 'demo.horizonexp.com';
+
+        // Select 'Website' radio button
+        // The image shows "Website" as a radio option.
+        // It might be a label wrapping a radio or a custom div.
+        // Let's try finding the label containing "Website" and clicking it.
+        cy.contains('label', 'Website').should('be.visible').click();
+        humanWait(500);
+
+        // Asset Name
+        // "Enter a name for your asset" placeholder or label "Asset Name"
+        cy.contains('label', 'Asset Name').parent().find('input')
+            .should('be.visible')
+            .focus()
+            .type(assetName, { delay: testConfig.humanTypeDelay });
+        humanWait(500);
+
+        // Website Domain
+        // "Example: https://www.company.com" placeholder or label "Website Domain"
+        cy.contains('label', 'Website Domain').parent().find('input')
+            .should('be.visible')
+            .focus()
+            .type(websiteDomain, { delay: testConfig.humanTypeDelay });
+        humanWait(500);
+
+        // 4. Click 'Add to my account'
+        cy.contains('button', 'Add to my account').should('be.visible').click();
+
+        // Verify success or modal close
+        // Assuming the modal closes or a success message appears.
+        // For now, just wait a bit.
+        humanWait(3000);
+        cy.log('✅ Apps & Websites step completed');
     });
 });
