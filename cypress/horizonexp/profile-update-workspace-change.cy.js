@@ -1,7 +1,7 @@
 describe('HorizonExp Profile Update Test', () => {
     const testConfig = {
-        // baseUrl: 'https://dev.shorts.macintosh-ix88.thinkflagship.com/signin',
-        baseUrl: 'https://app.horizonexp.com/signin',
+        baseUrl: 'https://dev.shorts.macintosh-ix88.thinkflagship.com/signin',
+        // baseUrl: 'https://app.horizonexp.com/signin',
         userEmail: 'asifniloy2017@gmail.com',
         userPassword: 'devops_test$sqa@flagship',
         humanDelay: 2000,
