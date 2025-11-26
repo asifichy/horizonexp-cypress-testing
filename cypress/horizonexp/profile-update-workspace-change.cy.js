@@ -204,11 +204,12 @@ describe('HorizonExp Profile Update Test', () => {
 
         // Type the asset name into the input field
         // The placeholder or instruction says "To confirm, type 'SQA Testing'"
-        // We can find the input inside the modal (role="dialog" or similar container)
-        // Or just find the visible input since the modal is likely the top layer
-        cy.get('input[placeholder*="SQA Testing"], input[type="text"]')
-            .filter(':visible')
-            .last() // In case there are other inputs, usually the modal one is last or focused
+        // Find the input in the modal and ensure it's empty before typing
+        cy.get('[role="dialog"], .modal, div').contains('Are you sure you want to delete?')
+            .parents('[role="dialog"], .modal, div')
+            .find('input[type="text"]')
+            .should('be.visible')
+            .clear()
             .type(assetName, { delay: testConfig.humanTypeDelay });
 
         humanWait(1000);
