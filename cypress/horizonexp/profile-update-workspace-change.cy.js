@@ -90,8 +90,9 @@ describe('HorizonExp Profile Update Test', () => {
                 .parent()
                 .find('input')
                 .should('be.visible')
+                .focus() // Focus first
                 .clear()
-                .wait(200) // Wait for UI to settle after clear
+                .wait(500) // Increased wait for UI to settle after clear
                 .should('have.value', '') // Ensure it's cleared
                 .type(value, { delay: testConfig.humanTypeDelay });
         };
