@@ -174,9 +174,39 @@ describe('HorizonExp Profile Update Test', () => {
         cy.contains('button', 'Add to my account').should('be.visible').click();
 
         // Verify success or modal close
-        // Assuming the modal closes or a success message appears.
-        // For now, just wait a bit.
         humanWait(3000);
-        cy.log('✅ Apps & Websites step completed');
+        cy.log('✅ Apps & Websites added');
+
+        // 5. Delete the added website
+        cy.log('🗑️ Deleting the website');
+
+        // Locate the card containing the asset name and find the menu button
+        // We assume the menu button is within the same container as the asset name
+        cy.contains(assetName).should('be.visible');
+
+        // Find the menu button (three dots) associated with this asset
+        // We look for the asset name, go up to its parent (header/row), and find the button
+        cy.contains(assetName)
+            .parent()
+            .find('button')
+            .first()
+            .click();
+
+        humanWait(1000);
+
+        // Click 'Delete' from the dropdown/menu
+        cy.contains('Delete').should('be.visible').click();
+
+        // Handle potential confirmation dialog if any (though not explicitly mentioned, it's good practice)
+        // If a modal appears with "Delete" or "Confirm", click it.
+        // We use a conditional check or just wait to see if it's gone.
+        // For now, assuming direct delete or simple confirmation.
+        // If the "Delete" we clicked was the final action, the item should disappear.
+
+        humanWait(2000);
+
+        // Verify deletion
+        cy.contains(assetName).should('not.exist');
+        cy.log('✅ Website deleted successfully');
     });
 });
