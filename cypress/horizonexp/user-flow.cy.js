@@ -96,13 +96,13 @@ describe('HorizonExp User Flow Test', () => {
                     .should('have.value', inviteEmail);
                 humanWait(1000);
 
-                // 5. Select Role "Moderator"
-                cy.log('👤 Selecting Role: Moderator');
+                // 5. Select Role "Publisher"
+                cy.log('👤 Selecting Role: Publisher');
                 // Click the dropdown trigger. Image shows "Pick a role"
                 cy.contains('Pick a role').click();
                 humanWait(500);
-                // Select "Moderator" from the dropdown options
-                const targetRole = 'Moderator';
+                // Select "Publisher" from the dropdown options
+                const targetRole = 'Publisher';
                 cy.contains(targetRole).should('be.visible').click();
                 humanWait(1000);
 
@@ -141,7 +141,7 @@ describe('HorizonExp User Flow Test', () => {
                     return; // Stop recursing
                 } else if (userVisible && !pendingExists && !roleChanged) {
                     // User is visible and no longer pending - change their role
-                    cy.log('✅ Invited user is visible and accepted. Changing role from Moderator to Moderator...');
+                    cy.log('✅ Invited user is visible and accepted. Changing role from Publisher to Moderator...');
 
                     // Find the user row and click the menu button (three dots)
                     cy.contains(inviteEmail)
@@ -159,8 +159,8 @@ describe('HorizonExp User Flow Test', () => {
                     cy.contains(/Publisher|Editor|Viewer|Moderator/).should('be.visible').click();
                     humanWait(1000);
 
-                    // Select "Publisher"
-                    cy.contains('Publisher').should('be.visible').click();
+                    // Select "Moderator"
+                    cy.contains('Moderator').should('be.visible').click();
                     humanWait(1000);
 
                     // Click "Confirm" in the confirmation dialog
