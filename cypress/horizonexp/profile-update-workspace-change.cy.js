@@ -56,10 +56,9 @@ describe('HorizonExp Profile Update Test', () => {
 
         // 1. Click on the profile icon/button on bottom left corner 'DevOps'
         cy.log('👤 Navigating to Profile');
-        // The user mentioned 'DevOps' is the profile name.
-        // We look for the profile section at the bottom left.
-        // Based on the screenshot, it's a button with text "DevOps" and an image.
-        cy.contains('button', 'DevOps').should('be.visible').click();
+        // Click on the profile button at the bottom left. 
+        // Using a generic selector: find the last button that contains an image (avatar).
+        cy.get('button').filter(':has(img)').last().should('be.visible').click();
         humanWait(1000);
 
         // 2. Click on the 'My Profile' button
