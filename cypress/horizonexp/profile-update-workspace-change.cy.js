@@ -239,8 +239,8 @@ describe('HorizonExp Profile Update Test', () => {
 
         // Variables
         const workspaceIconPath = 'cypress/fixtures/workspace_icon.jpg';
-        const workspaceName = 'SQA + DevOps Testing';
-        const newWorkspaceName = 'Automation';
+        const workspaceName = 'SQA & DevOps Testing';
+        const newWorkspaceName = 'Automation Space';
 
         // 1. Click on 'Workspace & Billing' tab
         cy.contains('Workspace & Billing').should('be.visible').click();
