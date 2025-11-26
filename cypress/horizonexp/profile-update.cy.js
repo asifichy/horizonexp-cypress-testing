@@ -91,7 +91,8 @@ describe('HorizonExp Profile Update Test', () => {
                 .find('input')
                 .should('be.visible')
                 .focus()
-                .clear()
+                // Use {selectall}{backspace} which is often more reliable for React controlled inputs than .clear()
+                .type('{selectall}{backspace}', { delay: 100 })
                 .should('have.value', '') // Ensure it's cleared
                 .type(value, { delay: testConfig.humanTypeDelay });
         };
