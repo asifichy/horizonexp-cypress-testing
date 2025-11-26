@@ -90,6 +90,7 @@ describe('HorizonExp Profile Update Test', () => {
                 .find('input')
                 .should('be.visible')
                 .clear()
+                .wait(200) // Wait for UI to settle after clear
                 .should('have.value', '') // Ensure it's cleared
                 .type(value, { delay: testConfig.humanTypeDelay });
         };
