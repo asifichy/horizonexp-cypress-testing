@@ -233,5 +233,66 @@ describe('HorizonExp Profile Update Test', () => {
         // Verify deletion
         cy.contains(assetName).should('not.exist');
         cy.log('✅ Website deleted successfully');
+
+        // --- Workspace & Billing Section ---
+        cy.log('🏢 Starting Workspace & Billing Section');
+
+        // Variables
+        const workspaceIconPath = 'cypress/fixtures/workspace_icon.jpg';
+        const workspaceName = 'SQA + DevOps Testing';
+        const newWorkspaceName = 'Automation';
+
+        // 1. Click on 'Workspace & Billing' tab
+        cy.contains('Workspace & Billing').should('be.visible').click();
+        humanWait(2000);
+
+        // 2. Upload workspace icon
+        cy.log('🖼️ Uploading Workspace Icon');
+        // Directly find and use the file input for workspace icon
+        // The 'Upload new' button likely has a file input associated with it
+        cy.get('input[type="file"]')
+            .first() // Use first since we're on Workspace & Billing page
+            .selectFile(workspaceIconPath, { force: true });
+        humanWait(2000);
+
+        // 3. Update workspace name
+        cy.log('✏️ Updating Workspace Name');
+        cy.contains('label', 'Workspace Name')
+            .parent()
+            .find('input')
+            .should('be.visible')
+            .clear()
+            .wait(200)
+            .type(workspaceName, { delay: testConfig.humanTypeDelay });
+        humanWait(1000);
+
+        // 4. Click on profile icon again to add new workspace
+        cy.log('➕ Adding New Workspace');
+        cy.get('button').filter(':has(img)').last().should('be.visible').click();
+        humanWait(1000);
+
+        // 5. Click 'Add new workspace'
+        cy.contains('Add new workspace').should('be.visible').click();
+        humanWait(1000);
+
+        // 6. In the popup, type the new workspace name
+        cy.log('📝 Creating New Workspace');
+        // Wait for modal to appear
+        cy.contains('New Workspace').should('be.visible');
+
+        // Find the input field and type the workspace name
+        cy.get('input')
+            .filter(':visible')
+            .last()
+            .should('be.visible')
+            .clear()
+            .type(newWorkspaceName, { delay: testConfig.humanTypeDelay });
+        humanWait(500);
+
+        // 7. Click 'Create Workspace'
+        cy.contains('button', 'Create Workspace').should('be.visible').click();
+        humanWait(2000);
+
+        cy.log('✅ Workspace management completed successfully');
     });
 });
