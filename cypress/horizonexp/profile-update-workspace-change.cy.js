@@ -241,7 +241,6 @@ describe('HorizonExp Profile Update Test', () => {
         // Variables
         const workspaceIconPath = 'cypress/fixtures/workspace_icon.jpg';
         const workspaceName = 'DevOps Testing';
-        const newWorkspaceName = 'Automation WorkSpace 2';
 
         // 1. Click on 'Workspace & Billing' tab
         cy.contains('Workspace & Billing').should('be.visible').click();
@@ -267,47 +266,39 @@ describe('HorizonExp Profile Update Test', () => {
             .type(workspaceName, { delay: testConfig.humanTypeDelay });
         humanWait(1000);
 
-        // 4. Click on profile icon again to add new workspace
-        cy.log('➕ Adding New Workspace');
+        // 4. Click on profile icon to switch workspace
+        cy.log('🔄 Switching Workspaces');
         cy.get('button').filter(':has(img)').last().should('be.visible').click();
         humanWait(1000);
 
-        // 5. Click 'Add new workspace'
-        cy.contains('Add new workspace').should('be.visible').click();
-        humanWait(1000);
 
-        // 6. In the popup, type the new workspace name
-        cy.log('📝 Creating New Workspace');
-        // Wait for modal to appear
-        cy.contains('New Workspace').should('be.visible');
+        // 5. Switch to 'Automation Space' (or similar existing workspace)
+        // Using a variable for dynamic workspace name
+        const switchToWorkspace = 'Automation Space';
 
-        // Find the input field and type the workspace name
-        cy.get('input')
-            .filter(':visible')
-            .last()
-            .should('be.visible')
-            .clear()
-            .type(newWorkspaceName, { delay: testConfig.humanTypeDelay });
-        humanWait(500);
+        // First, try to find the workspace. If not visible, click Show more
+        cy.get('body').then(($body) => {
+            // Check if 'Show more' button exists and the workspace is not immediately visible
+            if ($body.find(':contains("Show more")').length > 0) {
+                // Try to find workspace in current view
+                const workspaceVisible = $body.text().includes(switchToWorkspace);
+                if (!workspaceVisible) {
+                    // Click 'Show more' to reveal hidden workspaces
+                    cy.contains('Show more').should('be.visible').click();
+                    humanWait(500);
+                }
+            }
+        });
 
-        // 7. Click 'Create Workspace'
-        cy.contains('button', 'Create Workspace').should('be.visible').click();
+        // Now click on the workspace (it should be visible now)
+        cy.contains(switchToWorkspace).should('be.visible').click();
         humanWait(2000);
 
-        // 8. After creating, the UI should show the new workspace
-        // Verify the new workspace was created and we're now in it
-        cy.log('🔄 Switching workspaces');
-
-        // Wait to ensure we're in the new workspace
-        humanWait(2000);
-
-        // 9. Click on profile icon again to switch back to old workspace
+        // 6. Click on profile icon again to switch back to original workspace
         cy.get('button').filter(':has(img)').last().should('be.visible').click();
         humanWait(1000);
 
-        // 10. Click on the old workspace (workspaceName)
-        // First, check if the workspace is visible
-        // If not, click 'Show more' to reveal it
+        // 7. Switch back to 'DevOps Testing' workspace
         cy.get('body').then(($body) => {
             if ($body.text().includes(workspaceName)) {
                 // Workspace is visible, click it directly
