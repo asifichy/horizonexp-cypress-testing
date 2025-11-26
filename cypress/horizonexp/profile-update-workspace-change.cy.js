@@ -203,11 +203,15 @@ describe('HorizonExp Profile Update Test', () => {
         cy.contains('Are you sure you want to delete?').should('be.visible');
 
         // Type the asset name into the input field
-        // The placeholder or instruction says "To confirm, type 'SQA Testing'"
-        // Find the input in the modal and ensure it's empty before typing
-        cy.get('[role="dialog"], .modal, div').contains('Are you sure you want to delete?')
-            .parents('[role="dialog"], .modal, div')
-            .find('input[type="text"]')
+        // The modal requires typing the asset name to confirm deletion
+        // Wait a moment for the modal to fully render
+        humanWait(500);
+
+        // Find the input field - it appears after the confirmation text
+        // Use a very simple selector to find any visible input
+        cy.get('input')
+            .filter(':visible')
+            .last()
             .should('be.visible')
             .clear()
             .type(assetName, { delay: testConfig.humanTypeDelay });
