@@ -19,8 +19,8 @@ describe("HorizonExp Channel Test", () => {
 
   it("Should create a new channel successfully", () => {
     // Generate a unique channel name for this test run
-    const channelName = `Automation-Channel-${Date.now()}`;
-    const updatedTitle = "Channel Automation Test";
+    const channelName = `Channel-${Date.now()}`;
+    const updatedTitle = "Channel Test";
     const updatedDescription = "Updated Description";
     // --- Login Section ---
     cy.log("🔐 Starting Login");
