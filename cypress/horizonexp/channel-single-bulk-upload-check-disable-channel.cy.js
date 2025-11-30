@@ -855,19 +855,92 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       );
     });
 
+    // Click "Ready to Publish" with retry logic
     cy.log("📝 Clicking Ready to publish button");
-    cy.contains('button, a, [role="button"]', "Ready to publish")
-      .first()
-      .click({ force: true });
+
+    const clickReadyToPublish = () => {
+      cy.get("body").then(($body) => {
+        // Priority 1: Button or Link with exact text
+        const $interactive = $body
+          .find('button, a, [role="button"]')
+          .filter(':contains("Ready to publish")')
+          .filter(":visible");
+        if ($interactive.length > 0) {
+          cy.log(
+            `Found ${$interactive.length} interactive elements, clicking first`
+          );
+          cy.wrap($interactive.first()).scrollIntoView().click({ force: true });
+          return;
+        }
+
+        // Priority 2: Any element with text
+        const $any = $body
+          .find('*:contains("Ready to publish")')
+          .filter(":visible");
+        if ($any.length > 0) {
+          cy.log("Clicking generic element with text");
+          cy.wrap($any.last()).scrollIntoView().click({ force: true });
+        }
+      });
+    };
+
+    clickReadyToPublish();
     humanWait(3000);
 
+    // Retry logic: Check if URL changed, if not, try clicking again
+    cy.location("pathname").then((pathname) => {
+      if (!pathname.includes("/publish")) {
+        cy.log("⚠️ Navigation failed, retrying click...");
+        clickReadyToPublish();
+        humanWait(3000);
+      }
+    });
+
+    // Wait for publish form to load
+    cy.log("⏳ Waiting for publish form to load");
+    cy.location("pathname", { timeout: 45000 }).should((pathname) => {
+      expect(pathname).to.match(/\/shorts\/upload\/[^/]+\/publish$/);
+    });
+
+    cy.contains(/select channel/i, { timeout: 30000 }).should("be.visible");
+    cy.contains(/select categories/i).should("be.visible");
+    cy.log("✅ Form loaded");
+    humanWait(2000);
+
+    // Fill publish form
     cy.log("📝 Filling publish form");
+
     // IMPORTANT: Select the newly created channel
     selectDropdownOption("Channel", updatedTitle);
     humanWait(2000);
+
+    // Verify channel was selected
+    cy.get("body").then(($body) => {
+      if ($body.text().includes("Channel is required")) {
+        cy.log("⚠️ Channel not selected, retrying...");
+        selectDropdownOption("Channel", updatedTitle);
+        humanWait(2000);
+      }
+    });
+
+    // Fill Category dropdown (REQUIRED)
     selectDropdownOption("Category", "Auto & Vehicles");
     humanWait(2000);
 
+    // Verify category was selected
+    cy.get("body").then(($body) => {
+      const bodyText = $body.text() || "";
+      if (
+        bodyText.includes("Minimum 1 category is required") ||
+        bodyText.includes("Category is required")
+      ) {
+        cy.log("⚠️ Category not selected, retrying...");
+        selectDropdownOption("Category", "Auto & Vehicles");
+        humanWait(2000);
+      }
+    });
+
+    // Fill form fields
     cy.get('input[placeholder*="title"], input[name="title"]')
       .first()
       .clear({ force: true })
