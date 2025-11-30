@@ -747,9 +747,62 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     humanWait(2000);
 
     cy.log("📹 Selecting single file");
-    cy.get('input[type="file"]')
-      .first()
-      .selectFile(testConfig.singleUploadFile.path, { force: true });
+
+    // Wait for the upload area or modal to appear
+    cy.get("body").then(($body) => {
+      // Check if we need to click another button to trigger file selection (e.g. "Select Files")
+      if (
+        $body.find('button:contains("Select Files")').filter(":visible")
+          .length > 0
+      ) {
+        cy.contains("button", "Select Files").click();
+        humanWait(1000);
+      }
+    });
+
+    // Try to find the file input
+    cy.get("body").then(($body) => {
+      const $input = $body.find('input[type="file"]');
+      if ($input.length > 0) {
+        cy.wrap($input)
+          .first()
+          .selectFile(testConfig.singleUploadFile.path, { force: true });
+      } else {
+        // Fallback: Drag and drop on the upload area
+        cy.log("⚠️ File input not found, trying drag-and-drop on upload area");
+        const uploadAreaSelectors = [
+          ".upload-area",
+          ".drop-zone",
+          '[data-testid="upload-area"]',
+          ".file-drop-zone",
+          ".upload-container",
+          '[class*="upload"]',
+          '[class*="drop"]',
+        ];
+
+        let found = false;
+        for (const selector of uploadAreaSelectors) {
+          if ($body.find(selector).filter(":visible").length > 0) {
+            cy.get(selector)
+              .first()
+              .selectFile(testConfig.singleUploadFile.path, {
+                action: "drag-drop",
+              });
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          // Last resort: try to find any element that looks like an upload trigger
+          cy.contains("Click to upload").click({ force: true });
+          humanWait(1000);
+          cy.get('input[type="file"]')
+            .first()
+            .selectFile(testConfig.singleUploadFile.path, { force: true });
+        }
+      }
+    });
     humanWait(2000);
 
     cy.log("⏳ Waiting for upload to complete");
@@ -830,9 +883,20 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
 
     cy.log("📹 Selecting multiple files");
     const filesToUpload = testConfig.bulkUploadFiles.map((f) => f.path);
-    cy.get('input[type="file"]')
-      .first()
-      .selectFile(filesToUpload, { force: true });
+
+    // Reuse robust upload logic for bulk
+    cy.get("body").then(($body) => {
+      const $input = $body.find('input[type="file"]');
+      if ($input.length > 0) {
+        cy.wrap($input).first().selectFile(filesToUpload, { force: true });
+      } else {
+        cy.log("⚠️ File input not found for bulk, trying drag-and-drop");
+        // For bulk, let's try the generic upload area again
+        cy.get('[class*="upload"], [class*="drop"]')
+          .first()
+          .selectFile(filesToUpload, { action: "drag-drop" });
+      }
+    });
     humanWait(5000);
 
     cy.log("⏳ Waiting for batch to be ready");
