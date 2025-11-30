@@ -541,7 +541,7 @@ describe("Merged Test: Single Upload & Channel Edit", () => {
         humanWait(2000);
     });
 
-    it("uploads single file and publishes it", () => {
+    it("uploads single file, publishes it, then creates and edits a channel", () => {
         // ============================================
         // PART 1: SINGLE FILE UPLOAD AND PUBLISH
         // ============================================
@@ -952,9 +952,11 @@ describe("Merged Test: Single Upload & Channel Edit", () => {
             ctaLabel: "Learn More",
             ctaLink: "https://example.com",
         });
-    });
-
-    it("Should create a new channel successfully", () => {
+        // ============================================
+        // PART 2: CHANNEL CREATION AND EDIT
+        // ============================================
+        cy.log("🎬 PART 2: Starting Channel Creation and Edit workflow");
+        humanWait(3000);
         // Generate a unique channel name for this test run
         const channelName = `Channel-${Date.now()}`;
         const updatedTitle = "Channel Test";
