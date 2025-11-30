@@ -740,13 +740,41 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
 
     cy.log("➕ Clicking Upload New button");
     humanWait(1000);
-    cy.get("button, a")
-      .filter(':contains("Upload New"), :contains("Upload")')
-      .first()
-      .click({ force: true });
+
+    // Exact button selection logic from reference
+    const uploadButtonSelectors = [
+      'button:contains("Upload New")',
+      '[data-testid*="upload"]',
+      'button[class*="bg-blue"], button[class*="primary"]',
+      'a:contains("Upload New")',
+      '*:contains("Upload New")',
+    ];
+
+    cy.get("body").then(($body) => {
+      let buttonFound = false;
+      for (const selector of uploadButtonSelectors) {
+        if ($body.find(selector).length > 0 && !buttonFound) {
+          cy.log(`➕ Found Upload New button: ${selector}`);
+          cy.get(selector).first().should("be.visible").click();
+          buttonFound = true;
+          break;
+        }
+      }
+
+      if (!buttonFound) {
+        cy.get("button, a").filter(':contains("Upload")').first().click();
+      }
+    });
     humanWait(2000);
 
     cy.log("📹 Selecting single file");
+
+    // Wait for upload area to appear (Retry logic)
+    cy.get("body")
+      .find(
+        'input[type="file"], .upload-area, .drop-zone, [class*="upload"], [id*="upload"]'
+      )
+      .should("exist");
 
     // ROBUST UPLOAD LOGIC FROM REFERENCE
     cy.get("body").then(($body) => {
@@ -889,14 +917,34 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
 
     cy.log("➕ Clicking Upload New button");
     humanWait(1000);
-    cy.get("button, a")
-      .filter(':contains("Upload New"), :contains("Upload")')
-      .first()
-      .click({ force: true });
+
+    // Exact button selection logic from reference (Repeated for bulk)
+    cy.get("body").then(($body) => {
+      let buttonFound = false;
+      for (const selector of uploadButtonSelectors) {
+        if ($body.find(selector).length > 0 && !buttonFound) {
+          cy.log(`➕ Found Upload New button: ${selector}`);
+          cy.get(selector).first().should("be.visible").click();
+          buttonFound = true;
+          break;
+        }
+      }
+
+      if (!buttonFound) {
+        cy.get("button, a").filter(':contains("Upload")').first().click();
+      }
+    });
     humanWait(2000);
 
     cy.log("📹 Selecting multiple files");
     const filesToUpload = testConfig.bulkUploadFiles.map((f) => f.path);
+
+    // Wait for upload area to appear (Retry logic)
+    cy.get("body")
+      .find(
+        'input[type="file"], .upload-area, .drop-zone, [class*="upload"], [id*="upload"]'
+      )
+      .should("exist");
 
     // ROBUST UPLOAD LOGIC FROM REFERENCE (Adapted for bulk)
     cy.get("body").then(($body) => {
