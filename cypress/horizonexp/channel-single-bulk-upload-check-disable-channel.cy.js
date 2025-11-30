@@ -580,7 +580,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     // Generate a unique channel name for this test run
     const channelName = `Channel-${Date.now()}`;
     // const updatedTitle = `${channelName}-Edited`;
-    const updatedTitle = "Auto-channel";
+    const updatedTitle = "Auto-channel-30";
     const updatedDescription = "Auto-channel description";
 
     // ============================================
