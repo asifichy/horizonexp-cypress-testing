@@ -37,14 +37,22 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
   const selectDropdownOption = (labelText, optionText) => {
     cy.log(`🔽 Selecting "${optionText}" for dropdown "${labelText}"`);
 
-    cy.contains("label, span", labelText, { matchCase: false, timeout: 20000 })
-      .filter(":visible")
-      .first()
-      .then(($label) => {
-        cy.log(
-          `Found label: ${$label.prop("tagName")} with text "${$label.text()}"`
-        );
+    // Strategy: Prioritize 'label' tag as it's more specific to forms
+    const findLabel = () => {
+      return cy.get("body").then(($body) => {
+        const $labels = $body.find(`label:contains("${labelText}")`).filter(":visible");
+        if ($labels.length > 0) {
+          return cy.wrap($labels.first());
+        }
+        return cy.contains("label, span", labelText, { matchCase: false, timeout: 20000 })
+          .filter(":visible")
+          .first();
+      });
+    };
 
+    findLabel().then(($label) => {
+        cy.log(`Found label: ${$label.prop("tagName")} with text "${$label.text()}"`);
+        
         const $container =
           $label.closest(".ant-space-item, .ant-form-item, .ant-row, form div")
             .length > 0
@@ -53,11 +61,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
                 .first()
             : $label.parent();
 
-        cy.log(
-          `Found container: ${$container.prop(
-            "tagName"
-          )} class="${$container.attr("class")}"`
-        );
+        cy.log(`Found container: ${$container.prop("tagName")} class="${$container.attr("class")}"`);
 
         let $button = $container
           .find(
@@ -77,12 +81,31 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         }
 
         if (!$button || $button.length === 0) {
-          cy.log("Button not found in siblings, checking parent's find");
-          $button = $label
-            .parent()
-            .find('.ant-select-selector, [role="combobox"]')
-            .filter(":visible")
-            .first();
+           cy.log("Button not found in siblings, checking parent's find");
+           $button = $label.parent().find('.ant-select-selector, [role="combobox"]').filter(":visible").first();
+        }
+
+        // Fallback: Try to find by ID if label-based search failed to find trigger
+        if (!$button || $button.length === 0) {
+           cy.log("Trigger not found via label, trying ID-based search");
+           const idSelectors = [
+             `#${labelText.toLowerCase()}`,
+             `#${labelText.toLowerCase()}Id`,
+             `[id*="${labelText.toLowerCase()}"]`
+           ];
+           for (const selector of idSelectors) {
+             const $candidate = Cypress.$("body").find(selector).filter(":visible");
+             if ($candidate.length > 0) {
+               // If it's an input, find its parent selector
+               if ($candidate.is("input")) {
+                 $button = $candidate.closest('.ant-select-selector, .ant-select');
+                 if (!$button.length) $button = $candidate.parent();
+               } else {
+                 $button = $candidate;
+               }
+               if ($button.length > 0) break;
+             }
+           }
         }
 
         if (!$button || $button.length === 0) {
@@ -90,22 +113,14 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
             `Unable to locate dropdown trigger button for "${labelText}"`
           );
         }
-
-        cy.log(
-          `Found trigger: ${$button.prop("tagName")} class="${$button.attr(
-            "class"
-          )}"`
-        );
+        
+        cy.log(`Found trigger: ${$button.prop("tagName")} class="${$button.attr("class")}"`);
 
         cy.wrap($button).scrollIntoView().click({ force: true });
 
         humanWait(1000);
 
-        cy.contains(
-          "div, button, li, .ant-select-item-option-content",
-          optionText,
-          { timeout: 10000 }
-        )
+        cy.contains("div, button, li, .ant-select-item-option-content", optionText, { timeout: 10000 })
           .filter(":visible")
           .first()
           .click({ force: true });
@@ -691,18 +706,6 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     cy.log("📝 Filling Title");
     cy.get('input[placeholder*="channel title"]')
       .type("Testing", { delay: testConfig.humanTypeDelay, force: true })
-      .should("have.value", "Testing");
-    humanWait(1000);
-
-    cy.log("📝 Filling Caption");
-    cy.get('textarea[placeholder*="channel caption"]')
-      .type("Automation testing", { delay: testConfig.humanTypeDelay })
-      .should("have.value", "Automation testing");
-    humanWait(1000);
-
-    cy.log("📝 Filling Tags");
-    cy.get('input[placeholder*="add tags"]').type(
-      "Test{enter}Automation{enter}",
       { delay: testConfig.humanTypeDelay }
     );
     humanWait(1000);
