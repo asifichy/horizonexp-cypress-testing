@@ -50,12 +50,24 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
             : $label.parent();
 
         let $button = $container
-          .find('button, [role="button"]')
+          .find(
+            'button, [role="button"], [role="combobox"], .ant-select-selector'
+          )
           .filter(":visible")
           .first();
 
         if (!$button || $button.length === 0) {
-          $button = $label.nextAll("button").filter(":visible").first();
+          $button = $label
+            .nextAll(
+              'button, [role="button"], [role="combobox"], .ant-select-selector'
+            )
+            .filter(":visible")
+            .first();
+        }
+
+        if (!$button || $button.length === 0) {
+          // Fallback: Try to find any div that looks like a select box
+          $button = $container.find(".ant-select").filter(":visible").first();
         }
 
         if (!$button || $button.length === 0) {
