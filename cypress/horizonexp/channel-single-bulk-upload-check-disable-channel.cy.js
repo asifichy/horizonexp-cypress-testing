@@ -1558,39 +1558,15 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     humanWait(3000);
 
     cy.log("⏳ Waiting for CSV metadata import to complete");
-    cy.get("body", { timeout: 60000 }).should(($body) => {
-      expect($body && $body.length, "Body exists").to.be.ok;
-
-      const bodyText = ($body.text() || "").toLowerCase();
-      const successIndicators = [
-        "csv updated successfully",
-        "csv imported",
-        "metadata imported",
-        "imported",
-        "successfully imported",
-        "import complete",
-        "import successful",
-      ];
-
-      const successDetected = successIndicators.some((indicator) =>
-        bodyText.includes(indicator)
-      );
-      const toastVisible =
-        Cypress.$(
-          '[class*="toast"], [class*="notification"], [role="alert"]'
-        ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
-      const batchReadyState =
-        bodyText.includes("ready to publish") ||
-        bodyText.includes("0 published");
-
-      expect(
-        successDetected || toastVisible || batchReadyState,
-        "CSV import completion indicator should be visible"
-      ).to.be.true;
-    });
+    
+    // Explicitly wait for the success toast shown in user screenshot
+    cy.contains("CSV updated successfully", { timeout: 60000 }).should("be.visible");
+    cy.log("✅ CSV updated successfully toast detected");
+    
+    // Wait extra time for UI state to settle and toast to potentially disappear
+    humanWait(4000);
 
     cy.log("✅ CSV metadata import completed");
-    humanWait(2000);
 
     // Verify batch is still ready after CSV import
     cy.log("🔍 Verifying batch is ready for bulk publish after CSV import");
@@ -1599,15 +1575,31 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     })
       .filter(":visible")
       .should("be.visible");
-    humanWait(1000);
+    humanWait(2000);
 
     // ============================================
     // STEP 5.7: BULK PUBLISH VIA MENU (AFTER CSV IMPORT)
     // ============================================
     cy.log("🚀 Step 5.7: Initiating Bulk publish from menu (after CSV import)");
-    openBatchActionsMenu();
-    humanWait(1000);
-    clickBulkPublishOption({ expectToast: true });
+    
+    // Retry opening menu if Bulk publish option is not found immediately
+    const openAndClickBulkPublish = () => {
+      openBatchActionsMenu();
+      humanWait(1000);
+      
+      cy.get("body").then(($body) => {
+        const menuVisible = $body.find('[role="menu"], .ant-dropdown-menu').filter(":visible").length > 0;
+        if (!menuVisible) {
+             cy.log("Menu not visible, trying to open again");
+             openBatchActionsMenu();
+             humanWait(1000);
+        }
+      });
+
+      clickBulkPublishOption({ expectToast: true });
+    };
+
+    openAndClickBulkPublish();
     humanWait(2000);
 
     cy.log("⏳ Waiting for bulk publish to complete");
