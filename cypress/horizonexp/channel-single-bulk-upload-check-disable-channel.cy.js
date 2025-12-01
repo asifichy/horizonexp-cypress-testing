@@ -1431,77 +1431,10 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       .should("be.visible");
     humanWait(1000);
 
-    const csvMenuMatchers = [
-      /import\s+csv\s+metadata/i,
-      /import\s+metadata/i,
-      /import\s+csv/i,
-    ];
-
-    // Click "Import CSV metadata"
-    cy.log("📥 Initiating CSV metadata import");
-    openBatchActionsMenu();
-    clickMenuOption(csvMenuMatchers, "Unable to locate CSV import menu option.");
-    humanWait(2000);
-
-    // Upload CSV
-    cy.log("📄 Uploading CSV");
-    cy.get('input[type="file"]')
-      .last()
-      .selectFile(testConfig.csvFilePath, { force: true });
-    humanWait(2000);
-
-    cy.log("📨 Submitting CSV import");
-    cy.get("body").then(($body) => {
-      const submitSelectors = [
-        'button:contains("Import")',
-        'button:contains("Apply")',
-        'button:contains("Submit")',
-        'button:contains("Upload")',
-      ];
-
-      for (const selector of submitSelectors) {
-        const $button = $body.find(selector).filter(":visible");
-        if ($button.length > 0) {
-          cy.wrap($button.first()).click({ force: true });
-          return;
-        }
-      }
-
-      cy.log("⚠️ CSV Import confirm button not found via selectors");
-    });
-    humanWait(3000);
-
-    cy.log("⏳ Checking for CSV metadata import indicators (non-blocking)");
-    cy.get("body", { timeout: 60000 }).then(($body) => {
-      const bodyText = ($body.text() || "").toLowerCase();
-      const successIndicators = [
-        "csv updated successfully",
-        "csv imported",
-        "metadata imported",
-        "imported",
-        "successfully imported",
-        "import complete",
-      ];
-
-      const toastVisible =
-        Cypress.$(
-          '[class*="toast"], [class*="notification"], [role="alert"]'
-        ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
-
-      if (
-        successIndicators.some((indicator) => bodyText.includes(indicator)) ||
-        toastVisible
-      ) {
-        cy.log("✅ CSV import indicator detected");
-      } else {
-        cy.log("ℹ️ CSV import indicator not visible; continuing workflow");
-      }
-    });
-
     // ============================================
-    // STEP 5.5: RENAME BATCH
+    // STEP 5.5: RENAME BATCH (BEFORE CSV IMPORT)
     // ============================================
-    cy.log("🏷️ Step 5.5: Renaming batch after CSV import");
+    cy.log("🏷️ Step 5.5: Renaming batch before CSV import");
     openBatchActionsMenu();
     humanWait(1000);
 
@@ -1579,6 +1512,79 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     };
 
     performBatchRename();
+
+    // ============================================
+    // STEP 5.6: IMPORT CSV METADATA (AFTER RENAME)
+    // ============================================
+    const csvMenuMatchers = [
+      /import\s+csv\s+metadata/i,
+      /import\s+metadata/i,
+      /import\s+csv/i,
+    ];
+
+    // Click "Import CSV metadata"
+    cy.log("📥 Step 5.6: Initiating CSV metadata import after batch rename");
+    openBatchActionsMenu();
+    humanWait(1000);
+    clickMenuOption(csvMenuMatchers, "Unable to locate CSV import menu option.");
+    humanWait(2000);
+
+    // Upload CSV
+    cy.log("📄 Uploading CSV file");
+    cy.get('input[type="file"]')
+      .last()
+      .selectFile(testConfig.csvFilePath, { force: true });
+    humanWait(2000);
+
+    cy.log("📨 Submitting CSV import");
+    cy.get("body").then(($body) => {
+      const submitSelectors = [
+        'button:contains("Import")',
+        'button:contains("Apply")',
+        'button:contains("Submit")',
+        'button:contains("Upload")',
+      ];
+
+      for (const selector of submitSelectors) {
+        const $button = $body.find(selector).filter(":visible");
+        if ($button.length > 0) {
+          cy.wrap($button.first()).click({ force: true });
+          return;
+        }
+      }
+
+      cy.log("⚠️ CSV Import confirm button not found via selectors");
+    });
+    humanWait(3000);
+
+    cy.log("⏳ Checking for CSV metadata import indicators (non-blocking)");
+    cy.get("body", { timeout: 60000 }).then(($body) => {
+      const bodyText = ($body.text() || "").toLowerCase();
+      const successIndicators = [
+        "csv updated successfully",
+        "csv imported",
+        "metadata imported",
+        "imported",
+        "successfully imported",
+        "import complete",
+      ];
+
+      const toastVisible =
+        Cypress.$(
+          '[class*="toast"], [class*="notification"], [role="alert"]'
+        ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
+
+      if (
+        successIndicators.some((indicator) => bodyText.includes(indicator)) ||
+        toastVisible
+      ) {
+        cy.log("✅ CSV import indicator detected");
+      } else {
+        cy.log("ℹ️ CSV import indicator not visible; continuing workflow");
+      }
+    });
+    cy.log("✅ CSV metadata import completed");
+    humanWait(2000);
 
     // ============================================
     // STEP 5.6: BULK PUBLISH VIA MENU
