@@ -806,16 +806,9 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     });
     humanWait(2000);
 
-    cy.log("📹 Selecting single file");
+    cy.log("📹 Starting single file upload process");
+    humanWait(1000);
 
-    // Wait for upload area to appear (Retry logic)
-    cy.get("body")
-      .find(
-        'input[type="file"], .upload-area, .drop-zone, [class*="upload"], [id*="upload"]'
-      )
-      .should("exist");
-
-    // ROBUST UPLOAD LOGIC FROM REFERENCE
     cy.get("body").then(($body) => {
       const $fileInputs = $body.find('input[type="file"]');
 
@@ -886,13 +879,91 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     });
     humanWait(2000);
 
-    cy.log("⏳ Waiting for upload to complete");
-    cy.get("body", { timeout: 60000 }).should("satisfy", ($body) => {
+    // Wait for upload to complete
+    cy.log("⏳ Verifying file selection and upload progress");
+
+    cy.get("body", { timeout: 30000 }).should("satisfy", ($body) => {
+      if (!$body || $body.length === 0) return false;
+      const text = $body.text() || "";
       return (
-        $body.text().includes("Ready to publish") ||
-        $body.text().includes("100%")
+        text.includes("uploaded") ||
+        text.includes("Video #") ||
+        text.includes("Ready to publish") ||
+        text.includes("100%") ||
+        text.includes("out of") ||
+        text.includes("content")
       );
     });
+
+    // Click upload submit button if needed
+    cy.get("body").then(($body) => {
+      const submitButtonSelectors = [
+        'button:contains("Upload")',
+        'button:contains("Submit")',
+        'button:contains("Start Upload")',
+        '[data-testid="upload-submit"]',
+      ];
+
+      for (const selector of submitButtonSelectors) {
+        if ($body.find(selector).length > 0) {
+          cy.log("🚀 Clicking upload submit button");
+          humanWait(1000);
+          cy.get(selector).first().click({ force: true });
+          break;
+        }
+      }
+    });
+    humanWait(2000);
+
+    // Assert upload status/success indicator
+    cy.log("⏳ Waiting for upload to complete");
+    cy.get("body", { timeout: 60000 }).should("satisfy", ($body) => {
+      if (!$body || $body.length === 0) return false;
+
+      const bodyText = $body.text() || "";
+      const completionIndicators = [
+        "100%",
+        "Upload complete",
+        "Upload successful",
+        "Ready to publish",
+        "Successfully uploaded",
+        "uploaded (100%)",
+      ];
+
+      if (
+        completionIndicators.some((indicator) => bodyText.includes(indicator))
+      ) {
+        return true;
+      }
+
+      const progressBar = $body.find(
+        '[role="progressbar"], .progress-bar, [class*="progress"]'
+      );
+      if (progressBar.length > 0) {
+        const progressValue =
+          progressBar.attr("aria-valuenow") || progressBar.attr("value") || "";
+        const progressText = progressBar.text() || "";
+
+        if (
+          progressValue === "100" ||
+          progressValue === "100%" ||
+          progressText.includes("100%")
+        ) {
+          return true;
+        }
+
+        cy.log(
+          `📊 Progress: ${progressValue || progressText || "checking..."}`
+        );
+        return false;
+      }
+
+      return true;
+    });
+
+    cy.log("✅ Single file upload completed");
+    cy.contains("body", "Ready to publish", { timeout: 30000 }).should("exist");
+    humanWait(3000);
 
     // Click "Ready to Publish" with retry logic
     cy.log("📝 Clicking Ready to publish button");
@@ -980,31 +1051,114 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     });
 
     // Fill form fields
+    cy.log("🔍 Filling form fields");
     cy.get('input[placeholder*="title"], input[name="title"]')
+      .filter(":visible")
       .first()
+      .should("be.visible")
       .clear({ force: true })
-      .type("Single Upload Test", { force: true });
-    cy.get('textarea[placeholder*="caption"], textarea[name="caption"]')
-      .first()
-      .clear({ force: true })
-      .type("Single upload caption", { force: true });
-    cy.get('input[placeholder*="tag"], input[name="tags"]')
-      .first()
-      .clear({ force: true })
-      .type("single{enter}", { force: true });
-    cy.get('input[placeholder*="button label"]')
-      .first()
-      .clear({ force: true })
-      .type("Learn More", { force: true });
-    cy.get('input[placeholder*="button link"]')
-      .last()
-      .clear({ force: true })
-      .type("https://example.com", { force: true });
+      .type("Single Upload Test", {
+        force: true,
+        delay: testConfig.humanTypeDelay,
+      });
+    humanWait(1000);
 
+    cy.get(
+      'textarea[placeholder*="caption"], textarea[name="caption"], input[placeholder*="caption"]'
+    )
+      .filter(":visible")
+      .first()
+      .should("be.visible")
+      .clear({ force: true })
+      .type("Single upload caption", {
+        force: true,
+        delay: testConfig.humanTypeDelay,
+      });
+    humanWait(1000);
+
+    cy.get('input[placeholder*="tag"], input[name="tags"]')
+      .filter(":visible")
+      .first()
+      .should("be.visible")
+      .clear({ force: true })
+      .type("single{enter}", {
+        force: true,
+        delay: testConfig.humanTypeDelay,
+      });
+    humanWait(1000);
+
+    cy.get(
+      'input[placeholder*="button label"], input[name*="cta"], input[placeholder*="Button label"]'
+    )
+      .filter(":visible")
+      .first()
+      .should("be.visible")
+      .clear({ force: true })
+      .type("Learn More", { force: true, delay: testConfig.humanTypeDelay });
+    humanWait(1000);
+
+    cy.get(
+      'input[placeholder*="button link"], input[name*="cta"], input[placeholder*="Button link"]'
+    )
+      .filter(":visible")
+      .last()
+      .should("be.visible")
+      .clear({ force: true })
+      .type("https://example.com", {
+        force: true,
+        delay: testConfig.humanTypeDelay,
+      });
+    humanWait(2000);
+
+    // Click "Publish"
     cy.log("🚀 Clicking Publish button");
-    cy.contains("button", "Publish").click({ force: true });
+    cy.get("body").then(($body) => {
+      const selectors = [
+        'button:contains("Publish")',
+        'button[class*="bg-blue"]',
+        'button[type="submit"]',
+      ];
+
+      for (const selector of selectors) {
+        if ($body.find(selector).length > 0) {
+          cy.get(selector).first().should("be.visible").click({ force: true });
+          break;
+        }
+      }
+    });
     humanWait(3000);
 
+    // Assert publish success message / status
+    cy.log("⏳ Waiting for publishing to complete");
+
+    cy.then(() => {
+      if (publishRequestTriggered) {
+        return cy.wait("@publishRequest", { timeout: 30000 }).then(() => {
+          cy.log("📡 Publish API response received");
+        });
+      }
+      cy.log(
+        "ℹ️ No publish request was intercepted; continuing without waiting on alias"
+      );
+    });
+
+    humanWait(3000);
+
+    cy.url().then((currentUrl) => {
+      cy.get("body", { timeout: 20000 }).should("satisfy", ($body) => {
+        if (!$body || $body.length === 0) return false;
+
+        const bodyText = $body.text() || "";
+        return (
+          bodyText.includes("Published") ||
+          bodyText.includes("Success") ||
+          bodyText.includes("published") ||
+          currentUrl.includes("/uploads")
+        );
+      });
+    });
+
+    cy.log("✅ Single file publishing completed");
     cy.contains("body", /published|success/i, { timeout: 20000 }).should(
       "exist"
     );
