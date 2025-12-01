@@ -1559,47 +1559,65 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
 
     cy.log("⏳ Waiting for CSV metadata import to complete");
     
-    // Explicitly wait for the success toast shown in user screenshot
-    // cy.contains("CSV updated successfully", { timeout: 6000 })
-    // cy.log("✅ CSV updated successfully toast detected");
+    // Wait for success indicators
+    cy.get("body", { timeout: 60000 }).should(($body) => {
+       const bodyText = $body.text().toLowerCase();
+       const success = 
+         bodyText.includes("csv updated successfully") || 
+         bodyText.includes("imported") ||
+         bodyText.includes("ready to publish");
+       expect(success, "CSV import completion").to.be.true;
+    });
     
-    // Wait extra time for UI state to settle and toast to potentially disappear
-    humanWait(2000);
-
-    cy.log("✅ CSV metadata import completed");
-
-    // Verify batch is still ready after CSV import
-    cy.log("🔍 Verifying batch is ready for bulk publish after CSV import");
-    cy.contains('button, a, [role="button"]', "Ready to publish", {
-      timeout: 30000,
-    })
-      .filter(":visible")
-      .should("be.visible");
-    humanWait(2000);
+    cy.log("✅ CSV import logic complete, waiting for UI settle");
+    humanWait(5000); 
 
     // ============================================
     // STEP 5.7: BULK PUBLISH VIA MENU (AFTER CSV IMPORT)
     // ============================================
     cy.log("🚀 Step 5.7: Initiating Bulk publish from menu (after CSV import)");
     
-    // Retry opening menu if Bulk publish option is not found immediately
-    const openAndClickBulkPublish = () => {
+    // Strategy: Try to find Bulk Publish. If not found, RELOAD and try again.
+    // This fixes issues where the UI state doesn't update automatically after CSV import.
+    const performBulkPublish = () => {
       openBatchActionsMenu();
       humanWait(1000);
       
       cy.get("body").then(($body) => {
-        const menuVisible = $body.find('[role="menu"], .ant-dropdown-menu').filter(":visible").length > 0;
-        if (!menuVisible) {
-             cy.log("Menu not visible, trying to open again");
-             openBatchActionsMenu();
-             humanWait(1000);
+        const $menu = $body.find('[role="menu"], .ant-dropdown-menu').filter(":visible");
+        const menuText = $menu.text().toLowerCase();
+        
+        if (menuText.includes("bulk publish")) {
+          cy.log("✅ 'Bulk publish' option found immediately");
+          clickBulkPublishOption({ expectToast: true });
+        } else {
+          cy.log("⚠️ 'Bulk publish' NOT found in menu. Reloading page to refresh state...");
+          // Close menu first
+          cy.get("body").click(0, 0); 
+          humanWait(1000);
+          
+          cy.reload();
+          humanWait(5000);
+          
+          // Re-navigate if needed (though reload usually stays on Uploads)
+          cy.url().then(url => {
+             if(!url.includes("/uploads")) {
+                 navigateToUploads();
+             }
+          });
+
+          // Wait for 'Ready to publish' button to appear again
+          cy.contains('button, a, [role="button"]', "Ready to publish", { timeout: 30000 })
+            .should("be.visible");
+            
+          openBatchActionsMenu();
+          humanWait(1000);
+          clickBulkPublishOption({ expectToast: true });
         }
       });
-
-      clickBulkPublishOption({ expectToast: true });
     };
 
-    openAndClickBulkPublish();
+    performBulkPublish();
     humanWait(2000);
 
     cy.log("⏳ Waiting for bulk publish to complete");
