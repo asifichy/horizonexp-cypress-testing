@@ -706,8 +706,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     cy.log("📝 Filling Title");
     cy.get('input[placeholder*="channel title"]')
       .type("Testing", { delay: testConfig.humanTypeDelay, force: true })
-      { delay: testConfig.humanTypeDelay }
-    );
+      .should("have.value", "Testing");
     humanWait(1000);
 
     cy.log("📝 Filling CTA Button Label");
