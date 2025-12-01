@@ -41,6 +41,10 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       .filter(":visible")
       .first()
       .then(($label) => {
+        cy.log(
+          `Found label: ${$label.prop("tagName")} with text "${$label.text()}"`
+        );
+
         const $container =
           $label.closest(".ant-space-item, .ant-form-item, .ant-row, form div")
             .length > 0
@@ -49,25 +53,36 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
                 .first()
             : $label.parent();
 
+        cy.log(
+          `Found container: ${$container.prop(
+            "tagName"
+          )} class="${$container.attr("class")}"`
+        );
+
         let $button = $container
           .find(
-            'button, [role="button"], [role="combobox"], .ant-select-selector'
+            'button, [role="button"], [role="combobox"], .ant-select-selector, .ant-select'
           )
           .filter(":visible")
           .first();
 
         if (!$button || $button.length === 0) {
+          cy.log("Button not found in container, checking next siblings");
           $button = $label
             .nextAll(
-              'button, [role="button"], [role="combobox"], .ant-select-selector'
+              'button, [role="button"], [role="combobox"], .ant-select-selector, .ant-select'
             )
             .filter(":visible")
             .first();
         }
 
         if (!$button || $button.length === 0) {
-          // Fallback: Try to find any div that looks like a select box
-          $button = $container.find(".ant-select").filter(":visible").first();
+          cy.log("Button not found in siblings, checking parent's find");
+          $button = $label
+            .parent()
+            .find('.ant-select-selector, [role="combobox"]')
+            .filter(":visible")
+            .first();
         }
 
         if (!$button || $button.length === 0) {
@@ -76,11 +91,21 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
           );
         }
 
+        cy.log(
+          `Found trigger: ${$button.prop("tagName")} class="${$button.attr(
+            "class"
+          )}"`
+        );
+
         cy.wrap($button).scrollIntoView().click({ force: true });
 
         humanWait(1000);
 
-        cy.contains("div, button, li", optionText, { timeout: 10000 })
+        cy.contains(
+          "div, button, li, .ant-select-item-option-content",
+          optionText,
+          { timeout: 10000 }
+        )
           .filter(":visible")
           .first()
           .click({ force: true });
