@@ -1184,6 +1184,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       ctaLabel: "Learn More",
       ctaLink: "https://example.com",
     });
+    navigateToLibrary();
 
     // Return to Library page after verification
     cy.log("🔙 Returning to Library page after verification");
@@ -1292,7 +1293,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     humanWait(2000);
 
     // Click Import
-    cy.contains("button", "Import").click({ force: true });
+    cy.contains("button", "Import CSV metadata").click({ force: true });
     humanWait(3000);
 
     // Click "Ready to publish" for the batch
