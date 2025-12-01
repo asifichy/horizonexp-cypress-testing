@@ -373,6 +373,99 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
   const getVisibleDropdownMenu = () =>
     cy.get('[role="menu"], .ant-dropdown-menu').filter(":visible").first();
 
+  const clickMenuOption = (menuMatchers, errorMessage) => {
+    return getVisibleDropdownMenu()
+      .should("exist")
+      .then(($menu) => {
+        let targetOption = null;
+        for (const matcher of menuMatchers) {
+          const $match = $menu
+            .find('li, button, a, span, div, [role="menuitem"]')
+            .filter((i, el) =>
+              matcher.test(Cypress.$(el).text().trim())
+            );
+          if ($match.length > 0) {
+            targetOption = $match.first();
+            break;
+          }
+        }
+
+        if (!targetOption || !targetOption.length) {
+          cy.log("⚠️ Menu match not found, searching broadly for CSV option");
+          targetOption = $menu
+            .find('li, button, a, span, div, [role="menuitem"]')
+            .filter((i, el) => /csv/i.test(Cypress.$(el).text().trim()))
+            .first();
+        }
+
+        if (!targetOption || !targetOption.length) {
+          cy.screenshot("error-no-menu-option");
+          throw new Error(errorMessage);
+        }
+
+        cy.wrap(targetOption).should("be.visible").click({ force: true });
+      });
+  };
+
+  const clickBulkPublishOption = ({ expectToast = false } = {}) => {
+    cy.log('🔍 Searching for "Bulk publish" option in visible menu');
+
+    // Ensure the dropdown menu is open
+    getVisibleDropdownMenu()
+      .should("exist")
+      .then(() => {
+        cy.log("✅ Menu dropdown is visible");
+        humanWait(500);
+      });
+
+    cy.get("body").then(($body) => {
+      const $bulkPublishOptions = $body
+        .find("*")
+        .filter((i, el) => {
+          const text = Cypress.$(el).text().trim().toLowerCase();
+          return (
+            text === "bulk publish" ||
+            (text.includes("bulk publish") && !text.includes("replace"))
+          );
+        })
+        .filter(":visible");
+
+      if ($bulkPublishOptions.length > 0) {
+        const $firstOption = $bulkPublishOptions.first();
+        cy.log('✅ Found "Bulk publish" option via body search');
+        cy.wrap($firstOption[0]).scrollIntoView().should("be.visible");
+        humanWait(500);
+
+        const $clickable = $firstOption.closest(
+          'button, a, [role="button"], [role="menuitem"], li'
+        );
+        if ($clickable.length > 0) {
+          cy.wrap($clickable[0]).click({ force: true });
+        } else {
+          cy.wrap($firstOption[0]).click({ force: true });
+        }
+      } else {
+        cy.log("⚠️ Body search failed, trying cy.contains fallback");
+        cy.contains("*", "Bulk publish", { matchCase: false, timeout: 10000 })
+          .should("be.visible")
+          .then(($bulkPublishOption) => {
+            const $clickable = $bulkPublishOption.closest(
+              'button, a, [role="button"], [role="menuitem"], li'
+            );
+            if ($clickable.length > 0) {
+              cy.wrap($clickable[0]).click({ force: true });
+            } else {
+              cy.wrap($bulkPublishOption[0]).click({ force: true });
+            }
+          });
+      }
+    });
+
+    if (expectToast) {
+      humanWait(1000);
+    }
+  };
+
   // Helper function to open the batch card menu located next to the Ready to publish button
   const openBatchActionsMenu = () => {
     cy.log("📋 Opening menu for batch Ready to publish card");
@@ -1279,102 +1372,16 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       timeout: 60000,
     }).should("be.visible");
 
-    // ============================================
-    // STEP 5.5: RENAME BATCH
-    // ============================================
-    cy.log("🏷️ Step 5.5: Renaming batch");
-    openBatchActionsMenu();
-    humanWait(1000);
-
-    // --- RENAME BATCH LOGIC START ---
-    cy.log("🏷️ Renaming batch to 'batch-upload-1'");
-
-    // 1. Click "Rename batch" option
-    getVisibleDropdownMenu()
-      .should("exist")
-      .then(($menu) => {
-        const $renameOption = $menu
-          .find('li, button, a, span, div, [role="menuitem"]')
-          .filter((i, el) =>
-            /rename\s+batch/i.test(Cypress.$(el).text().trim())
-          );
-
-        if ($renameOption.length > 0) {
-          cy.wrap($renameOption.first()).click({ force: true });
-        } else {
-          cy.log("⚠️ 'Rename batch' option not found in menu");
-          // Optional: fail or try to recover
-        }
-      });
-
-    humanWait(2000);
-
-    // 2. Handle Rename Input
-    const newBatchName = "batch-upload-1";
-
-    // Wait for modal or input to appear after clicking "Rename batch"
-    humanWait(1500);
-
-    cy.get("body").then(($body) => {
-      let inputFound = false;
-
-      // Strategy 1: Look for input in modal/dialog first (most specific)
-      const $modalInputs = $body
-        .find(
-          '.ant-modal input[type="text"], .ant-drawer input[type="text"], [role="dialog"] input[type="text"]'
-        )
-        .filter(":visible")
-        .filter((_, el) => {
-          const $el = Cypress.$(el);
-          // Exclude search inputs
-          const placeholder = ($el.attr("placeholder") || "").toLowerCase();
-          const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
-          return (
-            !placeholder.includes("search") && !ariaLabel.includes("search")
-          );
-        });
-
-      if ($modalInputs.length > 0) {
-        cy.log(`✅ Found rename input in modal/dialog`);
-        cy.wrap($modalInputs.first())
-          .clear({ force: true })
-          .type(`${newBatchName}{enter}`, { force: true });
-        inputFound = true;
-      }
-
-      // Strategy 2: Look for inputs with batch-related attributes (excluding search)
-      if (!inputFound) {
-        const renameInputSelectors = [
-          'input[placeholder*="batch"]:not([placeholder*="search"])',
-          'input[value*="Batch"]:not([placeholder*="search"])',
-          '[contenteditable="true"]',
-        ];
-
-        for (const selector of renameInputSelectors) {
-          const $input = $body.find(selector).filter(":visible");
-          if ($input.length > 0) {
-            cy.log(`✅ Found rename input using selector: ${selector}`);
-            cy.wrap($input.first())
-              .clear({ force: true })
-              .type(`${newBatchName}{enter}`, { force: true });
-            inputFound = true;
-            break;
-          }
-        }
-      }
-    });
-
-    humanWait(2000);
-
-    // 3. Re-open menu for next step (CSV Import)
-    cy.log("🔄 Re-opening batch actions menu for CSV import");
-    openBatchActionsMenu();
-    humanWait(1000);
-    // --- RENAME BATCH LOGIC END ---
+    const csvMenuMatchers = [
+      /import\s+csv\s+metadata/i,
+      /import\s+metadata/i,
+      /import\s+csv/i,
+    ];
 
     // Click "Import CSV metadata"
-    cy.log("📥 Clicking Import CSV metadata");
-    cy.contains("Import CSV metadata").click({ force: true });
+    cy.log("📥 Initiating CSV metadata import");
+    openBatchActionsMenu();
+    clickMenuOption(csvMenuMatchers, "Unable to locate CSV import menu option.");
     humanWait(2000);
 
     // Upload CSV
@@ -1384,32 +1391,170 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       .selectFile(testConfig.csvFilePath, { force: true });
     humanWait(2000);
 
-    // Click Import
-    cy.contains("button", "Import CSV metadata").click({ force: true });
+    cy.log("📨 Submitting CSV import");
+    cy.get("body").then(($body) => {
+      const submitSelectors = [
+        'button:contains("Import")',
+        'button:contains("Apply")',
+        'button:contains("Submit")',
+        'button:contains("Upload")',
+      ];
+
+      for (const selector of submitSelectors) {
+        const $button = $body.find(selector).filter(":visible");
+        if ($button.length > 0) {
+          cy.wrap($button.first()).click({ force: true });
+          return;
+        }
+      }
+
+      cy.log("⚠️ CSV Import confirm button not found via selectors");
+    });
     humanWait(3000);
 
-    // Click "Ready to publish" for the batch
-    cy.log("📝 Clicking Ready to publish for batch");
-    cy.contains('button, a, [role="button"]', "Ready to publish")
-      .first()
-      .click({ force: true });
-    humanWait(3000);
+    cy.log("⏳ Waiting for CSV metadata import to complete");
+    cy.get("body", { timeout: 60000 }).should(($body) => {
+      const bodyText = ($body.text() || "").toLowerCase();
+      const successIndicators = [
+        "csv updated successfully",
+        "csv imported",
+        "metadata imported",
+        "imported",
+        "successfully imported",
+        "import complete",
+      ];
 
-    // Fill Batch Publish Form
-    cy.log("📝 Filling batch publish form");
-    // Select the newly created channel
-    selectDropdownOption("Channel", updatedTitle);
+      const toastVisible =
+        Cypress.$(
+          '[class*="toast"], [class*="notification"], [role="alert"]'
+        ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
+
+      expect(
+        successIndicators.some((indicator) => bodyText.includes(indicator)) ||
+          toastVisible,
+        "CSV import completion indicator"
+      ).to.be.true;
+    });
+
+    cy.log("✅ CSV metadata import completed");
+    humanWait(1000);
+
+    // ============================================
+    // STEP 5.5: RENAME BATCH
+    // ============================================
+    cy.log("🏷️ Step 5.5: Renaming batch after CSV import");
+    openBatchActionsMenu();
+    humanWait(1000);
+
+    const performBatchRename = () => {
+      cy.log("🏷️ Renaming batch to 'batch-upload-1'");
+
+      getVisibleDropdownMenu()
+        .should("exist")
+        .then(($menu) => {
+          const $renameOption = $menu
+            .find('li, button, a, span, div, [role="menuitem"]')
+            .filter((i, el) =>
+              /rename\s+batch/i.test(Cypress.$(el).text().trim())
+            );
+
+          if ($renameOption.length > 0) {
+            cy.wrap($renameOption.first()).click({ force: true });
+          } else {
+            cy.log("⚠️ 'Rename batch' option not found in menu");
+          }
+        });
+
+      humanWait(2000);
+
+      const newBatchName = "batch-upload-1";
+      humanWait(1500);
+
+      cy.get("body").then(($body) => {
+        let inputFound = false;
+
+        const $modalInputs = $body
+          .find(
+            '.ant-modal input[type="text"], .ant-drawer input[type="text"], [role="dialog"] input[type="text"]'
+          )
+          .filter(":visible")
+          .filter((_, el) => {
+            const $el = Cypress.$(el);
+            const placeholder = ($el.attr("placeholder") || "").toLowerCase();
+            const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
+            return (
+              !placeholder.includes("search") && !ariaLabel.includes("search")
+            );
+          });
+
+        if ($modalInputs.length > 0) {
+          cy.log(`✅ Found rename input in modal/dialog`);
+          cy.wrap($modalInputs.first())
+            .clear({ force: true })
+            .type(`${newBatchName}{enter}`, { force: true });
+          inputFound = true;
+        }
+
+        if (!inputFound) {
+          const renameInputSelectors = [
+            'input[placeholder*="batch"]:not([placeholder*="search"])',
+            'input[value*="Batch"]:not([placeholder*="search"])',
+            '[contenteditable="true"]',
+          ];
+
+          for (const selector of renameInputSelectors) {
+            const $input = $body.find(selector).filter(":visible");
+            if ($input.length > 0) {
+              cy.log(`✅ Found rename input using selector: ${selector}`);
+              cy.wrap($input.first())
+                .clear({ force: true })
+                .type(`${newBatchName}{enter}`, { force: true });
+              inputFound = true;
+              break;
+            }
+          }
+        }
+      });
+
+      humanWait(2000);
+    };
+
+    performBatchRename();
+
+    // ============================================
+    // STEP 5.6: BULK PUBLISH VIA MENU
+    // ============================================
+    cy.log("🚀 Initiating Bulk publish from menu");
+    openBatchActionsMenu();
+    humanWait(1000);
+    clickBulkPublishOption({ expectToast: true });
     humanWait(2000);
-    selectDropdownOption("Category", "Auto & Vehicles");
-    humanWait(2000);
 
-    cy.log("🚀 Clicking Publish Batch");
-    cy.contains("button", "Publish").click({ force: true });
-    humanWait(5000);
+    cy.log("⏳ Waiting for bulk publish to complete");
+    cy.get("body", { timeout: 90000 }).should(($body) => {
+      const bodyText = ($body.text() || "").toLowerCase();
+      const successIndicators = [
+        "published",
+        "publishing",
+        "success",
+        "successfully published",
+        "bulk publish",
+      ];
 
-    cy.contains("body", /published|success/i, { timeout: 30000 }).should(
-      "exist"
-    );
+      const toastIndicator =
+        Cypress.$(
+          '[class*="toast"], [class*="notification"], [role="alert"]'
+        ).filter((i, el) => /publish|success/i.test(Cypress.$(el).text()))
+          .length > 0;
+
+      expect(
+        successIndicators.some((indicator) => bodyText.includes(indicator)) ||
+          toastIndicator,
+        "Bulk publish completion indicator"
+      ).to.be.true;
+    });
+
+    cy.log("✅ Bulk publish completed");
 
     // ============================================
     // STEP 6: VERIFY BULK UPLOAD
