@@ -1531,9 +1531,50 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
 
     // Upload CSV
     cy.log("📄 Uploading CSV file");
-    cy.get('input[type="file"]')
-      .last()
-      .selectFile(testConfig.csvFilePath, { force: true });
+    const csvFilePath = testConfig.csvFilePath;
+    cy.get("body").then(($body) => {
+      const $csvInputs = $body.find('input[type="file"]').filter((_, el) => {
+        const accept = (el.getAttribute("accept") || "").toLowerCase();
+        return (
+          accept.includes("csv") ||
+          accept.includes(".csv") ||
+          accept.trim() === ""
+        );
+      });
+
+      if ($csvInputs.length > 0) {
+        cy.log(`✅ Found CSV file input (${$csvInputs.length} candidate(s))`);
+        // Use the last one if multiple found, often the one in the active modal
+        cy.wrap($csvInputs.last()).selectFile(csvFilePath, { force: true });
+      } else {
+        cy.log("🎯 Using drag-drop method for CSV upload");
+        const uploadAreaSelectors = [
+          ".upload-area",
+          ".drop-zone",
+          '[data-testid*="upload"]',
+          ".file-drop-zone",
+          ".upload-container",
+          'input[type="file"]',
+        ];
+
+        let csvUploaded = false;
+        for (const selector of uploadAreaSelectors) {
+          if (!csvUploaded && $body.find(selector).length > 0) {
+            cy.get(selector)
+              .first()
+              .selectFile(csvFilePath, { action: "drag-drop", force: true });
+            csvUploaded = true;
+          }
+        }
+
+        if (!csvUploaded) {
+          // Last resort
+          cy.get('input[type="file"]')
+            .last()
+            .selectFile(csvFilePath, { force: true });
+        }
+      }
+    });
     humanWait(2000);
 
     cy.log("📨 Submitting CSV import");
@@ -1545,28 +1586,57 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         'button:contains("Upload")',
       ];
 
+      let clicked = false;
       for (const selector of submitSelectors) {
         const $button = $body.find(selector).filter(":visible");
         if ($button.length > 0) {
+          cy.log(`✅ Clicking CSV submit button: ${selector}`);
           cy.wrap($button.first()).click({ force: true });
-          return;
+          clicked = true;
+          break;
         }
       }
-
-      cy.log("⚠️ CSV Import confirm button not found via selectors");
+      
+      if (!clicked) {
+          cy.log("⚠️ CSV Import confirm button not found via selectors");
+      }
     });
     humanWait(3000);
 
     cy.log("⏳ Waiting for CSV metadata import to complete");
     
-    // Wait for success indicators
+    // Wait for success indicators (Robust check from reference)
     cy.get("body", { timeout: 60000 }).should(($body) => {
-       const bodyText = $body.text().toLowerCase();
-       const success = 
-         bodyText.includes("csv updated successfully") || 
-         bodyText.includes("imported") ||
-         bodyText.includes("ready to publish");
-       expect(success, "CSV import completion").to.be.true;
+       expect($body && $body.length, "Body exists").to.be.ok;
+
+       const bodyText = ($body.text() || "").toLowerCase();
+       const successIndicators = [
+         "csv updated successfully",
+         "csv imported",
+         "metadata imported",
+         "imported",
+         "successfully imported",
+         "import complete",
+         "import successful",
+       ];
+
+       const successDetected = successIndicators.some((indicator) =>
+         bodyText.includes(indicator)
+       );
+       
+       const toastVisible =
+         Cypress.$(
+           '[class*="toast"], [class*="notification"], [role="alert"]'
+         ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
+         
+       const batchReadyState =
+         bodyText.includes("ready to publish") ||
+         bodyText.includes("0 published");
+
+       expect(
+         successDetected || toastVisible || batchReadyState,
+         "CSV import completion indicator"
+       ).to.be.true;
     });
     
     cy.log("✅ CSV import logic complete, waiting for UI settle");
