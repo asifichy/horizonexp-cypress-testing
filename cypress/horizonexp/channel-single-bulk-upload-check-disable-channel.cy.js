@@ -1557,8 +1557,10 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     });
     humanWait(3000);
 
-    cy.log("⏳ Checking for CSV metadata import indicators (non-blocking)");
-    cy.get("body", { timeout: 60000 }).then(($body) => {
+    cy.log("⏳ Waiting for CSV metadata import to complete");
+    cy.get("body", { timeout: 60000 }).should(($body) => {
+      expect($body && $body.length, "Body exists").to.be.ok;
+
       const bodyText = ($body.text() || "").toLowerCase();
       const successIndicators = [
         "csv updated successfully",
@@ -1567,29 +1569,42 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         "imported",
         "successfully imported",
         "import complete",
+        "import successful",
       ];
 
+      const successDetected = successIndicators.some((indicator) =>
+        bodyText.includes(indicator)
+      );
       const toastVisible =
         Cypress.$(
           '[class*="toast"], [class*="notification"], [role="alert"]'
         ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
+      const batchReadyState =
+        bodyText.includes("ready to publish") ||
+        bodyText.includes("0 published");
 
-      if (
-        successIndicators.some((indicator) => bodyText.includes(indicator)) ||
-        toastVisible
-      ) {
-        cy.log("✅ CSV import indicator detected");
-      } else {
-        cy.log("ℹ️ CSV import indicator not visible; continuing workflow");
-      }
+      expect(
+        successDetected || toastVisible || batchReadyState,
+        "CSV import completion indicator should be visible"
+      ).to.be.true;
     });
+
     cy.log("✅ CSV metadata import completed");
     humanWait(2000);
 
+    // Verify batch is still ready after CSV import
+    cy.log("🔍 Verifying batch is ready for bulk publish after CSV import");
+    cy.contains('button, a, [role="button"]', "Ready to publish", {
+      timeout: 30000,
+    })
+      .filter(":visible")
+      .should("be.visible");
+    humanWait(1000);
+
     // ============================================
-    // STEP 5.6: BULK PUBLISH VIA MENU
+    // STEP 5.7: BULK PUBLISH VIA MENU (AFTER CSV IMPORT)
     // ============================================
-    cy.log("🚀 Initiating Bulk publish from menu");
+    cy.log("🚀 Step 5.7: Initiating Bulk publish from menu (after CSV import)");
     openBatchActionsMenu();
     humanWait(1000);
     clickBulkPublishOption({ expectToast: true });
