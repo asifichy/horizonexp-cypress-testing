@@ -370,6 +370,9 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     humanWait(1000);
   };
 
+  const getVisibleDropdownMenu = () =>
+    cy.get('[role="menu"], .ant-dropdown-menu').filter(":visible").first();
+
   // Helper function to open the batch card menu located next to the Ready to publish button
   const openBatchActionsMenu = () => {
     cy.log("📋 Opening menu for batch Ready to publish card");
@@ -1184,7 +1187,6 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       ctaLabel: "Learn More",
       ctaLink: "https://example.com",
     });
-    navigateToLibrary();
 
     // Return to Library page after verification
     cy.log("🔙 Returning to Library page after verification");
@@ -1277,8 +1279,98 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       timeout: 60000,
     }).should("be.visible");
 
-    // Open menu for batch card
+    // ============================================
+    // STEP 5.5: RENAME BATCH
+    // ============================================
+    cy.log("🏷️ Step 5.5: Renaming batch");
     openBatchActionsMenu();
+    humanWait(1000);
+
+    // --- RENAME BATCH LOGIC START ---
+    cy.log("🏷️ Renaming batch to 'batch-upload-1'");
+
+    // 1. Click "Rename batch" option
+    getVisibleDropdownMenu()
+      .should("exist")
+      .then(($menu) => {
+        const $renameOption = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) =>
+            /rename\s+batch/i.test(Cypress.$(el).text().trim())
+          );
+
+        if ($renameOption.length > 0) {
+          cy.wrap($renameOption.first()).click({ force: true });
+        } else {
+          cy.log("⚠️ 'Rename batch' option not found in menu");
+          // Optional: fail or try to recover
+        }
+      });
+
+    humanWait(2000);
+
+    // 2. Handle Rename Input
+    const newBatchName = "batch-upload-1";
+
+    // Wait for modal or input to appear after clicking "Rename batch"
+    humanWait(1500);
+
+    cy.get("body").then(($body) => {
+      let inputFound = false;
+
+      // Strategy 1: Look for input in modal/dialog first (most specific)
+      const $modalInputs = $body
+        .find(
+          '.ant-modal input[type="text"], .ant-drawer input[type="text"], [role="dialog"] input[type="text"]'
+        )
+        .filter(":visible")
+        .filter((_, el) => {
+          const $el = Cypress.$(el);
+          // Exclude search inputs
+          const placeholder = ($el.attr("placeholder") || "").toLowerCase();
+          const ariaLabel = ($el.attr("aria-label") || "").toLowerCase();
+          return (
+            !placeholder.includes("search") && !ariaLabel.includes("search")
+          );
+        });
+
+      if ($modalInputs.length > 0) {
+        cy.log(`✅ Found rename input in modal/dialog`);
+        cy.wrap($modalInputs.first())
+          .clear({ force: true })
+          .type(`${newBatchName}{enter}`, { force: true });
+        inputFound = true;
+      }
+
+      // Strategy 2: Look for inputs with batch-related attributes (excluding search)
+      if (!inputFound) {
+        const renameInputSelectors = [
+          'input[placeholder*="batch"]:not([placeholder*="search"])',
+          'input[value*="Batch"]:not([placeholder*="search"])',
+          '[contenteditable="true"]',
+        ];
+
+        for (const selector of renameInputSelectors) {
+          const $input = $body.find(selector).filter(":visible");
+          if ($input.length > 0) {
+            cy.log(`✅ Found rename input using selector: ${selector}`);
+            cy.wrap($input.first())
+              .clear({ force: true })
+              .type(`${newBatchName}{enter}`, { force: true });
+            inputFound = true;
+            break;
+          }
+        }
+      }
+    });
+
+    humanWait(2000);
+
+    // 3. Re-open menu for next step (CSV Import)
+    cy.log("🔄 Re-opening batch actions menu for CSV import");
+    openBatchActionsMenu();
+    humanWait(1000);
+    // --- RENAME BATCH LOGIC END ---
 
     // Click "Import CSV metadata"
     cy.log("📥 Clicking Import CSV metadata");
