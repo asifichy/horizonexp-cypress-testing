@@ -1361,16 +1361,75 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     });
     humanWait(5000);
 
-    cy.log("⏳ Waiting for batch to be ready");
-    cy.get("body", { timeout: 120000 }).should(($body) => {
-      const text = $body.text();
-      expect(text).to.match(/batch|content|ready/i);
+    // Wait for all bulk uploads to complete
+    cy.log("⏳ Waiting for all bulk uploads to complete");
+    const totalUploads = testConfig.bulkUploadFiles.length;
+    const uploadCompletionPattern = new RegExp(
+      `${totalUploads}\\s+out\\s+of\\s+${totalUploads}\\s+uploaded`,
+      "i"
+    );
+
+    cy.get("body", { timeout: 90000 }).should("satisfy", ($body) => {
+      if (!$body || $body.length === 0) return false;
+
+      const bodyText = $body.text() || "";
+      const completionIndicators = [
+        "100%",
+        "Upload complete",
+        "Upload successful",
+        "Ready to publish",
+        "Successfully uploaded",
+        "out of",
+        "uploaded (100%)",
+      ];
+
+      if (
+        completionIndicators.some((indicator) => bodyText.includes(indicator))
+      ) {
+        return true;
+      }
+
+      const progressBar = $body.find(
+        '[role="progressbar"], .progress-bar, [class*="progress"]'
+      );
+      if (progressBar.length > 0) {
+        const progressValue =
+          progressBar.attr("aria-valuenow") || progressBar.attr("value") || "";
+        const progressText = progressBar.text() || "";
+
+        if (
+          progressValue === "100" ||
+          progressValue === "100%" ||
+          progressText.includes("100%")
+        ) {
+          return true;
+        }
+
+        cy.log(
+          `📊 Progress: ${progressValue || progressText || "checking..."}`
+        );
+        return false;
+      }
+
+      return true;
     });
 
-    // Wait for "Ready to publish" on batch card
+    cy.contains("body", uploadCompletionPattern, { timeout: 90000 }).should(
+      "exist"
+    );
+    cy.contains('button, [role="button"]', /ready\s*to\s*publish/i, {
+      timeout: 90000,
+    }).should("exist");
+    cy.log("✅ All bulk uploads completed successfully");
+    humanWait(2000);
+
+    // Wait for "Ready to publish" on batch card to be visible
     cy.contains('button, a, [role="button"]', "Ready to publish", {
       timeout: 60000,
-    }).should("be.visible");
+    })
+      .filter(":visible")
+      .should("be.visible");
+    humanWait(1000);
 
     const csvMenuMatchers = [
       /import\s+csv\s+metadata/i,
