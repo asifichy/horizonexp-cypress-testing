@@ -255,17 +255,27 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     // Verify CTA Label
     if (ctaLabel) {
       cy.log("🔍 Checking CTA Label value");
-      cy.get('input[placeholder*="Button label"], input[name*="cta"]')
+      cy.get(
+        'input[placeholder*="Button label"], input[placeholder*="button label"], input[name*="ctaLabel"], input[name*="cta_label"]'
+      )
+        .filter(":visible")
+        .not('[type="hidden"]')
         .first()
-        .should("have.value", ctaLabel);
+        .should("be.visible")
+        .and("have.value", ctaLabel);
     }
 
     // Verify CTA Link
     if (ctaLink) {
       cy.log("🔍 Checking CTA Link value");
-      cy.get('input[placeholder*="Button link"], input[name*="cta"]')
+      cy.get(
+        'input[placeholder*="Button link"], input[placeholder*="button link"], input[name*="ctaLink"], input[name*="cta_link"]'
+      )
+        .filter(":visible")
+        .not('[type="hidden"]')
         .last()
-        .should("have.value", ctaLink);
+        .should("be.visible")
+        .and("have.value", ctaLink);
     }
 
     cy.log("✅ Video details verified");
@@ -1173,6 +1183,17 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       caption: "Single upload caption",
       ctaLabel: "Learn More",
       ctaLink: "https://example.com",
+    });
+
+    // Return to Library page after verification
+    cy.log("🔙 Returning to Library page after verification");
+    cy.url().then((currentUrl) => {
+      if (!currentUrl.includes("/library")) {
+        navigateToLibrary();
+      } else {
+        cy.log("✅ Already on Library page");
+        humanWait(1000);
+      }
     });
 
     // ============================================
