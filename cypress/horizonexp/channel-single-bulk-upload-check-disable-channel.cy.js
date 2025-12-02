@@ -1696,8 +1696,13 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       );
       humanWait(5000); // Increased wait time for CSV processing
 
-      // 4.5. Verify that CSV data is actually applied by checking upload card
-      cy.log("🔍 Verifying CSV metadata was applied to uploads...");
+      // 4.5. Reload the page to ensure CSV metadata is fully applied
+      cy.log("🔄 Reloading page to refresh CSV metadata in UI...");
+      cy.reload();
+      humanWait(3000);
+
+      // 4.6. Verify that CSV data is actually applied by checking upload card
+      cy.log("🔍 Verifying CSV metadata was applied to uploads after reload...");
       cy.get("body").then(($body) => {
         const bodyText = $body.text() || "";
         cy.log(`Current page text includes: ${bodyText.substring(0, 500)}`);
@@ -1712,12 +1717,12 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       
       humanWait(2000);
 
-      // 4.6. Wait for batch card to be properly updated after CSV import
-      cy.log("⏳ Waiting for batch card to update after CSV import...");
+      // 4.7. Wait for batch card to be properly updated after CSV import
+      cy.log("⏳ Waiting for batch card to update after reload...");
       waitForBatchReadyCard();
       humanWait(2000);
 
-      // 4.7. Verify CSV actually populated required fields by checking card text
+      // 4.8. Verify CSV actually populated required fields by checking card text
       cy.log("🔍 Checking if CSV populated required fields...");
       cy.get("body").then(($body) => {
         const batchCards = collectCardsForContext($body, "batch");
@@ -1740,8 +1745,9 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       });
       humanWait(2000);
 
-      // 5. Check if Bulk Publish is enabled/visible
+      // 4.9. Check if Bulk Publish is enabled/visible
       // We need to open the menu again to check
+      cy.log("🔍 Opening menu to check Bulk publish availability...");
       openBatchActionsMenu();
       humanWait(1000);
 
