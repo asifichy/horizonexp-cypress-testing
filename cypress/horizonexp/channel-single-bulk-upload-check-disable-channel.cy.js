@@ -396,6 +396,45 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     humanWait(1000);
   };
 
+  const uploadCardSelector =
+    '[class*="ant-card"], .ant-list-item, .ant-space-item, .ant-row, [class*="card"], [class*="upload"]';
+
+  const hasReadyButton = ($el) =>
+    $el.find('button, a, [role="button"]').filter(':contains("Ready to publish")')
+      .length > 0;
+
+  const collectCardsForContext = ($body, context) => {
+    const totalUploads = testConfig.bulkUploadFiles.length;
+    return $body
+      .find(uploadCardSelector)
+      .filter(":visible")
+      .filter((i, el) => {
+        const $el = Cypress.$(el);
+        if (!hasReadyButton($el)) {
+          return false;
+        }
+        const text = $el.text().trim().toLowerCase();
+        if (context === "batch") {
+          return (
+            text.includes("batch") ||
+            text.includes(`${totalUploads} content`) ||
+            text.includes(`${totalUploads} out of`) ||
+            (text.includes("content") && text.includes("ready to publish")) ||
+            text.includes("0 published")
+          );
+        }
+        return text.includes("video") && !text.includes("batch");
+      });
+  };
+
+  const waitForBatchReadyCard = () => {
+    cy.log("⏳ Waiting for batch card indicators");
+    cy.get("body", { timeout: 45000 }).should(
+      ($body) => collectCardsForContext($body, "batch").length > 0
+    );
+    cy.log("✅ Batch card detected on page");
+  };
+
   const getVisibleDropdownMenu = () =>
     cy.get('[role="menu"], .ant-dropdown-menu').filter(":visible").first();
 
@@ -1620,9 +1659,30 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       });
 
       cy.log(
-        "✅ CSV import action completed, checking for Bulk Publish availability..."
+        "✅ CSV import action completed, waiting for processing to finish..."
       );
-      humanWait(3000);
+      humanWait(5000); // Increased wait time for CSV processing
+
+      // 4.5. Verify that CSV data is actually applied by checking upload card
+      cy.log("🔍 Verifying CSV metadata was applied to uploads...");
+      cy.get("body").then(($body) => {
+        const bodyText = $body.text() || "";
+        cy.log(`Current page text includes: ${bodyText.substring(0, 500)}`);
+        
+        // Look for indicators that metadata was applied
+        const hasContent = bodyText.includes("content");
+        const hasPublished = bodyText.includes("published");
+        cy.log(
+          `Status check - hasContent: ${hasContent}, hasPublished: ${hasPublished}`
+        );
+      });
+      
+      humanWait(2000);
+
+      // 4.6. Wait for batch card to be properly updated after CSV import
+      cy.log("⏳ Waiting for batch card to update after CSV import...");
+      waitForBatchReadyCard();
+      humanWait(2000);
 
       // 5. Check if Bulk Publish is enabled/visible
       // We need to open the menu again to check
@@ -1633,16 +1693,37 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         const $menu = $body
           .find('[role="menu"], .ant-dropdown-menu')
           .filter(":visible");
-        const menuText = $menu.text().toLowerCase();
-        const isBulkPublishAvailable = menuText.includes("bulk publish");
+        
+        // Find the actual "Bulk publish" menu item
+        const $bulkPublishItem = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) => {
+            const text = Cypress.$(el).text().trim().toLowerCase();
+            return (
+              text === "bulk publish" ||
+              (text.includes("bulk publish") && !text.includes("replace"))
+            );
+          });
+
+        // Check if it exists and is NOT disabled
+        const isBulkPublishAvailable =
+          $bulkPublishItem.length > 0 &&
+          !$bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") &&
+          !$bulkPublishItem.attr("disabled") &&
+          !$bulkPublishItem.attr("aria-disabled");
 
         if (isBulkPublishAvailable) {
-          cy.log("✅ 'Bulk publish' option is available!");
+          cy.log("✅ 'Bulk publish' option is available and enabled!");
           // Close menu to reset state for next step
           cy.get("body").click(0, 0);
           return true;
         } else {
-          cy.log("⚠️ 'Bulk publish' option NOT found.");
+          cy.log(
+            `⚠️ 'Bulk publish' option ${
+              $bulkPublishItem.length > 0 ? "found but DISABLED" : "NOT found"
+            }.`
+          );
+          cy.screenshot(`bulk-publish-check-attempt-${attempt}`);
           // Close menu
           cy.get("body").click(0, 0);
           return false;
@@ -1671,6 +1752,10 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     // STEP 5.7: BULK PUBLISH VIA MENU
     // ============================================
     cy.log("🚀 Step 5.7: Initiating Bulk publish");
+
+    // Wait for batch card to be ready before attempting bulk publish
+    waitForBatchReadyCard();
+    humanWait(1000);
 
     const performBulkPublish = () => {
       openBatchActionsMenu();
