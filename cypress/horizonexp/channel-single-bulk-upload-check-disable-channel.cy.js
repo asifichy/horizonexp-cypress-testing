@@ -40,91 +40,117 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     // Strategy: Prioritize 'label' tag as it's more specific to forms
     const findLabel = () => {
       return cy.get("body").then(($body) => {
-        const $labels = $body.find(`label:contains("${labelText}")`).filter(":visible");
+        const $labels = $body
+          .find(`label:contains("${labelText}")`)
+          .filter(":visible");
         if ($labels.length > 0) {
           return cy.wrap($labels.first());
         }
-        return cy.contains("label, span", labelText, { matchCase: false, timeout: 20000 })
+        return cy
+          .contains("label, span", labelText, {
+            matchCase: false,
+            timeout: 20000,
+          })
           .filter(":visible")
           .first();
       });
     };
 
     findLabel().then(($label) => {
-        cy.log(`Found label: ${$label.prop("tagName")} with text "${$label.text()}"`);
-        
-        const $container =
-          $label.closest(".ant-space-item, .ant-form-item, .ant-row, form div")
-            .length > 0
-            ? $label
-                .closest(".ant-space-item, .ant-form-item, .ant-row, form div")
-                .first()
-            : $label.parent();
+      cy.log(
+        `Found label: ${$label.prop("tagName")} with text "${$label.text()}"`
+      );
 
-        cy.log(`Found container: ${$container.prop("tagName")} class="${$container.attr("class")}"`);
+      const $container =
+        $label.closest(".ant-space-item, .ant-form-item, .ant-row, form div")
+          .length > 0
+          ? $label
+              .closest(".ant-space-item, .ant-form-item, .ant-row, form div")
+              .first()
+          : $label.parent();
 
-        let $button = $container
-          .find(
+      cy.log(
+        `Found container: ${$container.prop(
+          "tagName"
+        )} class="${$container.attr("class")}"`
+      );
+
+      let $button = $container
+        .find(
+          'button, [role="button"], [role="combobox"], .ant-select-selector, .ant-select'
+        )
+        .filter(":visible")
+        .first();
+
+      if (!$button || $button.length === 0) {
+        cy.log("Button not found in container, checking next siblings");
+        $button = $label
+          .nextAll(
             'button, [role="button"], [role="combobox"], .ant-select-selector, .ant-select'
           )
           .filter(":visible")
           .first();
+      }
 
-        if (!$button || $button.length === 0) {
-          cy.log("Button not found in container, checking next siblings");
-          $button = $label
-            .nextAll(
-              'button, [role="button"], [role="combobox"], .ant-select-selector, .ant-select'
-            )
-            .filter(":visible")
-            .first();
-        }
-
-        if (!$button || $button.length === 0) {
-           cy.log("Button not found in siblings, checking parent's find");
-           $button = $label.parent().find('.ant-select-selector, [role="combobox"]').filter(":visible").first();
-        }
-
-        // Fallback: Try to find by ID if label-based search failed to find trigger
-        if (!$button || $button.length === 0) {
-           cy.log("Trigger not found via label, trying ID-based search");
-           const idSelectors = [
-             `#${labelText.toLowerCase()}`,
-             `#${labelText.toLowerCase()}Id`,
-             `[id*="${labelText.toLowerCase()}"]`
-           ];
-           for (const selector of idSelectors) {
-             const $candidate = Cypress.$("body").find(selector).filter(":visible");
-             if ($candidate.length > 0) {
-               // If it's an input, find its parent selector
-               if ($candidate.is("input")) {
-                 $button = $candidate.closest('.ant-select-selector, .ant-select');
-                 if (!$button.length) $button = $candidate.parent();
-               } else {
-                 $button = $candidate;
-               }
-               if ($button.length > 0) break;
-             }
-           }
-        }
-
-        if (!$button || $button.length === 0) {
-          throw new Error(
-            `Unable to locate dropdown trigger button for "${labelText}"`
-          );
-        }
-        
-        cy.log(`Found trigger: ${$button.prop("tagName")} class="${$button.attr("class")}"`);
-
-        cy.wrap($button).scrollIntoView().click({ force: true });
-
-        humanWait(1000);
-
-        cy.contains("div, button, li, .ant-select-item-option-content", optionText, { timeout: 10000 })
+      if (!$button || $button.length === 0) {
+        cy.log("Button not found in siblings, checking parent's find");
+        $button = $label
+          .parent()
+          .find('.ant-select-selector, [role="combobox"]')
           .filter(":visible")
-          .first()
-          .click({ force: true });
-      });
+          .first();
+      }
+
+      // Fallback: Try to find by ID if label-based search failed to find trigger
+      if (!$button || $button.length === 0) {
+        cy.log("Trigger not found via label, trying ID-based search");
+        const idSelectors = [
+          `#${labelText.toLowerCase()}`,
+          `#${labelText.toLowerCase()}Id`,
+          `[id*="${labelText.toLowerCase()}"]`,
+        ];
+        for (const selector of idSelectors) {
+          const $candidate = Cypress.$("body")
+            .find(selector)
+            .filter(":visible");
+          if ($candidate.length > 0) {
+            // If it's an input, find its parent selector
+            if ($candidate.is("input")) {
+              $button = $candidate.closest(".ant-select-selector, .ant-select");
+              if (!$button.length) $button = $candidate.parent();
+            } else {
+              $button = $candidate;
+            }
+            if ($button.length > 0) break;
+          }
+        }
+      }
+
+      if (!$button || $button.length === 0) {
+        throw new Error(
+          `Unable to locate dropdown trigger button for "${labelText}"`
+        );
+      }
+
+      cy.log(
+        `Found trigger: ${$button.prop("tagName")} class="${$button.attr(
+          "class"
+        )}"`
+      );
+
+      cy.wrap($button).scrollIntoView().click({ force: true });
+
+      humanWait(1000);
+
+      cy.contains(
+        "div, button, li, .ant-select-item-option-content",
+        optionText,
+        { timeout: 10000 }
+      )
+        .filter(":visible")
+        .first()
+        .click({ force: true });
+    });
   };
 
   // Helper function to navigate to Uploads section
@@ -381,9 +407,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         for (const matcher of menuMatchers) {
           const $match = $menu
             .find('li, button, a, span, div, [role="menuitem"]')
-            .filter((i, el) =>
-              matcher.test(Cypress.$(el).text().trim())
-            );
+            .filter((i, el) => matcher.test(Cypress.$(el).text().trim()));
           if ($match.length > 0) {
             targetOption = $match.first();
             break;
@@ -1514,7 +1538,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     performBatchRename();
 
     // ============================================
-    // STEP 5.6: IMPORT CSV METADATA (AFTER RENAME)
+    // STEP 5.6: IMPORT CSV METADATA (WITH RETRY)
     // ============================================
     const csvMenuMatchers = [
       /import\s+csv\s+metadata/i,
@@ -1522,169 +1546,137 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       /import\s+csv/i,
     ];
 
-    // Click "Import CSV metadata"
-    cy.log("📥 Step 5.6: Initiating CSV metadata import after batch rename");
-    openBatchActionsMenu();
-    humanWait(1000);
-    clickMenuOption(csvMenuMatchers, "Unable to locate CSV import menu option.");
-    humanWait(2000);
+    const importCSVAndCheck = (attempt = 1) => {
+      cy.log(`� CSV Import Attempt #${attempt}`);
 
-    // Upload CSV
-    cy.log("📄 Uploading CSV file");
-    const csvFilePath = testConfig.csvFilePath;
-    cy.get("body").then(($body) => {
-      const $csvInputs = $body.find('input[type="file"]').filter((_, el) => {
-        const accept = (el.getAttribute("accept") || "").toLowerCase();
-        return (
-          accept.includes("csv") ||
-          accept.includes(".csv") ||
-          accept.trim() === ""
-        );
-      });
+      // 1. Open Menu and Click Import
+      openBatchActionsMenu();
+      humanWait(1000);
+      clickMenuOption(
+        csvMenuMatchers,
+        "Unable to locate CSV import menu option."
+      );
+      humanWait(2000);
 
-      if ($csvInputs.length > 0) {
-        cy.log(`✅ Found CSV file input (${$csvInputs.length} candidate(s))`);
-        // Use the last one if multiple found, often the one in the active modal
-        cy.wrap($csvInputs.last()).selectFile(csvFilePath, { force: true });
-      } else {
-        cy.log("🎯 Using drag-drop method for CSV upload");
-        const uploadAreaSelectors = [
-          ".upload-area",
-          ".drop-zone",
-          '[data-testid*="upload"]',
-          ".file-drop-zone",
-          ".upload-container",
-          'input[type="file"]',
-        ];
+      // 2. Upload CSV
+      cy.log("📄 Uploading CSV file");
+      const csvFilePath = testConfig.csvFilePath;
+      cy.get("body").then(($body) => {
+        const $csvInputs = $body.find('input[type="file"]').filter((_, el) => {
+          const accept = (el.getAttribute("accept") || "").toLowerCase();
+          return (
+            accept.includes("csv") ||
+            accept.includes(".csv") ||
+            accept.trim() === ""
+          );
+        });
 
-        let csvUploaded = false;
-        for (const selector of uploadAreaSelectors) {
-          if (!csvUploaded && $body.find(selector).length > 0) {
-            cy.get(selector)
-              .first()
-              .selectFile(csvFilePath, { action: "drag-drop", force: true });
-            csvUploaded = true;
-          }
-        }
-
-        if (!csvUploaded) {
-          // Last resort
+        if ($csvInputs.length > 0) {
+          cy.wrap($csvInputs.last()).selectFile(csvFilePath, { force: true });
+        } else {
           cy.get('input[type="file"]')
             .last()
             .selectFile(csvFilePath, { force: true });
         }
-      }
-    });
-    humanWait(2000);
+      });
+      humanWait(2000);
 
-    cy.log("📨 Submitting CSV import");
-    cy.get("body").then(($body) => {
-      const submitSelectors = [
-        'button:contains("Import")',
-        'button:contains("Apply")',
-        'button:contains("Submit")',
-        'button:contains("Upload")',
-      ];
-
-      let clicked = false;
-      for (const selector of submitSelectors) {
-        const $button = $body.find(selector).filter(":visible");
-        if ($button.length > 0) {
-          cy.log(`✅ Clicking CSV submit button: ${selector}`);
-          cy.wrap($button.first()).click({ force: true });
-          clicked = true;
-          break;
+      // 3. Submit Import
+      cy.log("📨 Submitting CSV import");
+      cy.get("body").then(($body) => {
+        const submitSelectors = [
+          'button:contains("Import")',
+          'button:contains("Apply")',
+          'button:contains("Submit")',
+          'button:contains("Upload")',
+        ];
+        for (const selector of submitSelectors) {
+          const $button = $body.find(selector).filter(":visible");
+          if ($button.length > 0) {
+            cy.wrap($button.first()).click({ force: true });
+            break;
+          }
         }
-      }
-      
-      if (!clicked) {
-          cy.log("⚠️ CSV Import confirm button not found via selectors");
-      }
+      });
+      humanWait(3000);
+
+      // 4. Wait for Success Toast/Indicator
+      cy.get("body", { timeout: 60000 }).should(($body) => {
+        const bodyText = ($body.text() || "").toLowerCase();
+        const successDetected = [
+          "csv updated successfully",
+          "csv imported",
+          "metadata imported",
+          "imported",
+          "successfully imported",
+          "import complete",
+          "import successful",
+        ].some((t) => bodyText.includes(t));
+
+        const toastVisible =
+          Cypress.$('[class*="toast"], [class*="notification"], [role="alert"]')
+            .length > 0;
+        expect(successDetected || toastVisible, "CSV import success").to.be
+          .true;
+      });
+
+      cy.log(
+        "✅ CSV import action completed, checking for Bulk Publish availability..."
+      );
+      humanWait(3000);
+
+      // 5. Check if Bulk Publish is enabled/visible
+      // We need to open the menu again to check
+      openBatchActionsMenu();
+      humanWait(1000);
+
+      return cy.get("body").then(($body) => {
+        const $menu = $body
+          .find('[role="menu"], .ant-dropdown-menu')
+          .filter(":visible");
+        const menuText = $menu.text().toLowerCase();
+        const isBulkPublishAvailable = menuText.includes("bulk publish");
+
+        if (isBulkPublishAvailable) {
+          cy.log("✅ 'Bulk publish' option is available!");
+          // Close menu to reset state for next step
+          cy.get("body").click(0, 0);
+          return true;
+        } else {
+          cy.log("⚠️ 'Bulk publish' option NOT found.");
+          // Close menu
+          cy.get("body").click(0, 0);
+          return false;
+        }
+      });
+    };
+
+    // Execute Import with Retry
+    cy.then(() => {
+      return importCSVAndCheck(1).then((success) => {
+        if (!success) {
+          cy.log("⚠️ First CSV import didn't enable Bulk Publish. Retrying...");
+          humanWait(2000);
+          return importCSVAndCheck(2).then((success2) => {
+            if (!success2) {
+              throw new Error(
+                "Failed to enable Bulk Publish after 2 CSV import attempts."
+              );
+            }
+          });
+        }
+      });
     });
-    humanWait(3000);
-
-    cy.log("⏳ Waiting for CSV metadata import to complete");
-    
-    // Wait for success indicators (Robust check from reference)
-    cy.get("body", { timeout: 60000 }).should(($body) => {
-       expect($body && $body.length, "Body exists").to.be.ok;
-
-       const bodyText = ($body.text() || "").toLowerCase();
-       const successIndicators = [
-         "csv updated successfully",
-         "csv imported",
-         "metadata imported",
-         "imported",
-         "successfully imported",
-         "import complete",
-         "import successful",
-       ];
-
-       const successDetected = successIndicators.some((indicator) =>
-         bodyText.includes(indicator)
-       );
-       
-       const toastVisible =
-         Cypress.$(
-           '[class*="toast"], [class*="notification"], [role="alert"]'
-         ).filter((i, el) => /csv|import/i.test(Cypress.$(el).text())).length > 0;
-         
-       const batchReadyState =
-         bodyText.includes("ready to publish") ||
-         bodyText.includes("0 published");
-
-       expect(
-         successDetected || toastVisible || batchReadyState,
-         "CSV import completion indicator"
-       ).to.be.true;
-    });
-    
-    cy.log("✅ CSV import logic complete, waiting for UI settle");
-    humanWait(5000); 
 
     // ============================================
-    // STEP 5.7: BULK PUBLISH VIA MENU (AFTER CSV IMPORT)
+    // STEP 5.7: BULK PUBLISH VIA MENU
     // ============================================
-    cy.log("🚀 Step 5.7: Initiating Bulk publish from menu (after CSV import)");
-    
-    // Strategy: Try to find Bulk Publish. If not found, RELOAD and try again.
-    // This fixes issues where the UI state doesn't update automatically after CSV import.
+    cy.log("🚀 Step 5.7: Initiating Bulk publish");
+
     const performBulkPublish = () => {
       openBatchActionsMenu();
       humanWait(1000);
-      
-      cy.get("body").then(($body) => {
-        const $menu = $body.find('[role="menu"], .ant-dropdown-menu').filter(":visible");
-        const menuText = $menu.text().toLowerCase();
-        
-        if (menuText.includes("bulk publish")) {
-          cy.log("✅ 'Bulk publish' option found immediately");
-          clickBulkPublishOption({ expectToast: true });
-        } else {
-          cy.log("⚠️ 'Bulk publish' NOT found in menu. Reloading page to refresh state...");
-          // Close menu first
-          cy.get("body").click(0, 0); 
-          humanWait(1000);
-          
-          cy.reload();
-          humanWait(5000);
-          
-          // Re-navigate if needed (though reload usually stays on Uploads)
-          cy.url().then(url => {
-             if(!url.includes("/uploads")) {
-                 navigateToUploads();
-             }
-          });
-
-          // Wait for 'Ready to publish' button to appear again
-          cy.contains('button, a, [role="button"]', "Ready to publish", { timeout: 30000 })
-            .should("be.visible");
-            
-          openBatchActionsMenu();
-          humanWait(1000);
-          clickBulkPublishOption({ expectToast: true });
-        }
-      });
+      clickBulkPublishOption({ expectToast: true });
     };
 
     performBulkPublish();
