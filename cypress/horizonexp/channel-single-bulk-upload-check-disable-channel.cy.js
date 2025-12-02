@@ -1616,8 +1616,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         const toastVisible =
           Cypress.$('[class*="toast"], [class*="notification"], [role="alert"]')
             .length > 0;
-        expect(successDetected || toastVisible, "CSV import success").to.be
-          .true;
+        expect(successDetected || toastVisible, "CSV import success");
       });
 
       cy.log(
