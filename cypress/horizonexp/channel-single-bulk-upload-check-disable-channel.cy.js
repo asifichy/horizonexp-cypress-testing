@@ -18,6 +18,25 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       { path: "C:\\Users\\user\\Downloads\\SPAM\\4.mp4", fileName: "4.mp4" },
     ],
     csvFilePath: "C:\\Users\\user\\Downloads\\Sample.csv",
+    /* 
+    IMPORTANT: Sample.csv MUST contain ALL required fields for Bulk Publish to work!
+    
+    CSV Format (copy this to Sample.csv):
+    ----------------------------------------
+    title,channel,category,caption,tags,cta_label,cta_link
+    "Bulk Upload Video 1","Auto-channel-30","Auto & Vehicles","Description for video 1","test,bulk","Learn More","https://example.com"
+    "Bulk Upload Video 2","Auto-channel-30","Auto & Vehicles","Description for video 2","test,bulk","Learn More","https://example.com"
+    "Bulk Upload Video 3","Auto-channel-30","Auto & Vehicles","Description for video 3","test,bulk","Learn More","https://example.com"
+    "Bulk Upload Video 4","Auto-channel-30","Auto & Vehicles","Description for video 4","test,bulk","Learn More","https://example.com"
+    "Bulk Upload Video 5","Auto-channel-30","Auto & Vehicles","Description for video 5","test,bulk","Learn More","https://example.com"
+    ----------------------------------------
+    
+    NOTE: 
+    - Channel name "Auto-channel-30" matches the updatedTitle variable below
+    - Must have exactly 5 data rows (matching bulkUploadFiles.length)
+    - All required fields (title, channel, category) must be filled
+    - Category must match available categories in the app
+    */
   };
 
   // Store metadata captured from API responses
@@ -1579,6 +1598,20 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     // ============================================
     // STEP 5.6: IMPORT CSV METADATA (WITH RETRY)
     // ============================================
+    cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    cy.log("📋 CSV REQUIREMENTS FOR BULK PUBLISH");
+    cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    cy.log("");
+    cy.log(`✅ CSV file location: ${testConfig.csvFilePath}`);
+    cy.log(`✅ Target Channel: "${updatedTitle}"`);
+    cy.log(`✅ Expected videos: ${testConfig.bulkUploadFiles.length}`);
+    cy.log("");
+    cy.log("⚠️  CSV MUST include these columns with data:");
+    cy.log('   title,channel,category,caption,tags,cta_label,cta_link');
+    cy.log("");
+    cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    cy.log("");
+
     const csvMenuMatchers = [
       /import\s+csv\s+metadata/i,
       /import\s+metadata/i,
@@ -1586,7 +1619,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     ];
 
     const importCSVAndCheck = (attempt = 1) => {
-      cy.log(`� CSV Import Attempt #${attempt}`);
+      cy.log(`🔄 CSV Import Attempt #${attempt}`);
 
       // 1. Open Menu and Click Import
       openBatchActionsMenu();
@@ -1684,6 +1717,29 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       waitForBatchReadyCard();
       humanWait(2000);
 
+      // 4.7. Verify CSV actually populated required fields by checking card text
+      cy.log("🔍 Checking if CSV populated required fields...");
+      cy.get("body").then(($body) => {
+        const batchCards = collectCardsForContext($body, "batch");
+        if (batchCards.length > 0) {
+          const batchText = batchCards.first().text();
+          cy.log(`Batch card text: ${batchText}`);
+          
+          // Log what we see
+          const has0Published = batchText.includes("0 published");
+          const hasReadyToPublish = batchText.toLowerCase().includes("ready to publish");
+          
+          cy.log(`📊 Batch status: 0 published=${has0Published}, Ready to publish=${hasReadyToPublish}`);
+          
+          // If it still shows "0 published" and "Ready to publish", 
+          // it means videos haven't been processed with CSV data yet
+          if (has0Published && hasReadyToPublish) {
+            cy.log("⚠️ Batch still shows '0 published' - CSV data may not have been fully applied");
+          }
+        }
+      });
+      humanWait(2000);
+
       // 5. Check if Bulk Publish is enabled/visible
       // We need to open the menu again to check
       openBatchActionsMenu();
@@ -1718,11 +1774,39 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
           cy.get("body").click(0, 0);
           return true;
         } else {
-          cy.log(
-            `⚠️ 'Bulk publish' option ${
-              $bulkPublishItem.length > 0 ? "found but DISABLED" : "NOT found"
-            }.`
-          );
+          const status = $bulkPublishItem.length > 0 ? "found but DISABLED" : "NOT found";
+          cy.log(`⚠️ 'Bulk publish' option ${status}.`);
+          
+          if ($bulkPublishItem.length > 0) {
+            cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            cy.log("⚠️  BULK PUBLISH IS DISABLED");
+            cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            cy.log("");
+            cy.log("📋 REASON: CSV file is missing required fields");
+            cy.log("");
+            cy.log("✅ Your CSV MUST have these columns (exact names):");
+            cy.log("   1. title          (REQUIRED)");
+            cy.log("   2. channel        (REQUIRED - use channel name)");
+            cy.log("   3. category       (REQUIRED - comma separated)");
+            cy.log("   4. caption        (optional)");
+            cy.log("   5. tags           (optional - comma separated)");
+            cy.log("   6. cta_label      (optional)");
+            cy.log("   7. cta_link       (optional)");
+            cy.log("");
+            cy.log("📝 CSV Format Example:");
+            cy.log('   title,channel,category,caption,tags,cta_label,cta_link');
+            cy.log(`   "Video 1","${updatedTitle}","Auto & Vehicles","Test caption","tag1,tag2","Learn More","https://example.com"`);
+            cy.log(`   "Video 2","${updatedTitle}","Auto & Vehicles","Test caption 2","tag3,tag4","Learn More","https://example.com"`);
+            cy.log("");
+            cy.log("⚠️  Make sure:");
+            cy.log("   - Channel name matches exactly (case-sensitive)");
+            cy.log("   - Category matches available options");
+            cy.log("   - CSV has exactly 5 rows (1 header + 5 video rows)");
+            cy.log("   - All required fields are filled for each row");
+            cy.log("");
+            cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          }
+          
           cy.screenshot(`bulk-publish-check-attempt-${attempt}`);
           // Close menu
           cy.get("body").click(0, 0);
