@@ -1634,6 +1634,19 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       // 2. Upload CSV
       cy.log("📄 Uploading CSV file");
       const csvFilePath = testConfig.csvFilePath;
+
+      // DEBUG: Read and log CSV content
+      cy.readFile(csvFilePath, "utf8").then((content) => {
+        cy.log("📂 CSV CONTENT DEBUG:");
+        cy.log(JSON.stringify(content));
+        // Verify channel name in CSV
+        if (!content.includes(updatedTitle)) {
+          cy.log(
+            `⚠️ WARNING: CSV does not appear to contain the channel name "${updatedTitle}"`
+          );
+        }
+      });
+
       cy.get("body").then(($body) => {
         const $csvInputs = $body.find('input[type="file"]').filter((_, el) => {
           const accept = (el.getAttribute("accept") || "").toLowerCase();
