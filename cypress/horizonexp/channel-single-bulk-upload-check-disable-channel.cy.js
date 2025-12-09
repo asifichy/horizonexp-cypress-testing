@@ -1658,11 +1658,16 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         });
 
         if ($csvInputs.length > 0) {
-          cy.wrap($csvInputs.last()).selectFile(csvFilePath, { force: true });
+          cy.wrap($csvInputs.last())
+            .selectFile(csvFilePath, { force: true })
+            .trigger("change", { force: true })
+            .trigger("input", { force: true });
         } else {
           cy.get('input[type="file"]')
             .last()
-            .selectFile(csvFilePath, { force: true });
+            .selectFile(csvFilePath, { force: true })
+            .trigger("change", { force: true })
+            .trigger("input", { force: true });
         }
       });
       humanWait(2000);
@@ -1676,12 +1681,32 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
           'button:contains("Submit")',
           'button:contains("Upload")',
         ];
+
+        let buttonClicked = false;
         for (const selector of submitSelectors) {
           const $button = $body.find(selector).filter(":visible");
           if ($button.length > 0) {
-            cy.wrap($button.first()).click({ force: true });
+            // Ensure button is enabled
+            if (
+              $button.is(":disabled") ||
+              $button.attr("aria-disabled") === "true"
+            ) {
+              cy.log(
+                `⚠️ Button found but disabled: ${selector}. Waiting for it to enable...`
+              );
+              cy.wait(2000);
+            }
+
+            cy.wrap($button.first())
+              .should("not.be.disabled")
+              .click({ force: true });
+            buttonClicked = true;
             break;
           }
+        }
+
+        if (!buttonClicked) {
+          cy.log("⚠️ Import/Submit button not found via standard selectors");
         }
       });
       humanWait(3000);
@@ -1708,7 +1733,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       cy.log(
         "✅ CSV import action completed, waiting for processing to finish..."
       );
-      humanWait(10000); // Increased wait time for CSV processing
+      humanWait(15000); // 15 seconds to match manual user experience
 
       // 4.5. Reload the page to ensure CSV metadata is fully applied
       cy.log("🔄 Reloading page to refresh CSV metadata in UI...");
