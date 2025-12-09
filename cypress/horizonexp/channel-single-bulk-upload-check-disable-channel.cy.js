@@ -419,8 +419,9 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     '[class*="ant-card"], .ant-list-item, .ant-space-item, .ant-row, [class*="card"], [class*="upload"]';
 
   const hasReadyButton = ($el) =>
-    $el.find('button, a, [role="button"]').filter(':contains("Ready to publish")')
-      .length > 0;
+    $el
+      .find('button, a, [role="button"]')
+      .filter(':contains("Ready to publish")').length > 0;
 
   const collectCardsForContext = ($body, context) => {
     const totalUploads = testConfig.bulkUploadFiles.length;
@@ -1607,7 +1608,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     cy.log(`✅ Expected videos: ${testConfig.bulkUploadFiles.length}`);
     cy.log("");
     cy.log("⚠️  CSV MUST include these columns with data:");
-    cy.log('   title,channel,category,caption,tags,cta_label,cta_link');
+    cy.log("   title,channel,category,caption,tags,cta_label,cta_link");
     cy.log("");
     cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     cy.log("");
@@ -1694,7 +1695,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       cy.log(
         "✅ CSV import action completed, waiting for processing to finish..."
       );
-      humanWait(5000); // Increased wait time for CSV processing
+      humanWait(10000); // Increased wait time for CSV processing
 
       // 4.5. Reload the page to ensure CSV metadata is fully applied
       cy.log("🔄 Reloading page to refresh CSV metadata in UI...");
@@ -1702,11 +1703,13 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       humanWait(3000);
 
       // 4.6. Verify that CSV data is actually applied by checking upload card
-      cy.log("🔍 Verifying CSV metadata was applied to uploads after reload...");
+      cy.log(
+        "🔍 Verifying CSV metadata was applied to uploads after reload..."
+      );
       cy.get("body").then(($body) => {
         const bodyText = $body.text() || "";
         cy.log(`Current page text includes: ${bodyText.substring(0, 500)}`);
-        
+
         // Look for indicators that metadata was applied
         const hasContent = bodyText.includes("content");
         const hasPublished = bodyText.includes("published");
@@ -1714,7 +1717,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
           `Status check - hasContent: ${hasContent}, hasPublished: ${hasPublished}`
         );
       });
-      
+
       humanWait(2000);
 
       // 4.7. Wait for batch card to be properly updated after CSV import
@@ -1729,96 +1732,79 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         if (batchCards.length > 0) {
           const batchText = batchCards.first().text();
           cy.log(`Batch card text: ${batchText}`);
-          
+
           // Log what we see
           const has0Published = batchText.includes("0 published");
-          const hasReadyToPublish = batchText.toLowerCase().includes("ready to publish");
-          
-          cy.log(`📊 Batch status: 0 published=${has0Published}, Ready to publish=${hasReadyToPublish}`);
-          
-          // If it still shows "0 published" and "Ready to publish", 
+          const hasReadyToPublish = batchText
+            .toLowerCase()
+            .includes("ready to publish");
+
+          cy.log(
+            `📊 Batch status: 0 published=${has0Published}, Ready to publish=${hasReadyToPublish}`
+          );
+
+          // If it still shows "0 published" and "Ready to publish",
           // it means videos haven't been processed with CSV data yet
           if (has0Published && hasReadyToPublish) {
-            cy.log("⚠️ Batch still shows '0 published' - CSV data may not have been fully applied");
+            cy.log(
+              "⚠️ Batch still shows '0 published' - CSV data may not have been fully applied"
+            );
           }
         }
       });
       humanWait(2000);
 
-      // 4.9. Check if Bulk Publish is enabled/visible
-      // We need to open the menu again to check
-      cy.log("🔍 Opening menu to check Bulk publish availability...");
-      openBatchActionsMenu();
-      humanWait(1000);
+      // 4.9. Request to Poll for Bulk Publish button (Wait for it to become enabled)
+      cy.log("🔍 Polling for 'Bulk publish' option to become enabled...");
 
-      return cy.get("body").then(($body) => {
-        const $menu = $body
-          .find('[role="menu"], .ant-dropdown-menu')
-          .filter(":visible");
-        
-        // Find the actual "Bulk publish" menu item
-        const $bulkPublishItem = $menu
-          .find('li, button, a, span, div, [role="menuitem"]')
-          .filter((i, el) => {
-            const text = Cypress.$(el).text().trim().toLowerCase();
-            return (
-              text === "bulk publish" ||
-              (text.includes("bulk publish") && !text.includes("replace"))
-            );
-          });
-
-        // Check if it exists and is NOT disabled
-        const isBulkPublishAvailable =
-          $bulkPublishItem.length > 0 &&
-          !$bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") &&
-          !$bulkPublishItem.attr("disabled") &&
-          !$bulkPublishItem.attr("aria-disabled");
-
-        if (isBulkPublishAvailable) {
-          cy.log("✅ 'Bulk publish' option is available and enabled!");
-          // Close menu to reset state for next step
-          cy.get("body").click(0, 0);
-          return true;
-        } else {
-          const status = $bulkPublishItem.length > 0 ? "found but DISABLED" : "NOT found";
-          cy.log(`⚠️ 'Bulk publish' option ${status}.`);
-          
-          if ($bulkPublishItem.length > 0) {
-            cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            cy.log("⚠️  BULK PUBLISH IS DISABLED");
-            cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            cy.log("");
-            cy.log("📋 REASON: CSV file is missing required fields");
-            cy.log("");
-            cy.log("✅ Your CSV MUST have these columns (exact names):");
-            cy.log("   1. title          (REQUIRED)");
-            cy.log("   2. channel        (REQUIRED - use channel name)");
-            cy.log("   3. category       (REQUIRED - comma separated)");
-            cy.log("   4. caption        (optional)");
-            cy.log("   5. tags           (optional - comma separated)");
-            cy.log("   6. cta_label      (optional)");
-            cy.log("   7. cta_link       (optional)");
-            cy.log("");
-            cy.log("📝 CSV Format Example:");
-            cy.log('   title,channel,category,caption,tags,cta_label,cta_link');
-            cy.log(`   "Video 1","${updatedTitle}","Auto & Vehicles","Test caption","tag1,tag2","Learn More","https://example.com"`);
-            cy.log(`   "Video 2","${updatedTitle}","Auto & Vehicles","Test caption 2","tag3,tag4","Learn More","https://example.com"`);
-            cy.log("");
-            cy.log("⚠️  Make sure:");
-            cy.log("   - Channel name matches exactly (case-sensitive)");
-            cy.log("   - Category matches available options");
-            cy.log("   - CSV has exactly 5 rows (1 header + 5 video rows)");
-            cy.log("   - All required fields are filled for each row");
-            cy.log("");
-            cy.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-          }
-          
-          cy.screenshot(`bulk-publish-check-attempt-${attempt}`);
-          // Close menu
-          cy.get("body").click(0, 0);
-          return false;
+      const checkBulkPublishEnabled = (retriesLeft = 5) => {
+        if (retriesLeft === 0) {
+          cy.log(
+            "❌ 'Bulk publish' button remained disabled after all retries."
+          );
+          return cy.wrap(false);
         }
-      });
+
+        openBatchActionsMenu();
+        humanWait(1000);
+
+        return cy.get("body").then(($body) => {
+          const $menu = $body
+            .find('[role="menu"], .ant-dropdown-menu')
+            .filter(":visible");
+
+          const $bulkPublishItem = $menu
+            .find('li, button, a, span, div, [role="menuitem"]')
+            .filter((i, el) => {
+              const text = Cypress.$(el).text().trim().toLowerCase();
+              return (
+                text === "bulk publish" ||
+                (text.includes("bulk publish") && !text.includes("replace"))
+              );
+            });
+
+          const isBulkPublishAvailable =
+            $bulkPublishItem.length > 0 &&
+            !$bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") &&
+            !$bulkPublishItem.attr("disabled") &&
+            !$bulkPublishItem.attr("aria-disabled");
+
+          if (isBulkPublishAvailable) {
+            cy.log("✅ 'Bulk publish' option is available and enabled!");
+            cy.get("body").click(0, 0); // Close menu
+            return cy.wrap(true);
+          } else {
+            cy.log(
+              `⚠️ 'Bulk publish' disabled or missing. Retries left: ${retriesLeft}`
+            );
+            cy.get("body").click(0, 0); // Close menu
+            humanWait(2000); // Wait before retry
+            return checkBulkPublishEnabled(retriesLeft - 1);
+          }
+        });
+      };
+
+      return checkBulkPublishEnabled();
     };
 
     // Execute Import with Retry
