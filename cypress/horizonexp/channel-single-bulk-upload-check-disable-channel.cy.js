@@ -1797,7 +1797,8 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
             cy.log(
               `⚠️ 'Bulk publish' disabled or missing. Retries left: ${retriesLeft}`
             );
-            cy.get("body").click(0, 0); // Close menu
+            // Force click body to close menu (bypassing pointer-events: none)
+            cy.get("body").click(0, 0, { force: true });
             humanWait(2000); // Wait before retry
             return checkBulkPublishEnabled(retriesLeft - 1);
           }
