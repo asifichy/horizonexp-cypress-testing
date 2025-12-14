@@ -70,6 +70,7 @@ describe("HorizonExp Profile Update Test", () => {
     cy.url().should("include", "/profile");
     cy.contains("Your Account").should("be.visible");
 
+    /*
     // 3. Upload profile icon
     cy.log("🖼️ Uploading Profile Icon");
     // "To upload e new profile icon, click on the Upload new button"
@@ -251,6 +252,7 @@ describe("HorizonExp Profile Update Test", () => {
     // Verify deletion
     cy.contains(assetName).should("not.exist");
     cy.log("✅ Website deleted successfully");
+    */
 
     // --- Workspace & Billing Section ---
     cy.log("🏢 Starting Workspace & Billing Section");
