@@ -62,6 +62,40 @@ describe("HorizonExp Profile Update Test", () => {
     cy.get("button").filter(":has(img)").last().should("be.visible").click();
     humanWait(1000);
 
+    // --- Create New Workspace Section ---
+    cy.log("🆕 Creating New Workspace");
+
+    // Dynamic workspace name with timestamp
+    const newWorkspaceName = `Auto-WS-${Date.now()}`;
+
+    // Click on "Add new workspace" button from the dropdown menu
+    cy.contains("Add new workspace").should("be.visible").click();
+    humanWait(2000);
+
+    // Fill in the workspace name in the modal/form
+    // Look for input field for workspace name
+    cy.get(
+      'input[placeholder*="workspace"], input[name*="workspace"], input[id*="workspace"]'
+    )
+      .first()
+      .should("be.visible")
+      .clear()
+      .type(newWorkspaceName, { delay: testConfig.humanTypeDelay });
+    humanWait(1000);
+
+    // Click Create/Submit button to create the workspace
+    cy.get("button")
+      .contains(/create|submit|save/i)
+      .should("be.visible")
+      .click();
+    humanWait(3000);
+
+    cy.log(`✅ Workspace "${newWorkspaceName}" created successfully`);
+
+    // After workspace creation, click profile button again to access My Profile
+    cy.get("button").filter(":has(img)").last().should("be.visible").click();
+    humanWait(1000);
+
     // 2. Click on the 'My Profile' button
     cy.contains("My Profile").should("be.visible").click();
     humanWait(3000);
