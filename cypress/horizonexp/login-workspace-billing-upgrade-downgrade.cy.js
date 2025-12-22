@@ -100,9 +100,16 @@ describe("HorizonExp Profile Update Test", () => {
     cy.contains("Workspace & Billing").should("be.visible").click();
     humanWait(3000);
 
-    // 8. Click on 'Upgrade to Pro'
-    // Selector based on the provided image "Upgrade to Premium" button
-    cy.contains("button", "Upgrade to Pro").should("be.visible").click();
+    // Hard refresh as requested
+    cy.reload(true);
+    humanWait(4000); // Wait for page to reload and stabilize
+
+    // 8. Click on 'Upgrade to Pro' or 'Upgrade to Premium'
+    // Using regex to match either text case-insensitively
+    cy.get("button")
+      .contains(/Upgrade to (Pro|Premium)/i)
+      .should("be.visible")
+      .click();
     humanWait(1000);
 
     // 9. Click on confirm button
