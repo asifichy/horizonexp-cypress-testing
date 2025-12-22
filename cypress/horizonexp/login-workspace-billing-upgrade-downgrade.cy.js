@@ -65,7 +65,7 @@ describe("HorizonExp Profile Update Test", () => {
 
     // Dynamic workspace name with timestamp
     // const newWorkspaceName = `Auto-WS-${Date.now()}`;
-    const newWorkspaceName = `Auto-WS-101`;
+    const newWorkspaceName = `Auto-WS-001`;
 
     // 2. Click on "Add new workspace" button from the dropdown menu
     cy.contains("Add new workspace").should("be.visible").click();
