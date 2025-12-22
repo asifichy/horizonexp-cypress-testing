@@ -65,7 +65,7 @@ describe("HorizonExp Profile Update Test", () => {
 
     // Dynamic workspace name with timestamp
     // const newWorkspaceName = `Auto-WS-${Date.now()}`;
-    const newWorkspaceName = `Auto-WS-001`;
+    const newWorkspaceName = `Auto-WS-00001`;
 
     // 2. Click on "Add new workspace" button from the dropdown menu
     cy.contains("Add new workspace").should("be.visible").click();
@@ -112,19 +112,28 @@ describe("HorizonExp Profile Update Test", () => {
       .click();
     humanWait(1000);
 
-    // 9. Click on confirm button
-    // Assuming a modal pops up with a confirm action.
-    // Searching for a "Confirm" or "Upgrade" button in a modal or the next screen.
-    // If it's a direct checkout or Stripe, this might need adjustment, but based on "Click on confirm button" request:
-    cy.get("button")
-      .contains(/confirm|pay|upgrade/i)
-      .should("be.visible")
-      .click();
+    // 9. Pause for Manual Payment
+    cy.log("🛑 PAUSING TEST for manual payment details entry...");
+    cy.log("👉 Please complete payment in the opened window/tab.");
+    cy.log(
+      "👉 AFTER payment, close the payment window and click 'Resume' in Cypress."
+    );
+    cy.pause(); // User handles payment manually here
 
-    // 10. Stay in the page after reloads for 3sec
-    // The previous click might cause a reload or navigation.
+    // 10. Reload to reflect subscription change
+    cy.reload(true);
+    humanWait(5000);
+
+    // 11. Click on 'Downgrade to Starter'
+    cy.log("📉 Downgrading to Starter");
+    cy.contains("button", "Downgrade to Starter").should("be.visible").click();
+    humanWait(1000);
+
+    // 12. Click on confirm button in the modal
+    cy.contains("button", "Confirm").should("be.visible").click();
+
     humanWait(3000);
 
-    cy.log("✅ Verified Upgrade flow");
+    cy.log("✅ Verified Upgrade and Downgrade flow");
   });
 });
