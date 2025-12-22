@@ -71,9 +71,8 @@ describe("HorizonExp Profile Update Test", () => {
     humanWait(2000);
 
     // 3. Fill in the workspace name in the modal/form
-    cy.get(
-      'input[placeholder*="workspace"], input[name*="workspace"], input[id*="workspace"]'
-    )
+    // The placeholder is "Workspace name..." so we need to match "Workspace" (case-sensitive usually)
+    cy.get('input[placeholder*="Workspace"], input[placeholder*="workspace"]')
       .first()
       .should("be.visible")
       .clear()
