@@ -65,7 +65,7 @@ describe("HorizonExp Profile Update Test", () => {
 
     // Dynamic workspace name with timestamp
     // const newWorkspaceName = `Auto-WS-${Date.now()}`;
-    const newWorkspaceName = `Auto-WS-1`;
+    const newWorkspaceName = `Auto-WS-11`;
 
     // 2. Click on "Add new workspace" button from the dropdown menu
     cy.contains("Add new workspace").should("be.visible").click();
@@ -102,7 +102,7 @@ describe("HorizonExp Profile Update Test", () => {
 
     // 8. Click on 'Upgrade to Pro'
     // Selector based on the provided image "Upgrade to Premium" button
-    cy.contains("button", "Upgrade to Premium").should("be.visible").click();
+    cy.contains("button", "Upgrade to Pro").should("be.visible").click();
     humanWait(1000);
 
     // 9. Click on confirm button
