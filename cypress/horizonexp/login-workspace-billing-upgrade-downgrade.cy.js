@@ -64,7 +64,8 @@ describe("HorizonExp Profile Update Test", () => {
     cy.log("🆕 Creating New Workspace");
 
     // Dynamic workspace name with timestamp
-    const newWorkspaceName = `Auto-WS-${Date.now()}`;
+    // const newWorkspaceName = `Auto-WS-${Date.now()}`;
+    const newWorkspaceName = `Auto-WS-1`;
 
     // 2. Click on "Add new workspace" button from the dropdown menu
     cy.contains("Add new workspace").should("be.visible").click();
@@ -76,14 +77,15 @@ describe("HorizonExp Profile Update Test", () => {
       .first()
       .should("be.visible")
       .clear()
-      .type(newWorkspaceName, { delay: testConfig.humanTypeDelay });
+      .type(`${newWorkspaceName}{enter}`, { delay: testConfig.humanTypeDelay });
     humanWait(1000);
 
     // 4. Click Create Workspace button
-    cy.get("button")
-      .contains(/create|submit|save/i)
-      .should("be.visible")
-      .click();
+    // User requested to not click the button explicitly, assuming Enter works or it's not needed.
+    // cy.get("button")
+    //   .contains(/create|submit|save/i)
+    //   .should("be.visible")
+    //   .click();
 
     // 5. Wait till the new workspace is loaded
     // We can check if the modal is gone or if the URL changes, or simply wait and check for a unique element of the dashboard
