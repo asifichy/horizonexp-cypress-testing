@@ -104,10 +104,9 @@ describe("HorizonExp Profile Update Test", () => {
     cy.reload(true);
     humanWait(4000); // Wait for page to reload and stabilize
 
-    // 8. Click on 'Upgrade to Pro' or 'Upgrade to Premium'
-    // Using regex to match either text case-insensitively
-    cy.get("button")
-      .contains(/Upgrade to (Pro|Premium)/i)
+    // 8. Scroll down and click on the "Upgrade to Pro" button inside the Pro plan card
+    cy.contains("button", "Upgrade to Pro", { matchCase: false })
+      .scrollIntoView()
       .should("be.visible")
       .click();
     humanWait(1000);
@@ -125,8 +124,8 @@ describe("HorizonExp Profile Update Test", () => {
     humanWait(5000);
 
     // 11. Click on 'Downgrade to Starter'
-    cy.log("📉 Downgrading to Starter");
-    cy.contains("button", "Downgrade to Starter").should("be.visible").click();
+    cy.log("📉 Downgrading to Premium");
+    cy.contains("button", "Downgrade to Premium").should("be.visible").click();
     humanWait(1000);
 
     // 12. Click on confirm button in the modal
