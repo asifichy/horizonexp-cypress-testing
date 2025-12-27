@@ -822,7 +822,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     const channelName = `Channel-${Date.now()}`;
     // const updatedTitle = `${channelName}-Edited`;
     const updatedTitle = "Auto-channel-30";
-    const updatedDescription = "Auto-channel description";
+    const updatedDescription = "Auto-channel description updated";
 
     // ============================================
     // STEP 1: CHANNEL CREATION
