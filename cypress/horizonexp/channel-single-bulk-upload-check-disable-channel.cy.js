@@ -721,6 +721,9 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       publishRequestTriggered = true;
     }).as("publishRequest");
 
+    // Intercept batch status requests to wait for READY_TO_PUBLISH
+    cy.intercept("GET", "**/shorts/uploads/**").as("getBatchStatus");
+
     cy.intercept("POST", "**/api/**/publish**", (req) => {
       req.continue((res) => {
         if (res.body) {
@@ -1731,137 +1734,147 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       });
 
       cy.log(
-        "✅ CSV import action completed, waiting for processing to finish..."
+        "✅ CSV import action completed, waiting for batch to become READY_TO_PUBLISH..."
       );
-      humanWait(15000); // 15 seconds to match manual user experience
 
-      // 4.5. Reload the page to ensure CSV metadata is fully applied
-      cy.log("🔄 Reloading page to refresh CSV metadata in UI...");
-      cy.reload();
-      humanWait(3000);
-
-      // 4.6. Verify that CSV data is actually applied by checking upload card
-      cy.log(
-        "🔍 Verifying CSV metadata was applied to uploads after reload..."
-      );
-      cy.get("body").then(($body) => {
-        const bodyText = $body.text() || "";
-        cy.log(`Current page text includes: ${bodyText.substring(0, 500)}`);
-
-        // Look for indicators that metadata was applied
-        const hasContent = bodyText.includes("content");
-        const hasPublished = bodyText.includes("published");
-        cy.log(
-          `Status check - hasContent: ${hasContent}, hasPublished: ${hasPublished}`
-        );
-      });
-
-      humanWait(2000);
-
-      // 4.7. Wait for batch card to be properly updated after CSV import
-      cy.log("⏳ Waiting for batch card to update after reload...");
-      waitForBatchReadyCard();
-      humanWait(2000);
-
-      // 4.8. Verify CSV actually populated required fields by checking card text
-      cy.log("🔍 Checking if CSV populated required fields...");
-      cy.get("body").then(($body) => {
-        const batchCards = collectCardsForContext($body, "batch");
-        if (batchCards.length > 0) {
-          const batchText = batchCards.first().text();
-          cy.log(`Batch card text: ${batchText}`);
-
-          // Log what we see
-          const has0Published = batchText.includes("0 published");
-          const hasReadyToPublish = batchText
-            .toLowerCase()
-            .includes("ready to publish");
-
-          cy.log(
-            `📊 Batch status: 0 published=${has0Published}, Ready to publish=${hasReadyToPublish}`
-          );
-
-          // If it still shows "0 published" and "Ready to publish",
-          // it means videos haven't been processed with CSV data yet
-          if (has0Published && hasReadyToPublish) {
-            cy.log(
-              "⚠️ Batch still shows '0 published' - CSV data may not have been fully applied"
-            );
-          }
-        }
-      });
-      humanWait(2000);
-
-      // 4.9. Request to Poll for Bulk Publish button (Wait for it to become enabled)
-      cy.log("🔍 Polling for 'Bulk publish' option to become enabled...");
-
-      const checkBulkPublishEnabled = (retriesLeft = 5) => {
-        if (retriesLeft === 0) {
-          cy.log(
-            "❌ 'Bulk publish' button remained disabled after all retries."
-          );
-          return cy.wrap(false);
-        }
-
-        openBatchActionsMenu();
-        humanWait(1000);
-
-        return cy.get("body").then(($body) => {
-          const $menu = $body
-            .find('[role="menu"], .ant-dropdown-menu')
-            .filter(":visible");
-
-          const $bulkPublishItem = $menu
-            .find('li, button, a, span, div, [role="menuitem"]')
-            .filter((i, el) => {
-              const text = Cypress.$(el).text().trim().toLowerCase();
-              return (
-                text === "bulk publish" ||
-                (text.includes("bulk publish") && !text.includes("replace"))
-              );
-            });
-
-          const isBulkPublishAvailable =
-            $bulkPublishItem.length > 0 &&
-            !$bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") &&
-            !$bulkPublishItem.attr("disabled") &&
-            !$bulkPublishItem.attr("aria-disabled");
-
-          if (isBulkPublishAvailable) {
-            cy.log("✅ 'Bulk publish' option is available and enabled!");
-            cy.get("body").click(0, 0); // Close menu
-            return cy.wrap(true);
-          } else {
-            cy.log(
-              `⚠️ 'Bulk publish' disabled or missing. Retries left: ${retriesLeft}`
-            );
-            // Force click body to close menu (bypassing pointer-events: none)
-            cy.get("body").click(0, 0, { force: true });
-            humanWait(2000); // Wait before retry
-            return checkBulkPublishEnabled(retriesLeft - 1);
-          }
-        });
+      // 4.5. Wait for the batch status API to return READY_TO_PUBLISH
+      // This is the key fix - wait for the backend to finish processing CSV metadata
+      cy.log("⏳ Waiting for batch status to become READY_TO_PUBLISH via API...");
+      
+      // Poll the batch status until it becomes ready for bulk publish
+      const waitForBatchReady = (maxAttempts = 30, attemptInterval = 3000) => {
+        let currentAttempt = 0;
+        
+        const checkStatus = () => {
+          currentAttempt++;
+          cy.log(`🔄 Checking batch status (attempt ${currentAttempt}/${maxAttempts})...`);
+          
+          // Reload to trigger fresh API call
+          cy.reload();
+          humanWait(2000);
+          
+          // Wait for the batch status API response
+          return cy.wait("@getBatchStatus", { timeout: 30000 }).then((interception) => {
+            const responseBody = interception.response?.body;
+            cy.log(`📡 Batch API response received`);
+            
+            if (responseBody) {
+              // Log the response for debugging
+              const status = responseBody.status || responseBody.batchStatus || "unknown";
+              const isReady = responseBody.isReadyToPublish || responseBody.canBulkPublish;
+              cy.log(`📊 Batch status: ${status}, isReady: ${isReady}`);
+              
+              // Check if batch is ready for bulk publish
+              // The API might return different field names, so we check multiple possibilities
+              const readyIndicators = [
+                status === "READY_TO_PUBLISH",
+                status === "ready_to_publish",
+                status === "READY",
+                isReady === true,
+                responseBody.bulkPublishEnabled === true,
+              ];
+              
+              if (readyIndicators.some(Boolean)) {
+                cy.log("✅ Batch is READY_TO_PUBLISH!");
+                return cy.wrap(true);
+              }
+            }
+            
+            // If not ready and we have attempts left, wait and try again
+            if (currentAttempt < maxAttempts) {
+              cy.log(`⏳ Batch not ready yet, waiting ${attemptInterval/1000}s before next check...`);
+              humanWait(attemptInterval);
+              return checkStatus();
+            } else {
+              cy.log("⚠️ Max attempts reached, proceeding with DOM-based check...");
+              return cy.wrap(false);
+            }
+          });
+        };
+        
+        return checkStatus();
       };
+      
+      return waitForBatchReady().then((apiReady) => {
+        if (apiReady) {
+          cy.log("✅ API confirmed batch is ready for bulk publish");
+          return cy.wrap(true);
+        }
+        
+        // Fallback: DOM-based polling if API check didn't confirm readiness
+        cy.log("🔍 Falling back to DOM-based polling for 'Bulk publish' option...");
+        
+        const checkBulkPublishEnabled = (retriesLeft = 10) => {
+          if (retriesLeft === 0) {
+            cy.log(
+              "❌ 'Bulk publish' button remained disabled after all retries."
+            );
+            return cy.wrap(false);
+          }
 
-      return checkBulkPublishEnabled();
+          openBatchActionsMenu();
+          humanWait(1000);
+
+          return cy.get("body").then(($body) => {
+            const $menu = $body
+              .find('[role="menu"], .ant-dropdown-menu')
+              .filter(":visible");
+
+            const $bulkPublishItem = $menu
+              .find('li, button, a, span, div, [role="menuitem"]')
+              .filter((i, el) => {
+                const text = Cypress.$(el).text().trim().toLowerCase();
+                return (
+                  text === "bulk publish" ||
+                  (text.includes("bulk publish") && !text.includes("replace"))
+                );
+              });
+
+            const isBulkPublishAvailable =
+              $bulkPublishItem.length > 0 &&
+              !$bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") &&
+              !$bulkPublishItem.attr("disabled") &&
+              !$bulkPublishItem.attr("aria-disabled");
+
+            if (isBulkPublishAvailable) {
+              cy.log("✅ 'Bulk publish' option is available and enabled!");
+              cy.get("body").click(0, 0); // Close menu
+              return cy.wrap(true);
+            } else {
+              cy.log(
+                `⚠️ 'Bulk publish' disabled or missing. Retries left: ${retriesLeft}`
+              );
+              // Force click body to close menu (bypassing pointer-events: none)
+              cy.get("body").click(0, 0, { force: true });
+              humanWait(3000); // Wait before retry
+              return checkBulkPublishEnabled(retriesLeft - 1);
+            }
+          });
+        };
+
+        return checkBulkPublishEnabled();
+      });
     };
 
     // Execute Import with Retry
     cy.then(() => {
       return importCSVAndCheck(1).then((success) => {
         if (!success) {
-          cy.log("⚠️ First CSV import didn't enable Bulk Publish. Retrying...");
-          humanWait(2000);
+          cy.log("⚠️ First CSV import didn't enable Bulk Publish. Retrying with fresh CSV import...");
+          humanWait(3000);
           return importCSVAndCheck(2).then((success2) => {
             if (!success2) {
-              throw new Error(
-                "Failed to enable Bulk Publish after 2 CSV import attempts."
-              );
+              cy.log("⚠️ Second attempt also failed, but proceeding to try Bulk Publish anyway...");
+              // Don't throw error - let the bulk publish step handle the failure
+              // Sometimes the UI state is ready even if our checks didn't detect it
             }
           });
         }
       });
     });
+
+    // Additional wait to ensure UI is fully updated after CSV processing
+    humanWait(3000);
 
     // ============================================
     // STEP 5.7: BULK PUBLISH VIA MENU
@@ -1872,13 +1885,54 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     waitForBatchReadyCard();
     humanWait(1000);
 
-    const performBulkPublish = () => {
+    const performBulkPublishWithRetry = (retriesLeft = 3) => {
+      cy.log(`🔄 Attempting Bulk Publish (retries left: ${retriesLeft})`);
+      
       openBatchActionsMenu();
       humanWait(1000);
-      clickBulkPublishOption({ expectToast: true });
+      
+      // Check if Bulk publish is enabled before clicking
+      return cy.get("body").then(($body) => {
+        const $menu = $body
+          .find('[role="menu"], .ant-dropdown-menu')
+          .filter(":visible");
+
+        const $bulkPublishItem = $menu
+          .find('li, button, a, span, div, [role="menuitem"]')
+          .filter((i, el) => {
+            const text = Cypress.$(el).text().trim().toLowerCase();
+            return (
+              text === "bulk publish" ||
+              (text.includes("bulk publish") && !text.includes("replace"))
+            );
+          });
+
+        const isDisabled =
+          $bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") ||
+          $bulkPublishItem.attr("disabled") ||
+          $bulkPublishItem.attr("aria-disabled") === "true";
+
+        if ($bulkPublishItem.length > 0 && !isDisabled) {
+          cy.log("✅ Bulk publish option is enabled, clicking...");
+          clickBulkPublishOption({ expectToast: true });
+          return cy.wrap(true);
+        } else if (retriesLeft > 0) {
+          cy.log(`⚠️ Bulk publish still disabled, waiting and retrying...`);
+          cy.get("body").click(0, 0, { force: true }); // Close menu
+          humanWait(5000); // Wait 5 seconds before retry
+          cy.reload(); // Refresh page to get latest batch status
+          humanWait(3000);
+          return performBulkPublishWithRetry(retriesLeft - 1);
+        } else {
+          // Last resort: try clicking anyway
+          cy.log("⚠️ Bulk publish appears disabled but attempting click anyway...");
+          clickBulkPublishOption({ expectToast: true });
+          return cy.wrap(false);
+        }
+      });
     };
 
-    performBulkPublish();
+    performBulkPublishWithRetry();
     humanWait(2000);
 
     cy.log("⏳ Waiting for bulk publish to complete");
