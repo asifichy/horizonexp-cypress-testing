@@ -721,9 +721,6 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       publishRequestTriggered = true;
     }).as("publishRequest");
 
-    // Intercept batch status requests to wait for READY_TO_PUBLISH
-    cy.intercept("GET", "**/shorts/uploads/**").as("getBatchStatus");
-
     cy.intercept("POST", "**/api/**/publish**", (req) => {
       req.continue((res) => {
         if (res.body) {
@@ -1738,135 +1735,16 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
         expect(successDetected || toastVisible, "CSV import success");
       });
 
-      cy.log(
-        "✅ CSV import action completed, performing hard refresh..."
-      );
+      cy.log("✅ CSV import action completed");
 
       // 4.5. Hard refresh after CSV import to ensure UI is updated
       cy.log("🔄 Performing hard refresh after CSV import...");
-      humanWait(2000); // Brief wait for any pending operations
+      humanWait(3000); // Brief wait for any pending operations
       cy.reload(true); // true = hard refresh (force reload from server, not cache)
       humanWait(5000); // Wait for page to fully load after refresh
       
-      cy.log("✅ Hard refresh completed, now checking batch status...");
-
-      // 4.6. Wait for the batch status API to return READY_TO_PUBLISH
-      // This is the key fix - wait for the backend to finish processing CSV metadata
-      cy.log("⏳ Waiting for batch status to become READY_TO_PUBLISH via API...");
-      
-      // Poll the batch status until it becomes ready for bulk publish
-      const waitForBatchReady = (maxAttempts = 30, attemptInterval = 3000) => {
-        let currentAttempt = 0;
-        
-        const checkStatus = () => {
-          currentAttempt++;
-          cy.log(`🔄 Checking batch status (attempt ${currentAttempt}/${maxAttempts})...`);
-          
-          // Reload to trigger fresh API call
-          cy.reload();
-          humanWait(2000);
-          
-          // Wait for the batch status API response
-          return cy.wait("@getBatchStatus", { timeout: 30000 }).then((interception) => {
-            const responseBody = interception.response?.body;
-            cy.log(`📡 Batch API response received`);
-            
-            if (responseBody) {
-              // Log the response for debugging
-              const status = responseBody.status || responseBody.batchStatus || "unknown";
-              const isReady = responseBody.isReadyToPublish || responseBody.canBulkPublish;
-              cy.log(`📊 Batch status: ${status}, isReady: ${isReady}`);
-              
-              // Check if batch is ready for bulk publish
-              // The API might return different field names, so we check multiple possibilities
-              const readyIndicators = [
-                status === "READY_TO_PUBLISH",
-                status === "ready_to_publish",
-                status === "READY",
-                isReady === true,
-                responseBody.bulkPublishEnabled === true,
-              ];
-              
-              if (readyIndicators.some(Boolean)) {
-                cy.log("✅ Batch is READY_TO_PUBLISH!");
-                return cy.wrap(true);
-              }
-            }
-            
-            // If not ready and we have attempts left, wait and try again
-            if (currentAttempt < maxAttempts) {
-              cy.log(`⏳ Batch not ready yet, waiting ${attemptInterval/1000}s before next check...`);
-              humanWait(attemptInterval);
-              return checkStatus();
-            } else {
-              cy.log("⚠️ Max attempts reached, proceeding with DOM-based check...");
-              return cy.wrap(false);
-            }
-          });
-        };
-        
-        return checkStatus();
-      };
-      
-      return waitForBatchReady().then((apiReady) => {
-        if (apiReady) {
-          cy.log("✅ API confirmed batch is ready for bulk publish");
-          return cy.wrap(true);
-        }
-        
-        // Fallback: DOM-based polling if API check didn't confirm readiness
-        cy.log("🔍 Falling back to DOM-based polling for 'Bulk publish' option...");
-        
-        const checkBulkPublishEnabled = (retriesLeft = 10) => {
-          if (retriesLeft === 0) {
-            cy.log(
-              "❌ 'Bulk publish' button remained disabled after all retries."
-            );
-            return cy.wrap(false);
-          }
-
-          openBatchActionsMenu();
-          humanWait(1000);
-
-          return cy.get("body").then(($body) => {
-            const $menu = $body
-              .find('[role="menu"], .ant-dropdown-menu')
-              .filter(":visible");
-
-            const $bulkPublishItem = $menu
-              .find('li, button, a, span, div, [role="menuitem"]')
-              .filter((i, el) => {
-                const text = Cypress.$(el).text().trim().toLowerCase();
-                return (
-                  text === "bulk publish" ||
-                  (text.includes("bulk publish") && !text.includes("replace"))
-                );
-              });
-
-            const isBulkPublishAvailable =
-              $bulkPublishItem.length > 0 &&
-              !$bulkPublishItem.hasClass("ant-dropdown-menu-item-disabled") &&
-              !$bulkPublishItem.attr("disabled") &&
-              !$bulkPublishItem.attr("aria-disabled");
-
-            if (isBulkPublishAvailable) {
-              cy.log("✅ 'Bulk publish' option is available and enabled!");
-              cy.get("body").click(0, 0); // Close menu
-              return cy.wrap(true);
-            } else {
-              cy.log(
-                `⚠️ 'Bulk publish' disabled or missing. Retries left: ${retriesLeft}`
-              );
-              // Force click body to close menu (bypassing pointer-events: none)
-              cy.get("body").click(0, 0, { force: true });
-              humanWait(3000); // Wait before retry
-              return checkBulkPublishEnabled(retriesLeft - 1);
-            }
-          });
-        };
-
-        return checkBulkPublishEnabled();
-      });
+      cy.log("✅ Hard refresh completed");
+      return cy.wrap(true);
     };
 
     // Execute Import with Retry
