@@ -916,15 +916,20 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     cy.log("🚀 Clicking Create Channel");
     cy.contains("button", "Create Channel").click();
     humanWait(3000);
-    cy.reload();
-    humanWait(2000);
+    
+    // Navigate back to Channels page after creation
+    cy.log("📱 Navigating back to Channels page...");
+    cy.visit("https://app.horizonexp.com/shorts/channels");
+    humanWait(3000);
 
     // ============================================
     // STEP 2: CHANNEL EDIT
     // ============================================
     cy.log("🎬 STEP 2: Editing Channel");
 
-    cy.contains("Shorts Channels").should("be.visible");
+    // Wait for the Channels page to load
+    cy.url().should("include", "/shorts/channels");
+    cy.contains("Shorts Channels", { timeout: 15000 }).should("be.visible");
     humanWait(2000);
 
     cy.log(`🔍 Locating '${channelName}' and opening menu`);
