@@ -1617,7 +1617,7 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
     cy.log("");
 
     const csvMenuMatchers = [
-      /import\s+csv\s+metadata/i,
+      /Import\s+CSV\s+metadata/i,
       /import\s+metadata/i,
       /import\s+csv/i,
     ];
