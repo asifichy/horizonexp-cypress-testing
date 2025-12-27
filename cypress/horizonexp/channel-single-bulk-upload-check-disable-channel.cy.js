@@ -1734,10 +1734,18 @@ describe("Merged Test: Channel Create -> Edit -> Single Upload -> Bulk Upload ->
       });
 
       cy.log(
-        "✅ CSV import action completed, waiting for batch to become READY_TO_PUBLISH..."
+        "✅ CSV import action completed, performing hard refresh..."
       );
 
-      // 4.5. Wait for the batch status API to return READY_TO_PUBLISH
+      // 4.5. Hard refresh after CSV import to ensure UI is updated
+      cy.log("🔄 Performing hard refresh after CSV import...");
+      humanWait(2000); // Brief wait for any pending operations
+      cy.reload(true); // true = hard refresh (force reload from server, not cache)
+      humanWait(5000); // Wait for page to fully load after refresh
+      
+      cy.log("✅ Hard refresh completed, now checking batch status...");
+
+      // 4.6. Wait for the batch status API to return READY_TO_PUBLISH
       // This is the key fix - wait for the backend to finish processing CSV metadata
       cy.log("⏳ Waiting for batch status to become READY_TO_PUBLISH via API...");
       
