@@ -520,64 +520,84 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.contains(editedVideoData.title, { timeout: 10000 }).should("be.visible");
     cy.log("✅ Found video with title: " + editedVideoData.title);
     
-    // STEP 2: Click directly on the three-dot menu button
-    // The menu button is a small button with vertical dots (⋮) typically positioned at top-right of video thumbnail
-    // We'll find it by looking for buttons that contain SVG and are small
+    // STEP 2: Find the video card and click its menu button
+    // The menu button (three dots) is inside the video card, near the thumbnail
+    // NOT the notification bell at the top of the page
     
-    cy.log("📌 Looking for three-dot menu button...");
+    cy.log("📌 Looking for three-dot menu button on video card...");
     
-    // Find all buttons on the page, then filter for menu buttons
-    cy.get('button').then(($buttons) => {
-      // Filter for buttons that look like menu buttons (small, with SVG icon)
-      const menuButtons = $buttons.filter((i, el) => {
-        const $el = Cypress.$(el);
-        const hasSvg = $el.find('svg').length > 0;
-        const width = $el.outerWidth() || 0;
-        const height = $el.outerHeight() || 0;
-        const isSmall = width < 50 && height < 50;
-        const text = $el.text().trim();
-        const hasNoText = text === '' || text.length < 3;
-        return hasSvg && isSmall && hasNoText;
-      });
-      
-      cy.log(`📌 Found ${menuButtons.length} potential menu button(s)`);
-      
-      if (menuButtons.length > 0) {
-        // Click on the FIRST menu button (which should be for the first video card)
-        cy.wrap(menuButtons.first()).click({ force: true });
-      } else {
-        // Fallback: Try to find any button with three dots pattern
-        cy.log("⚠️ Trying fallback - looking for any icon button");
-        const iconButtons = $buttons.filter((i, el) => {
-          const $el = Cypress.$(el);
-          return $el.find('svg').length > 0;
-        });
-        if (iconButtons.length > 0) {
-          cy.wrap(iconButtons.first()).click({ force: true });
+    // Strategy: Find the video by title, go up to find the card container,
+    // then find the menu button within that card
+    cy.contains(editedVideoData.title)
+      .should("be.visible")
+      .then(($title) => {
+        // Navigate up to find the video card container
+        // Keep going up until we find a container with an img (thumbnail)
+        let $container = $title.parent();
+        for (let i = 0; i < 10; i++) {
+          if ($container.find('img').length > 0) {
+            break;
+          }
+          $container = $container.parent();
         }
-      }
-    });
+        
+        cy.log("📦 Found video card container");
+        
+        // Find button inside this container that has SVG (the menu icon)
+        const $buttonsInCard = $container.find('button').filter(':visible');
+        cy.log(`📌 Found ${$buttonsInCard.length} button(s) in video card`);
+        
+        if ($buttonsInCard.length > 0) {
+          // The menu button should be one with SVG icon
+          const $menuBtn = $buttonsInCard.filter((i, el) => {
+            const $el = Cypress.$(el);
+            return $el.find('svg').length > 0;
+          });
+          
+          if ($menuBtn.length > 0) {
+            cy.log("✅ Found menu button with SVG in video card");
+            cy.wrap($menuBtn.first()).click({ force: true });
+          } else {
+            // Click any button in the card
+            cy.log("⚠️ No SVG button found, clicking first button in card");
+            cy.wrap($buttonsInCard.first()).click({ force: true });
+          }
+        } else {
+          cy.log("⚠️ No buttons found in video card container");
+        }
+      });
 
     humanWait(2000);
     
-    // Verify menu is open by checking if "Disable Video" or similar option is visible
+    // Verify menu is open
     cy.log("🔍 Checking if menu opened...");
     cy.get('body').then(($body) => {
       const menuVisible = $body.text().includes('Disable Video') || 
-                         $body.text().includes('Edit Video') ||
+                         $body.text().includes('Edit Video details') ||
                          $body.text().includes('See stats');
+      
       if (!menuVisible) {
-        cy.log("⚠️ Menu not visible, trying to click first video's menu button again");
-        // Try clicking by finding the first video card's menu
-        const $firstCard = $body.find('img').filter(':visible').first().parent().parent();
-        const $menuBtn = $firstCard.find('button').filter(':visible').first();
-        if ($menuBtn.length > 0) {
-          cy.wrap($menuBtn).click({ force: true });
+        cy.log("⚠️ Menu not visible, trying alternative approach...");
+        
+        // Alternative: Find the thumbnail image and look for button nearby
+        const $thumbnails = $body.find('img.object-cover').filter(':visible');
+        if ($thumbnails.length > 0) {
+          // Get the first thumbnail's parent which should be the video card
+          const $firstThumb = $thumbnails.first();
+          const $card = $firstThumb.parent().parent();
+          const $btn = $card.find('button').filter(':visible').first();
+          
+          if ($btn.length > 0) {
+            cy.log("📌 Found button near thumbnail, clicking...");
+            cy.wrap($btn).click({ force: true });
+          }
         }
+      } else {
+        cy.log("✅ Menu is already open");
       }
     });
     
-    humanWait(1000);
+    humanWait(1500);
     cy.log("✅ Menu should be opened");
 
     // ============================================
