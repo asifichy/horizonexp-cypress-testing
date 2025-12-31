@@ -593,7 +593,9 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 8: Click on Disable Video");
 
-    cy.log("📋 Waiting for dropdown menu with 'Disable Video'");
+    cy.log("⏳ Waiting for menu options to appear before clicking Disable");
+    humanWait(1000);
+    cy.log("📋 Looking for 'Disable Video' option");
     cy.contains("Disable Video", { matchCase: false, timeout: 10000 })
       .should("be.visible")
       .scrollIntoView()
