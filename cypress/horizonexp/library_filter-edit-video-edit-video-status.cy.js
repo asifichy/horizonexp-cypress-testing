@@ -288,99 +288,144 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
 
     // Click on the video title to open the edit form
     // The video title is displayed below the thumbnail (e.g., "Single Upload Test")
+    // IMPORTANT: We need to click in the main content area, NOT the sidebar
+    
+    // Strategy: Find the channel name in the video card area (not sidebar) and click on the title above it
+    // The video card structure is: [Thumbnail] -> [Title Text] -> [Channel Name with icon]
+    
     cy.get("body").then(($body) => {
-      // Find video titles - they are typically text elements below the thumbnail
-      // Look for elements that contain video title text and are clickable
-      
-      // First, find all potential video title elements
-      // Video titles are usually in elements like <p>, <span>, <a>, <h3>, <h4> near the video cards
-      const titleSelectors = [
-        'a[class*="flex"]', // Anchor tags with flex class (common for clickable titles)
-        'p[class*="font"]', // Paragraph with font styling
-        'h3', // Heading elements
-        'h4',
-        'span[class*="font"]',
-      ];
-
       let clicked = false;
       
-      // Try to find a video title that's not a channel name
-      // Video titles are usually different from channel names like "Auto-channel-30" or "DevOps"
-      for (const selector of titleSelectors) {
-        if (clicked) break;
-        const $elements = $body.find(selector).filter(":visible");
+      // First, find the main content area (right side of the page, not the sidebar)
+      // The sidebar contains navigation items, main content has video cards
+      // Video cards have images/thumbnails, so we look for containers with images
+      
+      // Find all img elements (video thumbnails) and look for title text near them
+      const $thumbnails = $body.find('img').filter(':visible').filter((i, el) => {
+        const $el = Cypress.$(el);
+        // Video thumbnails are usually larger and in the main content area
+        const width = $el.width() || 0;
+        const height = $el.height() || 0;
+        // Filter for reasonably sized images (video thumbnails)
+        return width > 100 && height > 100;
+      });
+
+      cy.log(`📹 Found ${$thumbnails.length} video thumbnail(s)`);
+
+      if ($thumbnails.length > 0) {
+        // Get the first thumbnail's parent container to find the video card
+        const $thumbnail = $thumbnails.first();
+        const $videoCard = $thumbnail.closest('div').parent().parent().parent();
         
-        $elements.each((i, el) => {
+        // Look for the title text within or near this video card
+        // The title is usually a p, span, or a tag below the thumbnail
+        const $allText = $videoCard.find('p, span, a, h3, h4').filter(':visible');
+        
+        $allText.each((i, el) => {
           if (clicked) return false;
           const $el = Cypress.$(el);
           const text = $el.text().trim();
           
-          // Check if this looks like a video title (not a channel name, not empty, reasonable length)
-          const isNotChannelName = text !== "Auto-channel-30" && text !== "DevOps" && 
-                                   text !== "All Channels" && text !== "Most Popular" &&
-                                   text !== "Recent" && text !== "Library" &&
-                                   text !== "Short-form" && text !== "Uploads" &&
-                                   text !== "Channels" && text !== "Users" && text !== "Metrics";
-          const isReasonableLength = text.length > 3 && text.length < 100;
-          const isNotMenuOrButton = !text.includes("Upload New") && !text.includes("Add");
+          // Skip channel names and other known non-title text
+          const skipTexts = [
+            'Auto-channel-30', 'DevOps', 'All Channels', 'Most Popular',
+            'Recent', 'Library', 'Short-form', 'Uploads', 'Channels',
+            'Users', 'Metrics', 'Campaign', 'UGC', 'Experience',
+            'Entry Points', 'Upload New', 'Search', 'ago'
+          ];
           
-          if (isNotChannelName && isReasonableLength && isNotMenuOrButton) {
-            cy.log(`✅ Found video title: "${text}"`);
+          const shouldSkip = skipTexts.some(skip => 
+            text === skip || text.includes(skip)
+          );
+          
+          // Valid title: not in skip list, reasonable length, contains actual text
+          if (!shouldSkip && text.length > 3 && text.length < 100) {
+            cy.log(`✅ Found video title in card: "${text}"`);
             cy.wrap(el).scrollIntoView().click({ force: true });
             clicked = true;
-            return false; // break out of each loop
+            return false;
           }
         });
       }
 
+      // Fallback: Find the title by looking for text near channel indicator
       if (!clicked) {
-        // Fallback: Look for any text that looks like a video title near channel names
-        cy.log("⚠️ Using fallback - looking for video title near channel indicator");
+        cy.log("⚠️ Using fallback - finding title via channel indicator");
         
-        // Find channel name elements and look for sibling/parent elements with title
-        const $channelElements = $body
-          .find(`*:contains("${editedVideoData.filterChannel}")`)
-          .filter(":visible")
-          .filter((i, el) => {
-            const text = Cypress.$(el).text().trim();
-            return text === editedVideoData.filterChannel;
-          });
+        // Find the channel name "Auto-channel-30" in the main content (not sidebar)
+        const $channelInCards = $body.find('*').filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          // Must be exactly the channel name
+          if (text !== editedVideoData.filterChannel) return false;
+          // Must not be in sidebar (sidebar items usually have different structure)
+          // Check if this element is near an image (video thumbnail)
+          const $parent = $el.parent();
+          const hasNearbyImage = $parent.siblings().find('img').length > 0 || 
+                                 $parent.parent().find('img').length > 0 ||
+                                 $parent.parent().parent().find('img').length > 0;
+          return hasNearbyImage;
+        });
 
-        if ($channelElements.length > 0) {
-          // The title is usually a sibling element before the channel name
-          const $parent = $channelElements.first().parent();
-          const $prevSibling = $parent.prev();
+        if ($channelInCards.length > 0) {
+          cy.log(`📌 Found channel indicator in video card`);
+          // Navigate up to find the video title
+          const $channelEl = $channelInCards.first();
+          const $container = $channelEl.parent().parent();
           
-          if ($prevSibling.length > 0 && $prevSibling.text().trim().length > 0) {
-            cy.log(`✅ Found title via sibling: "${$prevSibling.text().trim()}"`);
-            cy.wrap($prevSibling[0]).click({ force: true });
+          // The title is usually a sibling element
+          const $titleCandidate = $container.find('p, span, a').filter((i, el) => {
+            const text = Cypress.$(el).text().trim();
+            return text !== editedVideoData.filterChannel && 
+                   text.length > 3 && 
+                   !text.includes('ago') &&
+                   !text.includes('Channel');
+          }).first();
+
+          if ($titleCandidate.length > 0) {
+            cy.log(`✅ Found title: "${$titleCandidate.text().trim()}"`);
+            cy.wrap($titleCandidate[0]).click({ force: true });
             clicked = true;
-          } else {
-            // Try parent's previous sibling
-            const $grandParent = $parent.parent();
-            const $titleElement = $grandParent.find('p, span, a, h3, h4').first();
-            if ($titleElement.length > 0) {
-              cy.log(`✅ Found title in container: "${$titleElement.text().trim()}"`);
-              cy.wrap($titleElement[0]).click({ force: true });
-              clicked = true;
-            }
           }
         }
       }
 
+      // Last resort: Use cy.contains to find a specific video title pattern
       if (!clicked) {
-        // Last resort: Click on the first visible text that looks like a video title
-        cy.log("⚠️ Last resort - clicking first potential video title");
-        cy.get('p, span, a, h3, h4')
-          .filter(':visible')
-          .filter((i, el) => {
-            const text = Cypress.$(el).text().trim();
-            return text.length > 5 && text.length < 50 && 
-                   !text.includes("Channel") && !text.includes("Library") &&
-                   !text.includes("Upload") && !text.includes("Search");
-          })
-          .first()
-          .click({ force: true });
+        cy.log("⚠️ Last resort - using direct title search");
+        // Look for common video title patterns that are NOT navigation items
+        // Video titles usually end with "Test", "Video", numbers, etc.
+        const $titles = $body.find('p, span').filter(':visible').filter((i, el) => {
+          const $el = Cypress.$(el);
+          const text = $el.text().trim();
+          // Must look like a video title
+          const looksLikeTitle = (
+            text.includes('Test') || 
+            text.includes('Video') || 
+            text.includes('Upload') ||
+            text.match(/\d+/) // Contains numbers
+          );
+          // Must not be navigation
+          const isNotNav = !text.includes('Entry') && 
+                          !text.includes('Library') && 
+                          !text.includes('Channel') &&
+                          text !== 'Upload New';
+          return looksLikeTitle && isNotNav && text.length > 3 && text.length < 60;
+        });
+
+        if ($titles.length > 0) {
+          cy.log(`✅ Found title via pattern: "${$titles.first().text().trim()}"`);
+          cy.wrap($titles.first()).click({ force: true });
+          clicked = true;
+        }
+      }
+
+      if (!clicked) {
+        // Absolute last resort: Click on video thumbnail itself
+        cy.log("⚠️ Clicking on video thumbnail as last resort");
+        if ($thumbnails.length > 0) {
+          cy.wrap($thumbnails.first()).click({ force: true });
+        }
       }
     });
 
@@ -388,7 +433,13 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.log("⏳ Waiting for edit form to load...");
     humanWait(3000);
 
-    // Verify edit form is open
+    // Verify edit form is open - check URL change or Edit Details visibility
+    cy.url().then((currentUrl) => {
+      if (currentUrl.includes('/edit') || currentUrl.includes('/library/')) {
+        cy.log("✅ URL indicates edit form navigation");
+      }
+    });
+    
     cy.contains("Edit Details", { timeout: 15000 }).should("be.visible");
     cy.log("✅ Video edit form opened");
 
