@@ -516,87 +516,68 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // Find the video with edited title and click its THREE-DOT MENU BUTTON
     cy.log("🔍 Finding video: " + editedVideoData.title + " and clicking menu icon");
     
-    // APPROACH: Find the title, then find the closest parent that contains both img and button
-    // The three-dot menu is typically a button with SVG in the video card
+    // STEP 1: First verify the video title exists
+    cy.contains(editedVideoData.title, { timeout: 10000 }).should("be.visible");
+    cy.log("✅ Found video with title: " + editedVideoData.title);
     
-    cy.get("body").then(($body) => {
-      // Find the title element
-      const $titleEl = $body.find(`p:contains("${editedVideoData.title}"), span:contains("${editedVideoData.title}")`).filter(':visible').filter((i, el) => {
-        return Cypress.$(el).text().trim() === editedVideoData.title;
-      }).first();
-      
-      if ($titleEl.length === 0) {
-        cy.log("⚠️ Title not found, trying alternative approach");
-        // Fallback: Click the first menu button on the page
-        const $firstMenuBtn = $body.find('button').filter(':visible').filter((i, el) => {
-          const $el = Cypress.$(el);
-          return $el.find('svg').length > 0 && ($el.width() || 0) < 50;
-        }).first();
-        
-        if ($firstMenuBtn.length > 0) {
-          cy.wrap($firstMenuBtn).click({ force: true });
-        }
-        return;
-      }
-      
-      cy.log("✅ Found video title element");
-      
-      // Get the bounding rect of the title to find nearby buttons
-      const titleRect = $titleEl[0].getBoundingClientRect();
-      cy.log(`📍 Title position: top=${titleRect.top}, left=${titleRect.left}`);
-      
-      // Find all small buttons with SVG icons (menu buttons)
-      const $menuButtons = $body.find('button').filter(':visible').filter((i, el) => {
+    // STEP 2: Click directly on the three-dot menu button
+    // The menu button is a small button with vertical dots (⋮) typically positioned at top-right of video thumbnail
+    // We'll find it by looking for buttons that contain SVG and are small
+    
+    cy.log("📌 Looking for three-dot menu button...");
+    
+    // Find all buttons on the page, then filter for menu buttons
+    cy.get('button').then(($buttons) => {
+      // Filter for buttons that look like menu buttons (small, with SVG icon)
+      const menuButtons = $buttons.filter((i, el) => {
         const $el = Cypress.$(el);
         const hasSvg = $el.find('svg').length > 0;
-        const rect = el.getBoundingClientRect();
-        // Menu button should be small and have an SVG
-        const isSmall = rect.width < 60 && rect.height < 60;
-        return hasSvg && isSmall;
+        const width = $el.outerWidth() || 0;
+        const height = $el.outerHeight() || 0;
+        const isSmall = width < 50 && height < 50;
+        const text = $el.text().trim();
+        const hasNoText = text === '' || text.length < 3;
+        return hasSvg && isSmall && hasNoText;
       });
       
-      cy.log(`📌 Found ${$menuButtons.length} potential menu button(s)`);
+      cy.log(`📌 Found ${menuButtons.length} potential menu button(s)`);
       
-      if ($menuButtons.length === 0) {
-        cy.log("⚠️ No menu buttons found");
-        return;
-      }
-      
-      // Find the menu button that's closest to (and above) the title
-      // The menu button is in the thumbnail area, which is ABOVE the title
-      let closestBtn = null;
-      let closestDistance = Infinity;
-      
-      $menuButtons.each((i, btn) => {
-        const btnRect = btn.getBoundingClientRect();
-        
-        // Check if button is roughly in the same horizontal area as the title
-        // and is above the title (in the thumbnail area)
-        const horizontalOverlap = 
-          btnRect.left < titleRect.right + 100 && 
-          btnRect.right > titleRect.left - 100;
-        const isAboveTitle = btnRect.top < titleRect.top;
-        
-        if (horizontalOverlap && isAboveTitle) {
-          const distance = Math.abs(btnRect.left - titleRect.left) + Math.abs(btnRect.top - titleRect.top);
-          if (distance < closestDistance) {
-            closestDistance = distance;
-            closestBtn = btn;
-          }
-        }
-      });
-      
-      if (closestBtn) {
-        cy.log("✅ Found menu button above title, clicking...");
-        cy.wrap(closestBtn).click({ force: true });
+      if (menuButtons.length > 0) {
+        // Click on the FIRST menu button (which should be for the first video card)
+        cy.wrap(menuButtons.first()).click({ force: true });
       } else {
-        // Fallback: Just click the first menu button found
-        cy.log("⚠️ No button found above title, clicking first menu button");
-        cy.wrap($menuButtons.first()).click({ force: true });
+        // Fallback: Try to find any button with three dots pattern
+        cy.log("⚠️ Trying fallback - looking for any icon button");
+        const iconButtons = $buttons.filter((i, el) => {
+          const $el = Cypress.$(el);
+          return $el.find('svg').length > 0;
+        });
+        if (iconButtons.length > 0) {
+          cy.wrap(iconButtons.first()).click({ force: true });
+        }
       }
     });
 
-    humanWait(1500);
+    humanWait(2000);
+    
+    // Verify menu is open by checking if "Disable Video" or similar option is visible
+    cy.log("🔍 Checking if menu opened...");
+    cy.get('body').then(($body) => {
+      const menuVisible = $body.text().includes('Disable Video') || 
+                         $body.text().includes('Edit Video') ||
+                         $body.text().includes('See stats');
+      if (!menuVisible) {
+        cy.log("⚠️ Menu not visible, trying to click first video's menu button again");
+        // Try clicking by finding the first video card's menu
+        const $firstCard = $body.find('img').filter(':visible').first().parent().parent();
+        const $menuBtn = $firstCard.find('button').filter(':visible').first();
+        if ($menuBtn.length > 0) {
+          cy.wrap($menuBtn).click({ force: true });
+        }
+      }
+    });
+    
+    humanWait(1000);
     cy.log("✅ Menu should be opened");
 
     // ============================================
