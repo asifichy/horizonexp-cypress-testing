@@ -12,8 +12,9 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
   const editedVideoData = {
     title: "Edited Form Data",
     caption: "Edit done",
-    originalChannel: "DevOps",
-    newChannel: "Auto-channel-30", // Channel to switch to (not DevOps)
+    filterChannel: "Auto-channel-30", // Channel to filter by
+    originalChannel: "Auto-channel-30", // Current channel of the video
+    newChannel: "DevOps", // Channel to switch to
     additionalCategory: "Comedy", // Additional category to add
   };
 
@@ -178,18 +179,17 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     humanWait(2000);
 
     // ============================================
-    // STEP 2: Filter Videos by Channel (DevOps)
+    // STEP 2: Filter Videos by Channel and Timeline
     // ============================================
-    cy.log("🎬 STEP 2: Filter Videos by DevOps Channel");
+    cy.log("🎬 STEP 2: Filter Videos by Channel (Auto-channel-30) and Timeline (Most Popular)");
 
-    // Click on "All Channels" dropdown
+    // Step 2.1: Click on "All Channels" dropdown and select "Auto-channel-30"
     cy.log("🔽 Clicking on All Channels dropdown");
     cy.get("body").then(($body) => {
       const dropdownSelectors = [
         'button:contains("All Channels")',
         '*:contains("All Channels")',
         '[class*="select"]:contains("All Channels")',
-        '.ant-select:contains("All Channels")',
       ];
 
       let found = false;
@@ -218,9 +218,9 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     });
     humanWait(1500);
 
-    // Click on "DevOps" channel option
-    cy.log("📌 Selecting DevOps channel from dropdown");
-    cy.contains("div, button, li, .ant-select-item-option-content", editedVideoData.originalChannel, {
+    // Click on "Auto-channel-30" channel option
+    cy.log("📌 Selecting Auto-channel-30 from dropdown");
+    cy.contains("div, button, li, span", editedVideoData.filterChannel, {
       timeout: 10000,
     })
       .filter(":visible")
@@ -228,56 +228,107 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
       .click({ force: true });
 
     // Wait for filter to complete (2-3 seconds)
-    cy.log("⏳ Waiting for filter to complete...");
+    cy.log("⏳ Waiting for channel filter to complete...");
     humanWait(3000);
+    cy.log("✅ Channel filter applied - showing Auto-channel-30 videos");
 
-    cy.log("✅ Filter applied - showing DevOps channel videos");
+    // Step 2.2: Click on "Recent" dropdown and select "Most Popular"
+    cy.log("🔽 Clicking on Recent dropdown");
+    cy.get("body").then(($body) => {
+      const recentDropdownSelectors = [
+        'button:contains("Recent")',
+        '*:contains("Recent")',
+        '[class*="select"]:contains("Recent")',
+      ];
+
+      let found = false;
+      for (const selector of recentDropdownSelectors) {
+        if (found) break;
+        const $element = $body
+          .find(selector)
+          .filter((i, el) => {
+            const text = Cypress.$(el).text().trim();
+            return text === "Recent" || (text.includes("Recent") && !text.includes("Most"));
+          })
+          .filter(":visible")
+          .first();
+
+        if ($element.length > 0) {
+          cy.log(`✅ Found Recent dropdown: ${selector}`);
+          cy.wrap($element).scrollIntoView().click({ force: true });
+          found = true;
+        }
+      }
+
+      if (!found) {
+        // Fallback
+        cy.contains("Recent").should("be.visible").click({ force: true });
+      }
+    });
+    humanWait(1500);
+
+    // Click on "Most Popular" option
+    cy.log("📌 Selecting Most Popular from dropdown");
+    cy.contains("div, button, li, span", "Most Popular", {
+      timeout: 10000,
+    })
+      .filter(":visible")
+      .first()
+      .click({ force: true });
+
+    // Wait for filter to complete (2-3 seconds)
+    cy.log("⏳ Waiting for timeline filter to complete...");
+    humanWait(3000);
+    cy.log("✅ Timeline filter applied - showing Most Popular videos");
 
     // ============================================
     // STEP 3: Click on Video to Open Edit Form
     // ============================================
     cy.log("🎬 STEP 3: Click on Video to Open Edit Form");
 
-    // Find and click on a video from DevOps channel
+    // Find and click on a video thumbnail to open edit form
+    // Based on screenshot, videos are displayed with thumbnails and titles below
     cy.get("body").then(($body) => {
-      // Look for video cards that have DevOps channel
-      const videoCardSelectors = [
-        '[class*="ant-card"]',
-        '.ant-list-item',
-        '[class*="video-card"]',
-        '[class*="card"]',
+      // Look for video thumbnails/images which are clickable
+      const videoSelectors = [
+        'img[class*="object-cover"]', // Video thumbnails
+        '[class*="relative"] img', // Images in relative containers (video cards)
+        'a img', // Images within anchor tags
+        '[class*="rounded"] img', // Rounded image containers
       ];
 
       let clicked = false;
-      for (const selector of videoCardSelectors) {
+      for (const selector of videoSelectors) {
         if (clicked) break;
-        const $cards = $body
-          .find(selector)
-          .filter(":visible")
-          .filter((i, el) => {
-            const text = Cypress.$(el).text();
-            return text.includes(editedVideoData.originalChannel);
-          });
+        const $videos = $body.find(selector).filter(":visible");
 
-        if ($cards.length > 0) {
-          cy.log(`✅ Found video card with DevOps channel`);
-          // Click on the video thumbnail or title area to open edit form
-          const $clickTarget = $cards.first().find('img, [class*="thumbnail"], a').first();
-          if ($clickTarget.length > 0) {
-            cy.wrap($clickTarget).scrollIntoView().click({ force: true });
-          } else {
-            cy.wrap($cards.first()).scrollIntoView().click({ force: true });
-          }
+        if ($videos.length > 0) {
+          cy.log(`✅ Found video thumbnail using selector: ${selector}`);
+          cy.wrap($videos.first()).scrollIntoView().click({ force: true });
           clicked = true;
         }
       }
 
       if (!clicked) {
-        // Fallback: Click on first visible video that contains DevOps
-        cy.contains(editedVideoData.originalChannel)
-          .closest('[class*="card"], .ant-list-item, [class*="video"]')
-          .first()
-          .click({ force: true });
+        // Fallback: Click on first visible element that looks like a video card
+        // Look for the channel name text and click its parent container
+        cy.log("⚠️ Using fallback - clicking on video container");
+        const $channelElements = $body
+          .find(`*:contains("${editedVideoData.filterChannel}")`)
+          .filter(":visible")
+          .filter((i, el) => {
+            const text = Cypress.$(el).text().trim();
+            return text === editedVideoData.filterChannel;
+          });
+
+        if ($channelElements.length > 0) {
+          // Find the parent container that contains the video
+          const $videoContainer = $channelElements.first().parent().parent();
+          cy.wrap($videoContainer).find("img").first().click({ force: true });
+        } else {
+          // Last resort: Click first image on page that's likely a video thumbnail
+          cy.get("img").filter(":visible").first().click({ force: true });
+        }
       }
     });
 
@@ -294,38 +345,35 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 4: Edit Video Data");
 
-    // 4.1 Change Channel (from DevOps to another channel)
-    cy.log("📝 4.1: Changing channel from DevOps to " + editedVideoData.newChannel);
+    // 4.1 Change Channel (from Auto-channel-30 to DevOps)
+    cy.log("📝 4.1: Changing channel from " + editedVideoData.originalChannel + " to " + editedVideoData.newChannel);
     
-    // Click on Channel dropdown
-    cy.get("body").then(($body) => {
-      const $channelDropdown = $body
-        .find('.ant-select, [class*="select"]')
-        .filter((i, el) => {
-          const text = Cypress.$(el).text();
-          return text.includes(editedVideoData.originalChannel) || text.includes("Select Channel");
-        })
-        .filter(":visible")
-        .first();
-
-      if ($channelDropdown.length > 0) {
-        cy.wrap($channelDropdown).click({ force: true });
-      } else {
-        // Fallback: Find by label
-        cy.contains("label, span", "Select Channel", { matchCase: false })
-          .parent()
-          .find('.ant-select, [role="combobox"]')
-          .first()
-          .click({ force: true });
-      }
-    });
+    // Click on Channel dropdown - find the Select Channel dropdown
+    cy.contains("label, span", "Select Channel", { matchCase: false, timeout: 10000 })
+      .should("be.visible")
+      .then(($label) => {
+        // Find the dropdown near the label
+        const $parent = $label.parent();
+        const $dropdown = $parent.find('button, [role="combobox"], [class*="select"]').filter(":visible");
+        
+        if ($dropdown.length > 0) {
+          cy.wrap($dropdown.first()).click({ force: true });
+        } else {
+          // Try clicking on the container that shows the current channel
+          cy.wrap($label).parent().find('*:contains("' + editedVideoData.originalChannel + '")').first().click({ force: true });
+        }
+      });
     humanWait(1000);
 
-    // Select the new channel
-    cy.contains("div, li, .ant-select-item-option-content", editedVideoData.newChannel, {
+    // Select the new channel (DevOps)
+    cy.contains("div, li, span", editedVideoData.newChannel, {
       timeout: 10000,
     })
       .filter(":visible")
+      .filter((i, el) => {
+        const text = Cypress.$(el).text().trim();
+        return text === editedVideoData.newChannel;
+      })
       .first()
       .click({ force: true });
     humanWait(1500);
@@ -335,33 +383,23 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.log("📝 4.2: Adding additional category - " + editedVideoData.additionalCategory);
     
     // Click on Category dropdown
-    cy.get("body").then(($body) => {
-      const $categoryDropdown = $body
-        .find('.ant-select, [class*="select"]')
-        .filter((i, el) => {
-          const $el = Cypress.$(el);
-          const text = $el.text();
-          const placeholder = $el.find('input').attr('placeholder') || '';
-          return text.includes("Category") || placeholder.includes("Category") || 
-                 $el.closest('[class*="category"]').length > 0;
-        })
-        .filter(":visible");
-
-      // Find the category dropdown (usually the second select or one with Category label)
-      if ($categoryDropdown.length > 0) {
-        cy.wrap($categoryDropdown.last()).click({ force: true });
-      } else {
-        cy.contains("label, span", "Category", { matchCase: false })
-          .parent()
-          .find('.ant-select, [role="combobox"]')
-          .first()
-          .click({ force: true });
-      }
-    });
+    cy.contains("label, span", "Category", { matchCase: false, timeout: 10000 })
+      .should("be.visible")
+      .then(($label) => {
+        const $parent = $label.parent();
+        const $dropdown = $parent.find('button, [role="combobox"], [class*="select"]').filter(":visible");
+        
+        if ($dropdown.length > 0) {
+          cy.wrap($dropdown.first()).click({ force: true });
+        } else {
+          // Try clicking near the label
+          cy.wrap($label).next().click({ force: true });
+        }
+      });
     humanWait(1000);
 
-    // Select additional category
-    cy.contains("div, li, .ant-select-item-option-content", editedVideoData.additionalCategory, {
+    // Select additional category (Comedy)
+    cy.contains("div, li, span", editedVideoData.additionalCategory, {
       timeout: 10000,
     })
       .filter(":visible")
@@ -387,7 +425,7 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
 
     // 4.4 Change Caption to 'Edit done'
     cy.log("📝 4.4: Changing caption to '" + editedVideoData.caption + "'");
-    cy.get('textarea[name="caption"], textarea[placeholder*="caption"], textarea[placeholder*="Caption"]')
+    cy.get('textarea[name="caption"], textarea[placeholder*="caption"], textarea[placeholder*="Caption"], textarea')
       .filter(":visible")
       .first()
       .should("be.visible")
@@ -401,27 +439,9 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 5: Click Update Button");
     
-    cy.get("body").then(($body) => {
-      const updateButtonSelectors = [
-        'button:contains("Update")',
-        'button[type="submit"]:contains("Update")',
-        '[class*="btn"]:contains("Update")',
-      ];
-
-      let clicked = false;
-      for (const selector of updateButtonSelectors) {
-        if (clicked) break;
-        const $button = $body.find(selector).filter(":visible");
-        if ($button.length > 0) {
-          cy.wrap($button.first()).scrollIntoView().click({ force: true });
-          clicked = true;
-        }
-      }
-
-      if (!clicked) {
-        cy.contains("button", "Update").should("be.visible").click({ force: true });
-      }
-    });
+    cy.contains("button", "Update", { timeout: 10000 })
+      .should("be.visible")
+      .click({ force: true });
 
     cy.log("✅ Update button clicked");
 
@@ -436,75 +456,72 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 7: Click on Menu Button");
 
-    // First, navigate back to library to find the video card with menu
-    cy.log("📚 Navigating back to Library to access video menu");
-    navigateToLibrary();
-    humanWait(2000);
+    // After update, we should still be on the same page or redirected
+    // We need to find the menu button on the video card
+    // First, navigate back to library if needed
+    cy.url().then((currentUrl) => {
+      if (!currentUrl.includes("/library")) {
+        cy.log("📚 Navigating back to Library to access video menu");
+        navigateToLibrary();
+        humanWait(2000);
 
-    // Filter by the new channel to find the edited video
-    cy.log("🔽 Clicking on All Channels dropdown to filter");
-    cy.contains("All Channels").should("be.visible").click({ force: true });
-    humanWait(1000);
+        // Filter by the new channel to find the edited video
+        cy.log("🔽 Clicking on All Channels dropdown to filter");
+        cy.contains("All Channels", { timeout: 10000 }).should("be.visible").click({ force: true });
+        humanWait(1000);
 
-    // Select the channel where video was moved to
-    cy.contains("div, button, li, .ant-select-item-option-content", editedVideoData.newChannel, {
-      timeout: 10000,
-    })
-      .filter(":visible")
-      .first()
-      .click({ force: true });
-    humanWait(3000);
-
-    // Find the video card with edited title and click its menu button
-    cy.log("🔍 Finding video card with title: " + editedVideoData.title);
-    
-    cy.get("body").then(($body) => {
-      // Find the video card containing the edited title
-      const $videoCard = $body
-        .find('[class*="card"], .ant-list-item, [class*="video"]')
-        .filter((i, el) => {
-          const text = Cypress.$(el).text();
-          return text.includes(editedVideoData.title);
+        // Select the channel where video was moved to (DevOps)
+        cy.contains("div, button, li, span", editedVideoData.newChannel, {
+          timeout: 10000,
         })
-        .filter(":visible")
-        .first();
+          .filter(":visible")
+          .first()
+          .click({ force: true });
+        humanWait(3000);
+      }
+    });
 
-      if ($videoCard.length > 0) {
-        // Find and click the menu button (usually a three-dot/ellipsis icon)
-        const menuButtonSelectors = [
-          'button[aria-label*="more"]',
-          'button[aria-haspopup="menu"]',
-          '[data-testid*="menu"]',
-          'button:has(svg)',
-          '[class*="menu-trigger"]',
-          '[class*="dropdown-trigger"]',
-        ];
+    // Find the video card with edited title and click its menu button (three dots)
+    cy.log("🔍 Finding menu button for video: " + editedVideoData.title);
+    
+    // The menu button is typically a three-dot icon in the top-right of the video card
+    cy.get("body").then(($body) => {
+      // First try to find the edited video by title
+      const $videoTitles = $body
+        .find('*')
+        .filter((i, el) => {
+          const text = Cypress.$(el).text().trim();
+          return text === editedVideoData.title;
+        })
+        .filter(":visible");
 
-        let menuFound = false;
-        for (const selector of menuButtonSelectors) {
-          if (menuFound) break;
-          const $menuBtn = $videoCard.find(selector).filter(":visible");
-          if ($menuBtn.length > 0) {
-            cy.wrap($menuBtn.first()).click({ force: true });
-            menuFound = true;
-          }
-        }
-
-        if (!menuFound) {
-          // Fallback: Find any button within the card that might be the menu
-          const $buttons = $videoCard.find("button").filter(":visible");
-          if ($buttons.length > 0) {
-            // Usually the menu button is the last button or one with just an icon
-            cy.wrap($buttons.last()).click({ force: true });
-          }
+      if ($videoTitles.length > 0) {
+        cy.log("✅ Found video with edited title");
+        // Navigate up to find the video card container and then find the menu button
+        const $videoContainer = $videoTitles.first().parent().parent();
+        const $menuBtn = $videoContainer.find('button, [role="button"]').filter(':visible');
+        
+        if ($menuBtn.length > 0) {
+          cy.wrap($menuBtn.first()).click({ force: true });
+        } else {
+          // Try finding menu button by looking for three-dot icon
+          cy.wrap($videoContainer).find('svg').parent('button').first().click({ force: true });
         }
       } else {
-        // Fallback: Find menu button near the title
-        cy.contains(editedVideoData.title)
-          .closest('[class*="card"], .ant-list-item')
+        // Fallback: Look for any three-dot menu button on visible video cards
+        cy.log("⚠️ Video title not found, using fallback to find menu button");
+        const $menuButtons = $body
           .find('button')
-          .last()
-          .click({ force: true });
+          .filter(':visible')
+          .filter((i, el) => {
+            const $el = Cypress.$(el);
+            // Menu buttons usually have SVG icons and are small
+            return $el.find('svg').length > 0 && $el.width() < 50;
+          });
+
+        if ($menuButtons.length > 0) {
+          cy.wrap($menuButtons.first()).click({ force: true });
+        }
       }
     });
 
@@ -516,26 +533,10 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 8: Click on Disable Video");
 
-    cy.get("body").then(($body) => {
-      const $menu = $body.find('[role="menu"], .ant-dropdown-menu, .ant-menu').filter(":visible");
-      
-      if ($menu.length > 0) {
-        const $disableOption = $menu
-          .find('li, button, a, span, div, [role="menuitem"]')
-          .filter((i, el) => {
-            const text = Cypress.$(el).text().trim().toLowerCase();
-            return text.includes("disable video") || text.includes("disable");
-          });
-
-        if ($disableOption.length > 0) {
-          cy.wrap($disableOption.first()).click({ force: true });
-        } else {
-          cy.contains("Disable Video", { matchCase: false }).click({ force: true });
-        }
-      } else {
-        cy.contains("Disable Video", { matchCase: false }).should("be.visible").click({ force: true });
-      }
-    });
+    // Wait for menu to be visible and click Disable Video option
+    cy.contains("Disable Video", { matchCase: false, timeout: 10000 })
+      .should("be.visible")
+      .click({ force: true });
 
     cy.log("✅ Disable Video clicked");
 
@@ -576,6 +577,7 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
 
     cy.log("🎉 Test completed successfully!");
     cy.log("📊 Summary of changes made:");
+    cy.log(`   - Filter Channel: ${editedVideoData.filterChannel}`);
     cy.log(`   - Original Channel: ${editedVideoData.originalChannel}`);
     cy.log(`   - New Channel: ${editedVideoData.newChannel}`);
     cy.log(`   - Added Category: ${editedVideoData.additionalCategory}`);
@@ -584,4 +586,3 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.log(`   - Video Status: Disabled`);
   });
 });
-
