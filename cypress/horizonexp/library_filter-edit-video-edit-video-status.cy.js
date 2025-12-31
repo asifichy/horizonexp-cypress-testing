@@ -477,71 +477,87 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.log("✅ Update button clicked");
 
     // ============================================
-    // STEP 6: Wait 1-2 seconds
+    // STEP 6: Wait and Close Edit Form
     // ============================================
     cy.log("⏳ Waiting for update to complete...");
     humanWait(2000);
 
-    // ============================================
-    // STEP 7: Click on Menu Button (Three Dots)
-    // ============================================
-    cy.log("🎬 STEP 7: Click on Menu Button");
+    // Close the edit form by clicking the X button
+    cy.log("❌ Closing edit form");
+    cy.get('button').filter(':visible').filter((i, el) => {
+      const $el = Cypress.$(el);
+      // Look for close button (X) - usually has an X icon or is near Edit Details
+      const hasSvg = $el.find('svg').length > 0;
+      const isSmall = ($el.width() || 0) < 60;
+      const text = $el.text().trim();
+      return hasSvg && isSmall && text === '';
+    }).first().click({ force: true });
+    
+    humanWait(2000);
 
-    // After update, we should still be on the same page or redirected
-    // We need to find the menu button on the video card
-    // First, navigate back to library if needed
+    // ============================================
+    // STEP 7: Navigate to Library and Find Video Menu
+    // ============================================
+    cy.log("🎬 STEP 7: Navigate to Library and Click Menu Button");
+
+    // Navigate to library page
     cy.url().then((currentUrl) => {
-      if (!currentUrl.includes("/library")) {
-        cy.log("📚 Navigating back to Library to access video menu");
-        navigateToLibrary();
-        humanWait(2000);
-
-        // Filter by the new channel to find the edited video
-        cy.log("🔽 Clicking on All Channels dropdown to filter");
-        cy.contains("All Channels", { timeout: 10000 }).should("be.visible").click({ force: true });
-        humanWait(1000);
-
-        // Select the channel where video was moved to (DevOps)
-        cy.contains("div, button, li, span", editedVideoData.newChannel, {
-          timeout: 10000,
-        })
-          .filter(":visible")
-          .first()
-          .click({ force: true });
+      if (!currentUrl.includes("/library") || currentUrl.includes("/edit")) {
+        cy.log("📚 Navigating to Library page");
+        cy.visit("https://app.horizonexp.com/shorts/library");
         humanWait(3000);
       }
     });
 
-    // Find the video card with edited title and click its menu button (three dots)
-    cy.log("🔍 Finding video with title: " + editedVideoData.title);
+    // Wait for library page to load
+    cy.contains("Shorts Library", { timeout: 10000 }).should("be.visible");
+    humanWait(2000);
+
+    // Find the video with edited title and click its THREE-DOT MENU BUTTON
+    cy.log("🔍 Finding video: " + editedVideoData.title + " and clicking menu icon");
     
-    // First, find the video title element
-    cy.contains("p, span, a, h3, h4", editedVideoData.title, { timeout: 10000 })
+    // Strategy: Find the title text, then find the menu button in the same video card
+    // The menu button (three dots) is in the TOP-RIGHT of the video THUMBNAIL
+    cy.contains("p, span, h3, h4", editedVideoData.title, { timeout: 10000 })
       .should("be.visible")
       .then(($title) => {
-        cy.log("✅ Found video with edited title: " + editedVideoData.title);
+        cy.log("✅ Found video title: " + editedVideoData.title);
         
-        // Navigate up to find the video card container
-        // The structure is typically: video card > title container > title text
-        const $videoCard = $title.closest('div').parent().parent().parent();
+        // The video card structure:
+        // - Thumbnail container with menu button at top-right
+        // - Below that: title text
+        // - Below that: channel name
         
-        // Find the menu button (three dots) within or near the video card
-        // Menu buttons usually have SVG icons and are positioned at top-right
-        const $menuBtn = $videoCard.find('button').filter(':visible').filter((i, el) => {
+        // Navigate up to find the entire video card
+        // We need to go up several levels to find the card that contains both thumbnail and title
+        let $card = $title.parent();
+        
+        // Keep going up until we find a container that has an img (thumbnail)
+        for (let i = 0; i < 5; i++) {
+          if ($card.find('img').length > 0) {
+            break;
+          }
+          $card = $card.parent();
+        }
+        
+        cy.log("📦 Found video card container");
+        
+        // Find ALL buttons in this card that have SVG (icon buttons)
+        const $buttons = $card.find('button').filter(':visible').filter((i, el) => {
           const $el = Cypress.$(el);
-          // Menu buttons usually have SVG icons
           return $el.find('svg').length > 0;
         });
-
-        if ($menuBtn.length > 0) {
-          cy.log("📌 Clicking menu button on video card");
-          cy.wrap($menuBtn.first()).click({ force: true });
+        
+        cy.log(`📌 Found ${$buttons.length} button(s) with icons in card`);
+        
+        if ($buttons.length > 0) {
+          // The menu button should be one of these - click the first one
+          cy.wrap($buttons.first()).click({ force: true });
         } else {
-          // Fallback: Try to find any button near the title
-          cy.log("⚠️ Menu button not found in card, trying alternative approach");
-          const $parentButtons = $title.parent().parent().parent().find('button').filter(':visible');
-          if ($parentButtons.length > 0) {
-            cy.wrap($parentButtons.last()).click({ force: true });
+          // Fallback: Find any button in the card
+          const $anyBtn = $card.find('button').filter(':visible');
+          if ($anyBtn.length > 0) {
+            cy.wrap($anyBtn.first()).click({ force: true });
           }
         }
       });
@@ -554,14 +570,14 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 8: Click on Disable Video");
 
-    // Wait for menu to be visible and click Disable Video option
+    // Wait for dropdown menu to appear and click Disable Video
     cy.contains("Disable Video", { timeout: 10000 })
       .should("be.visible")
       .click({ force: true });
 
     cy.log("✅ Disable Video clicked");
 
-    // Wait for confirmation popup
+    // Wait for confirmation popup to appear
     humanWait(1500);
 
     // ============================================
