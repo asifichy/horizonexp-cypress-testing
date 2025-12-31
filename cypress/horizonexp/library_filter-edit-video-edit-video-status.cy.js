@@ -593,10 +593,38 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // ============================================
     cy.log("🎬 STEP 8: Click on Disable Video");
 
-    // Wait for dropdown menu to appear and click Disable Video
-    cy.contains("Disable Video", { timeout: 10000 })
-      .should("be.visible")
-      .click({ force: true });
+    const clickDisableOption = () => {
+      cy.get("body").then(($body) => {
+        const $visibleMenus = $body
+          .find('[role="menu"], .ant-dropdown-menu, .ant-dropdown, .ant-menu')
+          .filter(":visible");
+
+        if ($visibleMenus.length > 0) {
+          cy.log(`📋 Found ${$visibleMenus.length} visible menu container(s)`);
+          const $disableOption = $visibleMenus
+            .find("li, button, a, span, div")
+            .filter((i, el) =>
+              /disable\s+video/i.test(Cypress.$(el).text().trim())
+            )
+            .filter(":visible");
+
+          if ($disableOption.length > 0) {
+            cy.log("✅ Found 'Disable Video' option inside menu");
+            cy.wrap($disableOption.first()).click({ force: true });
+            return;
+          }
+        }
+
+        cy.log(
+          "⚠️ Menu container not found or option missing, using global search for 'Disable Video'"
+        );
+        cy.contains("*", "Disable Video", { matchCase: false, timeout: 10000 })
+          .should("be.visible")
+          .click({ force: true });
+      });
+    };
+
+    clickDisableOption();
 
     cy.log("✅ Disable Video clicked");
 
