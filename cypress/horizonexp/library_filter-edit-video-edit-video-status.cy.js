@@ -519,39 +519,39 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.contains(editedVideoData.title)
       .should("be.visible")
       .then(($title) => {
-        // Navigate up to find the video card container
-        let $container = $title.parent();
-        for (let i = 0; i < 10; i++) {
-          if ($container.find('img').length > 0) {
-            break;
-          }
-          $container = $container.parent();
+        cy.log("📌 Title element located, searching for video card wrapper...");
+
+        const $card = $title
+          .closest("a")
+          .parent()
+          .parent()
+          .parent();
+
+        if (!$card || $card.length === 0) {
+          throw new Error("Unable to locate video card for menu interaction");
         }
-        
-        cy.log("📦 Found video card container, hovering...");
-        
-        // Hover over the card to ensure menu button appears
-        cy.wrap($container).trigger('mouseover', { force: true });
+
+        cy.wrap($card).trigger("mouseover", { force: true });
         humanWait(500);
-        
-        // Find the menu button (three dots)
-        // It's typically absolutely positioned in the top-right
-        const $menuBtn = $container.find('button').filter((i, el) => {
-          const $el = Cypress.$(el);
-          const hasSvg = $el.find('svg').length > 0;
-          // Menu button is small and usually has absolute positioning or is in top-right
-          return hasSvg && ($el.width() || 0) < 50;
-        });
-        
+
+        cy.log("📌 Looking for menu button inside this card");
+
+        const $buttons = $card.find("button").filter(":visible");
+
+        if (!$buttons || $buttons.length === 0) {
+          throw new Error("No buttons available inside video card");
+        }
+
+        const $menuBtn = $buttons
+          .filter((i, el) => Cypress.$(el).find("svg").length > 0)
+          .last();
+
         if ($menuBtn.length > 0) {
-          cy.log("✅ Found menu button, clicking...");
-          // Force click because it might be hidden until hover
-          cy.wrap($menuBtn.first()).click({ force: true });
+          cy.log("✅ Clicking menu button located inside card");
+          cy.wrap($menuBtn[0]).click({ force: true });
         } else {
-          // Fallback: Click top-right area of the thumbnail image
-          cy.log("⚠️ Menu button not found, clicking top-right of thumbnail");
-          const $img = $container.find('img').first();
-          cy.wrap($img).click('topRight', { force: true });
+          cy.log("⚠️ SVG-based menu button not found, clicking last visible button in card");
+          cy.wrap($buttons.last()[0]).click({ force: true });
         }
       });
 
