@@ -513,51 +513,41 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     });
 
     // Find the video card with edited title and click its menu button (three dots)
-    cy.log("🔍 Finding menu button for video: " + editedVideoData.title);
+    cy.log("🔍 Finding video with title: " + editedVideoData.title);
     
-    // The menu button is typically a three-dot icon in the top-right of the video card
-    cy.get("body").then(($body) => {
-      // First try to find the edited video by title
-      const $videoTitles = $body
-        .find('*')
-        .filter((i, el) => {
-          const text = Cypress.$(el).text().trim();
-          return text === editedVideoData.title;
-        })
-        .filter(":visible");
-
-      if ($videoTitles.length > 0) {
-        cy.log("✅ Found video with edited title");
-        // Navigate up to find the video card container and then find the menu button
-        const $videoContainer = $videoTitles.first().parent().parent();
-        const $menuBtn = $videoContainer.find('button, [role="button"]').filter(':visible');
+    // First, find the video title element
+    cy.contains("p, span, a, h3, h4", editedVideoData.title, { timeout: 10000 })
+      .should("be.visible")
+      .then(($title) => {
+        cy.log("✅ Found video with edited title: " + editedVideoData.title);
         
+        // Navigate up to find the video card container
+        // The structure is typically: video card > title container > title text
+        const $videoCard = $title.closest('div').parent().parent().parent();
+        
+        // Find the menu button (three dots) within or near the video card
+        // Menu buttons usually have SVG icons and are positioned at top-right
+        const $menuBtn = $videoCard.find('button').filter(':visible').filter((i, el) => {
+          const $el = Cypress.$(el);
+          // Menu buttons usually have SVG icons
+          return $el.find('svg').length > 0;
+        });
+
         if ($menuBtn.length > 0) {
+          cy.log("📌 Clicking menu button on video card");
           cy.wrap($menuBtn.first()).click({ force: true });
         } else {
-          // Try finding menu button by looking for three-dot icon
-          cy.wrap($videoContainer).find('svg').parent('button').first().click({ force: true });
+          // Fallback: Try to find any button near the title
+          cy.log("⚠️ Menu button not found in card, trying alternative approach");
+          const $parentButtons = $title.parent().parent().parent().find('button').filter(':visible');
+          if ($parentButtons.length > 0) {
+            cy.wrap($parentButtons.last()).click({ force: true });
+          }
         }
-      } else {
-        // Fallback: Look for any three-dot menu button on visible video cards
-        cy.log("⚠️ Video title not found, using fallback to find menu button");
-        const $menuButtons = $body
-          .find('button')
-          .filter(':visible')
-          .filter((i, el) => {
-            const $el = Cypress.$(el);
-            // Menu buttons usually have SVG icons and are small
-            return $el.find('svg').length > 0 && $el.width() < 50;
-          });
+      });
 
-        if ($menuButtons.length > 0) {
-          cy.wrap($menuButtons.first()).click({ force: true });
-        }
-      }
-    });
-
-    humanWait(1000);
-    cy.log("✅ Menu opened");
+    humanWait(1500);
+    cy.log("✅ Menu should be opened");
 
     // ============================================
     // STEP 8: Click on 'Disable Video'
@@ -565,46 +555,50 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     cy.log("🎬 STEP 8: Click on Disable Video");
 
     // Wait for menu to be visible and click Disable Video option
-    cy.contains("Disable Video", { matchCase: false, timeout: 10000 })
+    cy.contains("Disable Video", { timeout: 10000 })
       .should("be.visible")
       .click({ force: true });
 
     cy.log("✅ Disable Video clicked");
 
-    // Wait 1-2 seconds
-    humanWait(2000);
-
-    // Handle confirmation dialog if present
-    cy.get("body").then(($body) => {
-      const confirmTexts = ["Yes, disable", "Confirm", "Yes", "OK"];
-      for (const text of confirmTexts) {
-        const $confirmBtn = $body.find(`button:contains("${text}")`).filter(":visible");
-        if ($confirmBtn.length > 0) {
-          cy.log(`📌 Clicking confirmation button: ${text}`);
-          cy.wrap($confirmBtn.first()).click({ force: true });
-          break;
-        }
-      }
-    });
-
-    humanWait(2000);
-    cy.log("✅ Video disabled");
+    // Wait for confirmation popup
+    humanWait(1500);
 
     // ============================================
-    // STEP 9: Hard Refresh
+    // STEP 9: Click 'Yes, disable' in Confirmation Popup
     // ============================================
-    cy.log("🎬 STEP 9: Performing Hard Refresh");
+    cy.log("🎬 STEP 9: Clicking 'Yes, disable' in confirmation popup");
+
+    // Click on "Yes, disable" button in the confirmation popup
+    cy.contains("button", "Yes, disable", { timeout: 10000 })
+      .should("be.visible")
+      .click({ force: true });
+
+    cy.log("✅ Confirmed video disable");
+
+    // Wait 2 seconds in Library after disabling
+    humanWait(2000);
+    cy.log("✅ Video disabled successfully");
+
+    // ============================================
+    // STEP 10: Hard Refresh
+    // ============================================
+    cy.log("🎬 STEP 10: Performing Hard Refresh");
     cy.reload(true); // true = hard refresh (force reload from server)
     humanWait(3000);
-    cy.log("✅ First hard refresh completed");
+    cy.log("✅ Hard refresh completed");
 
     // ============================================
-    // STEP 10: Final Hard Refresh Before Stopping
+    // STEP 11: Final Hard Refresh and Wait Before Ending
     // ============================================
-    cy.log("🎬 STEP 10: Final Hard Refresh Before Test Completion");
+    cy.log("🎬 STEP 11: Final Hard Refresh Before Test Completion");
     cy.reload(true);
-    humanWait(3000);
+    humanWait(2000);
     cy.log("✅ Final hard refresh completed");
+
+    // Wait extra 2 seconds in Library before ending
+    cy.log("⏳ Waiting 2 seconds in Library before ending test...");
+    humanWait(2000);
 
     cy.log("🎉 Test completed successfully!");
     cy.log("📊 Summary of changes made:");
