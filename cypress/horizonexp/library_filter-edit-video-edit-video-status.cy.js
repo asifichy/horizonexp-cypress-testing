@@ -516,51 +516,85 @@ describe("Library Filter, Edit Video Details and Disable Video", () => {
     // Find the video with edited title and click its THREE-DOT MENU BUTTON
     cy.log("🔍 Finding video: " + editedVideoData.title + " and clicking menu icon");
     
-    // Strategy: Find the title text, then find the menu button in the same video card
-    // The menu button (three dots) is in the TOP-RIGHT of the video THUMBNAIL
-    cy.contains("p, span, h3, h4", editedVideoData.title, { timeout: 10000 })
-      .should("be.visible")
-      .then(($title) => {
-        cy.log("✅ Found video title: " + editedVideoData.title);
-        
-        // The video card structure:
-        // - Thumbnail container with menu button at top-right
-        // - Below that: title text
-        // - Below that: channel name
-        
-        // Navigate up to find the entire video card
-        // We need to go up several levels to find the card that contains both thumbnail and title
-        let $card = $title.parent();
-        
-        // Keep going up until we find a container that has an img (thumbnail)
-        for (let i = 0; i < 5; i++) {
-          if ($card.find('img').length > 0) {
-            break;
-          }
-          $card = $card.parent();
-        }
-        
-        cy.log("📦 Found video card container");
-        
-        // Find ALL buttons in this card that have SVG (icon buttons)
-        const $buttons = $card.find('button').filter(':visible').filter((i, el) => {
+    // APPROACH: Find the title, then find the closest parent that contains both img and button
+    // The three-dot menu is typically a button with SVG in the video card
+    
+    cy.get("body").then(($body) => {
+      // Find the title element
+      const $titleEl = $body.find(`p:contains("${editedVideoData.title}"), span:contains("${editedVideoData.title}")`).filter(':visible').filter((i, el) => {
+        return Cypress.$(el).text().trim() === editedVideoData.title;
+      }).first();
+      
+      if ($titleEl.length === 0) {
+        cy.log("⚠️ Title not found, trying alternative approach");
+        // Fallback: Click the first menu button on the page
+        const $firstMenuBtn = $body.find('button').filter(':visible').filter((i, el) => {
           const $el = Cypress.$(el);
-          return $el.find('svg').length > 0;
-        });
+          return $el.find('svg').length > 0 && ($el.width() || 0) < 50;
+        }).first();
         
-        cy.log(`📌 Found ${$buttons.length} button(s) with icons in card`);
+        if ($firstMenuBtn.length > 0) {
+          cy.wrap($firstMenuBtn).click({ force: true });
+        }
+        return;
+      }
+      
+      cy.log("✅ Found video title element");
+      
+      // Get the bounding rect of the title to find nearby buttons
+      const titleRect = $titleEl[0].getBoundingClientRect();
+      cy.log(`📍 Title position: top=${titleRect.top}, left=${titleRect.left}`);
+      
+      // Find all small buttons with SVG icons (menu buttons)
+      const $menuButtons = $body.find('button').filter(':visible').filter((i, el) => {
+        const $el = Cypress.$(el);
+        const hasSvg = $el.find('svg').length > 0;
+        const rect = el.getBoundingClientRect();
+        // Menu button should be small and have an SVG
+        const isSmall = rect.width < 60 && rect.height < 60;
+        return hasSvg && isSmall;
+      });
+      
+      cy.log(`📌 Found ${$menuButtons.length} potential menu button(s)`);
+      
+      if ($menuButtons.length === 0) {
+        cy.log("⚠️ No menu buttons found");
+        return;
+      }
+      
+      // Find the menu button that's closest to (and above) the title
+      // The menu button is in the thumbnail area, which is ABOVE the title
+      let closestBtn = null;
+      let closestDistance = Infinity;
+      
+      $menuButtons.each((i, btn) => {
+        const btnRect = btn.getBoundingClientRect();
         
-        if ($buttons.length > 0) {
-          // The menu button should be one of these - click the first one
-          cy.wrap($buttons.first()).click({ force: true });
-        } else {
-          // Fallback: Find any button in the card
-          const $anyBtn = $card.find('button').filter(':visible');
-          if ($anyBtn.length > 0) {
-            cy.wrap($anyBtn.first()).click({ force: true });
+        // Check if button is roughly in the same horizontal area as the title
+        // and is above the title (in the thumbnail area)
+        const horizontalOverlap = 
+          btnRect.left < titleRect.right + 100 && 
+          btnRect.right > titleRect.left - 100;
+        const isAboveTitle = btnRect.top < titleRect.top;
+        
+        if (horizontalOverlap && isAboveTitle) {
+          const distance = Math.abs(btnRect.left - titleRect.left) + Math.abs(btnRect.top - titleRect.top);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestBtn = btn;
           }
         }
       });
+      
+      if (closestBtn) {
+        cy.log("✅ Found menu button above title, clicking...");
+        cy.wrap(closestBtn).click({ force: true });
+      } else {
+        // Fallback: Just click the first menu button found
+        cy.log("⚠️ No button found above title, clicking first menu button");
+        cy.wrap($menuButtons.first()).click({ force: true });
+      }
+    });
 
     humanWait(1500);
     cy.log("✅ Menu should be opened");
