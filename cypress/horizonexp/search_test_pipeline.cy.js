@@ -95,7 +95,7 @@ before(() => {
   cy.get('button[type="submit"]').should('be.visible').click({ force: true });
 
   // wait for dashboard / any app path
-  cy.url({ timeout: 20000 }).should('include', '/app').then(() => humanWait(2000));
+  cy.url({ timeout: 20000 }).should('include', '/shorts/').then(() => humanWait(2000));
 });
 
 describe('Dashboard navigation & filtering smoke test', () => {
