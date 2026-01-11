@@ -91,8 +91,8 @@ before(() => {
     .type('lzh54u7p');
   humanWait(600);
 
-  // submit
-  cy.get('button[type="submit"], button:contains("Login"), button:contains("Sign in")').first().click({ force: true });
+  // submit - prioritize type="submit" to avoid "Sign in with Google" button
+  cy.get('button[type="submit"]').should('be.visible').click({ force: true });
 
   // wait for dashboard / any app path
   cy.url({ timeout: 20000 }).should('include', '/app').then(() => humanWait(2000));
